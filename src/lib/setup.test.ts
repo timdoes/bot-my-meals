@@ -25,9 +25,9 @@ describe("first-run setup copy", () => {
 });
 
 describe("backend setup gate copy", () => {
-  it("asks for a real host and database, not a phone-only household", () => {
+  it("asks for a real host and database, not a device-only household", () => {
     expect(BACKEND_SETUP_TITLE).toBe("Set up the real house");
-    expect(BACKEND_SETUP_HELPER).toMatch(/will not keep dinners only on this phone/i);
+    expect(BACKEND_SETUP_HELPER).toMatch(/will not keep dinners only on this device/i);
     expect(BACKEND_SETUP_HELPER).toMatch(/Cloudflare/);
     expect(BACKEND_SETUP_HELPER).toMatch(/Supabase/);
     expect(BACKEND_SETUP_CTA).toBe("Continue setup");
@@ -53,7 +53,7 @@ describe("backend setup gate copy", () => {
     expect(BACKEND_SETUP_STEPS[1].body).not.toMatch(/grandma/i);
     expect(BACKEND_SETUP_STEPS[2].body).toMatch(/Row Level Security/);
     expect(BACKEND_SETUP_STEPS[2].body).toMatch(/supabase\/migrations/);
-    expect(BACKEND_SETUP_STEPS[4].body).toMatch(/Add to Home Screen/);
+    expect(BACKEND_SETUP_STEPS[4].body).toMatch(/Install it from this browser/);
   });
 
   it("opens the checklist for partial or invalid env, and after Continue setup", () => {

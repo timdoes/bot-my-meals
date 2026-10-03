@@ -1,13 +1,13 @@
 export const PASSWORD_MIN_LENGTH = 8;
 
 export const CREATE_ACCOUNT_TITLE = "Create your account";
-export const CREATE_ACCOUNT_HELPER = "Use your own email. You’ll sign in on this phone.";
+export const CREATE_ACCOUNT_HELPER = "Use your own email. You’ll sign in in this browser.";
 export const CREATE_ACCOUNT_CTA = "Create account";
 export const CREATE_ACCOUNT_BUSY = "Creating…";
 export const CREATE_ACCOUNT_SWITCH = "Already have an account?";
 
 export const SIGN_IN_TITLE = "Sign in";
-export const SIGN_IN_HELPER = "Use the email and password for this phone’s app.";
+export const SIGN_IN_HELPER = "Use the email and password for this device.";
 export const SIGN_IN_CTA = "Sign in";
 export const SIGN_IN_BUSY = "Signing in…";
 export const SIGN_IN_LINK = "Sign in";
@@ -35,7 +35,7 @@ export const SIGNIN_ERROR_GENERIC = "Sign-in didn’t finish. Try again.";
 
 export const RESET_TITLE = "Reset password";
 export const RESET_BODY =
-  "We’ll email a reset link. After you set a new password, open Bot My Meals from your Home Screen and sign in.";
+  "We’ll email a reset link. After you set a new password, open Bot My Meals and sign in.";
 export const RESET_SEND = "Send reset link";
 export const RESET_SENDING = "Sending…";
 export const RESET_BACK = "Back to sign in";
@@ -45,13 +45,12 @@ export const RESET_SENT_HELPER =
 export const RESET_ERROR_GENERIC = "Couldn’t send the reset link. Try again.";
 
 export const NEW_PASSWORD_TITLE = "Set a new password";
-export const NEW_PASSWORD_HELPER =
-  "Then open Bot My Meals from your Home Screen and sign in.";
+export const NEW_PASSWORD_HELPER = "Then open Bot My Meals and sign in.";
 export const NEW_PASSWORD_CTA = "Save password";
 export const NEW_PASSWORD_BUSY = "Saving…";
 export const NEW_PASSWORD_SAVED_TITLE = "Password saved";
 export const NEW_PASSWORD_SAVED_BODY =
-  "Open Bot My Meals from your Home Screen and sign in with your new password.";
+  "Open Bot My Meals and sign in with your new password.";
 export const NEW_PASSWORD_MISSING =
   "Open the reset link from your email, then set a new password here.";
 export const UPDATE_PASSWORD_ERROR = "Couldn’t save that password. Try again.";
@@ -61,7 +60,7 @@ export function signInOriginLine(origin: string): string {
 }
 
 export function resetSentBody(email: string): string {
-  return `If an account exists for ${email}, we sent a reset link. Set the new password, then open this app from your Home Screen and sign in.`;
+  return `If an account exists for ${email}, we sent a reset link. Set the new password, then open this app and sign in.`;
 }
 
 export function passwordMeetsMinimum(password: string): boolean {

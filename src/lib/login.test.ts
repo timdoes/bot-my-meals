@@ -48,29 +48,29 @@ const srcRoot = path.resolve(import.meta.dirname, "..");
 describe("email and password sign-in copy", () => {
   it("locks Create account, Sign in, and reset in the app", () => {
     expect(CREATE_ACCOUNT_TITLE).toBe("Create your account");
-    expect(CREATE_ACCOUNT_HELPER).toBe("Use your own email. You’ll sign in on this phone.");
+    expect(CREATE_ACCOUNT_HELPER).toBe("Use your own email. You’ll sign in in this browser.");
     expect(CREATE_ACCOUNT_CTA).toBe("Create account");
     expect(PASSWORD_HINT).toBe("At least 8 characters.");
     expect(PASSWORD_TOO_SHORT).toBe("Use at least 8 characters.");
     expect(PASSWORD_MISMATCH).toBe("Those passwords don’t match.");
     expect(SIGN_IN_TITLE).toBe("Sign in");
-    expect(SIGN_IN_HELPER).toBe("Use the email and password for this phone’s app.");
+    expect(SIGN_IN_HELPER).toBe("Use the email and password for this device.");
     expect(SIGN_IN_CTA).toBe("Sign in");
     expect(FORGOT_PASSWORD).toBe("Forgot password?");
     expect(RESET_TITLE).toBe("Reset password");
     expect(RESET_BODY).toBe(
-      "We’ll email a reset link. After you set a new password, open Bot My Meals from your Home Screen and sign in.",
+      "We’ll email a reset link. After you set a new password, open Bot My Meals and sign in.",
     );
     expect(RESET_SEND).toBe("Send reset link");
     expect(RESET_SENT_TITLE).toBe("Check your email");
     expect(resetSentBody("alex@example.com")).toBe(
-      "If an account exists for alex@example.com, we sent a reset link. Set the new password, then open this app from your Home Screen and sign in.",
+      "If an account exists for alex@example.com, we sent a reset link. Set the new password, then open this app and sign in.",
     );
     expect(RESET_SENT_HELPER).toBe(
       "Prefer asking your household partner for a new invite if you can’t get into email.",
     );
     expect(NEW_PASSWORD_SAVED_BODY).toBe(
-      "Open Bot My Meals from your Home Screen and sign in with your new password.",
+      "Open Bot My Meals and sign in with your new password.",
     );
     expect(signInOriginLine("https://bot-my-meals.example.workers.dev")).toBe(
       "You’re signing in on https://bot-my-meals.example.workers.dev.",
@@ -109,7 +109,7 @@ describe("email and password sign-in copy", () => {
     expect(form).toContain("signUpWithPassword");
     expect(form).toContain("signInWithPassword");
     expect(form).toContain("requestPasswordReset");
-    expect(form).toContain("Home Screen");
+    expect(form).toContain("open this app and");
     expect(form).toContain('variant="ghost"');
     expect(form).not.toContain("Email me a sign-in link");
     expect(form).not.toContain("Sign in with a code");

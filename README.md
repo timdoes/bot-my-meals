@@ -2,11 +2,11 @@
 
 This week's dinners, agreed.
 
-Bot My Meals is a household dinner planner: one cooking week of meal titles, plus one next week when you plan ahead. Voting adults you add yourself, and recipes plus a store-split shopping list for that week only after it locks. It is a phone-first installable PWA. The data model is household-scoped from day one so a later paid multi-household product does not require a rewrite.
+Bot My Meals is a household dinner planner: one cooking week of meal titles, plus one next week when you plan ahead. Voting adults you add yourself, and recipes plus a store-split shopping list for that week only after it locks. It is an installable PWA. The data model is household-scoped from day one so a later paid multi-household product does not require a rewrite.
 
 This is a public household PWA template (v1 for one family). There is no billing and no invented grocery prices. This README is the public setup guide.
 
-Install a **real Cloudflare Worker + Supabase Free so both phones stay in sync.** Never demo/localStorage as the product path. If the two public keys are missing or invalid, every route shows the **setup gate** — not a household on this phone. Only two public keys; never service-role in git or Worker. Never invent grocery prices. Cart adds only where the store actually supports them — don’t claim Smith’s or any store cart add unless it’s real. Do NOT invent prices. Do NOT claim unsupported cart features.
+Install a **real Cloudflare Worker + Supabase Free so both devices stay in sync.** Never demo/localStorage as the product path. If the two public keys are missing or invalid, every route shows the **setup gate** — not a household on this device. Only two public keys; never service-role in git or Worker. Never invent grocery prices. Cart adds only where the store actually supports them — don’t claim Smith’s or any store cart add unless it’s real. Do NOT invent prices. Do NOT claim unsupported cart features.
 
 ## The loop
 
@@ -44,13 +44,13 @@ A new household starts with **no stores**. Admins enter a zip or postal code and
 
 ## Setup
 
-Do these in order. Phones stay in sync only after a real Worker, a new Supabase Free project, Auth, and the two public env vars all point at the same HTTPS origin. **Wake on app event** is required for every household — same path as Worker / Supabase / env. Without that webhook created and saved, setup is incomplete.
+Do these in order. Devices stay in sync only after a real Worker, a new Supabase Free project, Auth, and the two public env vars all point at the same HTTPS origin. **Wake on app event** is required for every household — same path as Worker / Supabase / env. Without that webhook created and saved, setup is incomplete.
 
 **Order that matters**
 
-1. Deploy (or already know the **final HTTPS origin** phones will open) **before** setting Supabase Site URL.
+1. Deploy (or already know the **final HTTPS origin** people will open) **before** setting Supabase Site URL.
 2. Finish Auth + the two public env vars **before** creating the Admin or adding a partner.
-3. **Add to Home Screen** can happen as soon as the HTTPS URL works (Safari **Share → Add to Home Screen**). Do not wait for household creation. Sign-in and adding people still need email + password + env.
+3. **Install** can happen as soon as the HTTPS URL works (Add to Home Screen, or Install, in the browser). Do not wait for household creation. Sign-in and adding people still need email + password + env.
 4. Save **Wake on app event** in **House → Wake your Bot** **before** **Create this week's meals** (before the first ballot).
 
 Missing, blank, or invalid `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` is an **incomplete install**. The app **builds** without those values, but every route shows the first-run **setup gate** (“Set up the real house”) until they are set and the Worker is rebuilt / redeployed. There is no localStorage household fallback.
@@ -101,7 +101,7 @@ Do not use `www.botmymeals.com` as the app.
 
 **Know this HTTPS origin now.** Site URL and the Auth redirect must match the host people actually open (custom domain or workers.dev — no `www` unless configured). Set Auth to that origin before anyone taps **Create account**. Auth allowlist details: [`docs/domains.md`](docs/domains.md).
 
-Once this URL loads, you may already **hand back the HTTPS URL + Safari Add to Home Screen**. You do not need a household first. Without the two public keys, the page shows the setup gate — finish Auth + env before creating the Admin.
+Once this URL loads, you may already **hand back the HTTPS URL and install from the browser**. You do not need a household first. Without the two public keys, the page shows the setup gate — finish Auth + env before creating the Admin.
 
 Hosting is Cloudflare Workers, Wrangler, and [OpenNext for Next.js](https://opennext.js.org/cloudflare). Not Vercel.
 
@@ -133,13 +133,13 @@ After those nine, run every later file in [`supabase/migrations/`](supabase/migr
 
 Do this only after you know the final HTTPS origin from step 2.
 
-**Install sign-in is email + password** in the app — the installed Home Screen app, or the Safari tab you will Add to Home Screen. People tap **Create account** or **Sign in** and stay in that app. They do not finish sign-in by tapping a link in Mail. People use email + password in the app — not a magic link.
+**Install sign-in is email + password** in the app — the installed app, or the browser you have open. People tap **Create account** or **Sign in** and stay in that app. They do not finish sign-in by tapping a link in Mail. People use email + password in the app — not a magic link.
 
 In Supabase → **Authentication**:
 
 1. **Providers → Email** on.
-2. **Confirm email: OFF.** Required so **Create account** returns a session in the app (important on iPhone Home Screen). Do not treat that as proof they own the inbox.
-3. **Site URL** = the **same** HTTPS origin phones will open.
+2. **Confirm email: OFF.** Required so **Create account** returns a session in the app. Do not treat that as proof they own the inbox.
+3. **Site URL** = the **same** HTTPS origin people will open.
 4. **Redirect URLs** include `https://<that-host>/auth/callback` and `https://<that-host>/login/new-password` for password reset (and a leftover link).
 5. If a password minimum is shown, set it to **at least 8**.
 6. Skip Google, Apple, and other SSO.
@@ -151,9 +151,9 @@ Examples for Site URL / Redirect URL:
 - DIY: your workers.dev or your domain, `https://<that-host>/auth/callback`, and `https://<that-host>/login/new-password`
 - Keep workers.dev on the allowlist if anyone still opens that host
 
-**Set Site URL to the final phone URL before anyone taps Create account.** Changing the host later means updating Auth.
+**Set Site URL to the final HTTPS origin before anyone taps Create account.** Changing the host later means updating Auth.
 
-Forgot password emails a link. It may open in the phone’s browser. Set the new password, then open the Home Screen app and sign in. Free built-in mail may only reach the project’s team addresses (about 2 an hour) until custom SMTP. A partner invite is the reliable way back in. Passkeys are not part of install. Only the two public keys in the next step; there is no localStorage sign-in. Leaked-password checks are a paid Supabase option, not part of Free Install.
+Forgot password emails a link. It may open in a browser. Set the new password, then open Bot My Meals and sign in. Free built-in mail may only reach the project’s team addresses (about 2 an hour) until custom SMTP. A partner invite is the reliable way back in. Passkeys are not part of install. Only the two public keys in the next step; there is no localStorage sign-in. Leaked-password checks are a paid Supabase option, not part of Free Install.
 
 ### 6. Set the two public env vars, then rebuild / redeploy
 
@@ -168,11 +168,11 @@ Then **rebuild / redeploy** so Next picks them up. Setting the vars without a ne
 
 **Never** put the Supabase **service-role** key in Worker vars, Builds vars, git, `.env.local`, `.dev.vars`, or `wrangler.jsonc`. Only two public keys; never service-role in git or Worker.
 
-### 7. Hand back the HTTPS URL + Safari Add to Home Screen
+### 7. Hand back the HTTPS URL and install from the browser
 
-Open the origin from step 2 on the phone.
+Open the origin from step 2 in the browser.
 
-On iPhone Safari: **Share → Add to Home Screen**. You can do this as soon as the URL works. Do not block A2HS on household creation.
+Install from that browser (Add to Home Screen, or Install). You can do this as soon as the URL works. Do not block install on household creation.
 
 The app ships a web manifest, service worker (offline shell), apple-touch icon, standalone display, and `viewport-fit=cover` safe areas.
 
@@ -180,7 +180,7 @@ Admin and partner sign-in still need Auth + the two env vars (steps 5–6). If y
 
 ### 8. First signed-in person creates the household (Admin)
 
-Auth + env first. Then, on that phone:
+Auth + env first. Then, in that browser:
 
 1. Tap **Create account**.
 2. Enter your email and a password of at least 8 characters. You stay in this app — no mail to open.
@@ -225,14 +225,14 @@ After that first ballot, you can plan next week while still cooking this week. D
 
 ### 10. Add the other adult
 
-Share the textable invite link from setup step 1 or **House → Invite** (**Share invite link**). The URL looks like `https://<host>/join/<token>`. Optional share text: “Join our Bot My Meals house — open this on your phone:” plus the URL. Invite links only — there is no code to type. Partner opens the link on their phone, then creates their own account.
+Share the textable invite link from setup step 1 or **House → Invite** (**Share invite link**). The URL looks like `https://<host>/join/<token>`. Optional share text: “Join our Bot My Meals house — open this in your browser:” plus the URL. Invite links only — there is no code to type. Partner opens the link in their browser, then creates their own account.
 
 You can still **House → People** → **Add a person** (name, email, Admin or User). They appear under **Waiting to sign in** until they sign in. Bot My Meals does not email this invite. There is no SMS gateway.
 
-On the second phone they:
+The other person:
 
-1. Open the **invite link** on that phone (or the same HTTPS origin, then sign in).
-2. Add to Home Screen if they want (Safari **Share → Add to Home Screen**) — they do not need a household first.
+1. Open the **invite link** in their browser (or the same HTTPS origin, then sign in).
+2. Install from the browser if they want (Add to Home Screen, or Install) — they do not need a household first.
 3. New person: **Create account** with **their** email and password in the app (or **Sign in** if they already have one). The app claims the invite and puts them in the house. There is no shared household password.
 4. Already signed in: tap **Continue**.
 5. Expired, used, or invalid link: the page says why and asks them to get a new link.
@@ -248,18 +248,18 @@ Row Level Security is household-scoped (`household_id`). Admins manage membershi
 - **Stuck on Create household.** Create household can look like it worked (or fail with no message) while you never enter This week / House. Likely cause: migrations incomplete — `authenticated` needs `USAGE` on schema `private`. Run every file in [step 4](#4-run-every-migration-in-filename-order) in order, including `20260917120000_grant_private_schema_usage.sql`, then hard-refresh.
 - **Vars need a rebuild.** After setting the two public keys, rebuild/redeploy so Next inlines them.
 - **`npm run deploy` is not the easy household path.** If you already develop: it only promotes production from `main`; any other branch → preview upload only (`wrangler versions upload`).
-- **Confirm email stays OFF.** Create account and Sign in happen in the app. A confirm link opens outside the Home Screen app. Do not treat that as proof they own the inbox.
-- **Forgot password uses a link.** Set the new password in the browser that opens the email, then open the Home Screen app and sign in. Free built-in mail may only reach the project’s team addresses until custom SMTP. Ask a partner for a new invite if email doesn’t arrive. House → People does not email anyone.
+- **Confirm email stays OFF.** Create account and Sign in happen in the app. A confirm link opens outside the app. Do not treat that as proof they own the inbox.
+- **Forgot password uses a link.** Set the new password in the browser that opens the email, then open Bot My Meals and sign in. Free built-in mail may only reach the project’s team addresses until custom SMTP. Ask a partner for a new invite if email doesn’t arrive. House → People does not email anyone.
 - **Optional later: custom SMTP** plus `{{ .Token }}` in the Auth email template for sign-in codes. Not required to install.
 - **RLS is household-scoped.** Other families cannot see this table. The last Admin cannot be removed or demoted.
 - **One Worker name.** Script name `bot-my-meals`. Same Cloudflare account → name collision if you try to reuse it. Households are extra Supabase rows, not extra Workers.
 
 ## Rules we do not break
 
-- Real Cloudflare Worker + Supabase Free so both phones stay in sync.
-- Never demo/localStorage as the product path. Missing keys show the setup gate, not a phone-only household.
+- Real Cloudflare Worker + Supabase Free so both devices stay in sync.
+- Never demo/localStorage as the product path. Missing keys show the setup gate, not a device-only household.
 - Only two public keys; never service-role in git or Worker.
-- Hand back HTTPS URL + Safari Add to Home Screen.
+- Hand back the HTTPS URL and how to install from the browser.
 - Never invent grocery prices. Cart adds only where the store actually supports them — don’t claim Smith’s or any store cart add unless it’s real. Do NOT invent prices. Do NOT claim unsupported cart features.
 
 ## Keeping up with Tim
@@ -305,9 +305,9 @@ Do this, one decision at a time if you need me to click:
 1) Help me create a Cloudflare account and deploy the Worker named bot-my-meals from https://github.com/timdoes/bot-my-meals via Workers Builds (Cloudflare dashboard → connect GitHub). Terminal npm run deploy only if I already develop.
 2) Create a new Supabase Free project.
 3) Run every file in supabase/migrations/ in filename order (SQL editor or supabase db push).
-4) Turn on Email sign-in. Turn Confirm email OFF so people create an account and stay in the app (important on iPhone Home Screen). Set Site URL to our HTTPS origin, and add /auth/callback and /login/new-password (our workers.dev or our own domain — not {handle}.botmymeals.com). People use email + password in the app — not a magic link. If a password minimum is shown, set it to at least 8. Optional later: custom SMTP + a code in the email template ({{ .Token }}) for sign-in codes. Do not turn on Apple or Google for Install. Passkeys later. Do not require custom SMTP to install.
+4) Turn on Email sign-in. Turn Confirm email OFF so people create an account and stay in the app. Set Site URL to our HTTPS origin, and add /auth/callback and /login/new-password (our workers.dev or our own domain — not {handle}.botmymeals.com). People use email + password in the app — not a magic link. If a password minimum is shown, set it to at least 8. Optional later: custom SMTP + a code in the email template ({{ .Token }}) for sign-in codes. Do not turn on Apple or Google for Install. Passkeys later. Do not require custom SMTP to install.
 5) Set only these two public Worker env vars, then redeploy: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. Never use the service-role key.
-6) Give me the HTTPS link, walk me through Add to Home Screen, and create the household Admin. Do not tap Create this week's meals yet.
+6) Give me the HTTPS link, walk me through installing from the browser, and create the household Admin. Do not tap Create this week's meals yet.
 7) Create a routine named Wake on app event with a webhook trigger. Required for every household — not optional. Same path as Worker / Supabase / env. Required before Create this week's meals / the first ballot. On wake, sync ballot / recipes / shopping list / setup for the week that needs work; stay quiet if nothing changed. Copy Webhook URL (the panel may say POST to) and the sender key if the panel shows one. Paste them into House → Wake your Bot, or set Worker secrets BOT_WAKE_WEBHOOK_URL and optional BOT_WAKE_WEBHOOK_KEY. Never NEXT_PUBLIC for these. After save, do not show the full secret again. The Worker sends the key as Authorization: Bearer. Without wake configured, setup is incomplete — Check now still means message the Bot, but Install must still create and save the webhook. Do not create Adaptive / @every 1h / @every 6h bot-check routines.
 8) Then walk house setup through Create this week's meals. Add my partner (share the /join/<token> link; House → People still works).
 
@@ -352,7 +352,7 @@ npm run build:worker
 npm run dev
 ```
 
-Open [http://127.0.0.1:43147](http://127.0.0.1:43147) for the household app. Copy [`.env.example`](.env.example) to `.env.local` and fill `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from the same new Supabase project. Leave them blank only to confirm the setup gate. There is no localStorage household fallback. Two-phone / real-house use needs those vars.
+Open [http://127.0.0.1:43147](http://127.0.0.1:43147) for the household app. Copy [`.env.example`](.env.example) to `.env.local` and fill `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from the same new Supabase project. Leave them blank only to confirm the setup gate. There is no localStorage household fallback. Two-device / real-house use needs those vars.
 
 ```bash
 npm run deploy
@@ -371,7 +371,7 @@ npm run deploy
 | Job | Where | When |
 | --- | --- | --- |
 | Checks | GitHub Actions [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Every pull request, every push to `main`, and `workflow_call` |
-| Production deploy (household) | Cloudflare **Workers Builds** | `main` changes matching the watch paths in [`docs/workers-builds.md`](docs/workers-builds.md) (`src/*`, `public/*`, `scripts/*`, `package.json`, `package-lock.json`, `.npmrc`, `wrangler.jsonc`, `open-next.config.ts`, `next.config.ts`) → Worker **`bot-my-meals`**. Build `npm run build:worker`. Deploy `node scripts/cf-deploy.mjs`. After cutover phones use https://bot-my-meals.<your-subdomain>.workers.dev ([`docs/domains.md`](docs/domains.md)). |
+| Production deploy (household) | Cloudflare **Workers Builds** | `main` changes matching the watch paths in [`docs/workers-builds.md`](docs/workers-builds.md) (`src/*`, `public/*`, `scripts/*`, `package.json`, `package-lock.json`, `.npmrc`, `wrangler.jsonc`, `open-next.config.ts`, `next.config.ts`) → Worker **`bot-my-meals`**. Build `npm run build:worker`. Deploy `node scripts/cf-deploy.mjs`. After cutover, open https://bot-my-meals.<your-subdomain>.workers.dev ([`docs/domains.md`](docs/domains.md)). |
 
 Actions runs `npm ci`, `npm test`, `npm run lint`, and `npm run build:worker`. The OpenNext smoke build does **not** need Cloudflare credentials. Actions does **not** deploy. Keep the Cloudflare API token out of this repo and out of GitHub unless you later retire Workers Builds and switch deploy to Actions on purpose.
 
@@ -398,7 +398,7 @@ Eaters can belong to the household later without voting. Only owner and voter ro
 
 ## PWA
 
-The app ships a web manifest, service worker (offline shell), apple-touch icon, standalone display, and `viewport-fit=cover` safe areas. On iPhone Safari: Share → Add to Home Screen. You can install as soon as the HTTPS URL works; you do not need a household first.
+The app ships a web manifest, service worker (offline shell), apple-touch icon, standalone display, and `viewport-fit=cover` safe areas. Install from the browser (Add to Home Screen, or Install). You can install as soon as the HTTPS URL works; you do not need a household first.
 
 ## Tests
 

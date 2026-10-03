@@ -1,5 +1,5 @@
 export const JOIN_SHARE_PREFILL =
-  "Join our Bot My Meals house — open this on your phone:";
+  "Join our Bot My Meals house — open this in your browser:";
 
 export const JOIN_TITLE = "You’re invited";
 export const JOIN_HELPER = "One household. No invite code to type.";

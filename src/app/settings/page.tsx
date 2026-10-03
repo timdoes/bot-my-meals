@@ -142,7 +142,7 @@ function SettingsBody() {
       <HouseCard className="mt-6">
         <h2 className="type-section text-primary">Invite</h2>
         <p className="type-meta mt-1 text-muted-foreground">
-          Share the link. They open it on their phone and join this house — Bot My Meals does not
+          Share the link. They open it in their browser and join this house — Bot My Meals does not
           email anyone from here.
         </p>
         {owner ? (
