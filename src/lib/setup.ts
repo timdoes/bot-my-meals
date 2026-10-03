@@ -13,7 +13,7 @@ export const SETUP_STARTED_KEY = "supper.setup-started";
 
 export const BACKEND_SETUP_TITLE = "Set up the real house";
 export const BACKEND_SETUP_HELPER =
-  "This app will not keep dinners only on this phone. You need free Cloudflare hosting and a free Supabase project so everyone shares the same week.";
+  "This app will not keep dinners only on this device. You need free Cloudflare hosting and a free Supabase project so everyone shares the same week.";
 export const BACKEND_SETUP_CTA = "Continue setup";
 
 export const BACKEND_SETUP_STEPS = [
@@ -25,7 +25,7 @@ export const BACKEND_SETUP_STEPS = [
   {
     id: "supabase",
     title: "Create a Supabase project (free)",
-    body: "At supabase.com, start a Free project. Turn on Email sign-in. Turn Confirm email OFF so people create an account with email and password and stay in the app (important on iPhone Home Screen). Set Site URL to the HTTPS address phones will open, and add that same host plus /auth/callback and /login/new-password as Redirect URLs. People use email and password in the app — not a magic link. Do not turn on Apple or Google. Optional later: custom SMTP and {{ .Token }} in the email template for sign-in codes.",
+    body: "At supabase.com, start a Free project. Turn on Email sign-in. Turn Confirm email OFF so people create an account with email and password and stay in the app. Set Site URL to the HTTPS address people will open, and add that same host plus /auth/callback and /login/new-password as Redirect URLs. People use email and password in the app — not a magic link. Do not turn on Apple or Google. Optional later: custom SMTP and {{ .Token }} in the email template for sign-in codes.",
   },
   {
     id: "migrations",
@@ -39,8 +39,8 @@ export const BACKEND_SETUP_STEPS = [
   },
   {
     id: "homescreen",
-    title: "Open the app and Add to Home Screen",
-    body: "Reload the site. Create an account with email and password in this app, or sign in, then create or join the household. Add to Home Screen so it sits with your other apps.",
+    title: "Open the app and install it",
+    body: "Reload the site. Create an account with email and password in this app, or sign in, then create or join the household. Install it from this browser so it sits with your other apps.",
   },
 ] as const;
 

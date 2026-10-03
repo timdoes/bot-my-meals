@@ -29,7 +29,7 @@ export const HOUSE_SETUP_STEPS = [
     id: "invite" as const,
     step: 1,
     title: "Invite people",
-    helper: "Text this link. They open it on their phone, sign in, and join this house.",
+    helper: "Text this link. They open it in their browser, sign in, and join this house.",
     cta: "Continue",
   },
   {

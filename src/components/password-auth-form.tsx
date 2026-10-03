@@ -325,7 +325,7 @@ export function PasswordAuthForm({
           <p className="type-body text-muted-foreground">
             If an account exists for{" "}
             <strong className="font-semibold text-foreground">{trimmedEmail}</strong>, we sent a
-            reset link. Set the new password, then open this app from your Home Screen and{" "}
+            reset link. Set the new password, then open this app and{" "}
             <strong className="font-semibold text-foreground">sign in</strong>.
           </p>
           <p className="type-body text-muted-foreground">{RESET_SENT_HELPER}</p>

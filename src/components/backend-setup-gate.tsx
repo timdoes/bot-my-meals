@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { getSupabaseSetupStatus } from "@/lib/config";
-import { INSTALL_IOS_COPY } from "@/lib/install";
+import { INSTALL_BROWSER_COPY } from "@/lib/install";
 import {
   BACKEND_SETUP_CTA,
   BACKEND_SETUP_HELPER,
@@ -67,7 +67,7 @@ export function BackendSetupGate() {
                     </li>
                   ))}
                 </ol>
-                <p className="type-meta text-muted-foreground">{INSTALL_IOS_COPY}</p>
+                <p className="type-meta text-muted-foreground">{INSTALL_BROWSER_COPY}</p>
               </div>
             ) : null}
           </section>

@@ -45,10 +45,10 @@ describe("join invite link", () => {
 
   it("prefills share text with the locked sentence plus URL", () => {
     expect(JOIN_SHARE_PREFILL).toBe(
-      "Join our Bot My Meals house — open this on your phone:",
+      "Join our Bot My Meals house — open this in your browser:",
     );
     expect(joinShareText("https://example.test/join/token1")).toBe(
-      "Join our Bot My Meals house — open this on your phone:\nhttps://example.test/join/token1",
+      "Join our Bot My Meals house — open this in your browser:\nhttps://example.test/join/token1",
     );
   });
 
