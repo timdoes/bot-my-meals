@@ -764,6 +764,18 @@ export async function supabaseSaveWeekPeople(
   return data;
 }
 
+export async function supabaseReorderWeekMeals(
+  client: SupabaseClient,
+  sourceMealId: string,
+  targetMealId: string,
+) {
+  const { error } = await client.rpc("reorder_week_meals", {
+    source_meal: sourceMealId,
+    target_meal: targetMealId,
+  });
+  if (error) throw new Error(error.message || "Couldn’t move that meal. Try again.");
+}
+
 function requireVoter(session: Session) {
   if (!session.householdId) throw new Error("Not in a household");
   if (!canActOnBallot(session.role)) throw new Error("Eaters can look, not change saved meals.");

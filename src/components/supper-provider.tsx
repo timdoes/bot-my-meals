@@ -44,6 +44,7 @@ import {
   savedMealForKey,
   savedMealRequestActive,
 } from "@/lib/saved-meals";
+import { swapMealContent } from "@/lib/meal-reorder";
 import { planningTargetStarts, scopeForMeal, scopeForRole } from "@/lib/open-weeks";
 import type { ViewedWeekSelection } from "@/lib/week-navigator";
 import { PASSWORD_MIN_LENGTH, passwordResetRedirectUrl } from "@/lib/login";
@@ -64,6 +65,7 @@ import {
   supabaseRemoveMember,
   supabaseRemoveSavedMeal,
   supabaseRequestSavedMeal,
+  supabaseReorderWeekMeals,
   supabaseRequestWeekBallot,
   supabaseSaveMeal,
   supabaseSaveWeekPeople,
@@ -146,6 +148,7 @@ type SupperContextValue = {
   planNextWeek: () => Promise<string>;
   savePlanningPeople: (counts: number[], instructions: string) => Promise<string>;
   saveWeekPeople: (weekId: string, counts: number[], instructions: string | null) => Promise<void>;
+  reorderMeals: (sourceMealId: string, targetMealId: string) => Promise<void>;
   toggleSavedMeal: (mealId: string) => Promise<"saved" | "removed">;
   removeSavedMeal: (recipeKey: string) => Promise<void>;
   requestSavedMeal: (recipeKey: string) => Promise<"requested" | "already">;
@@ -205,6 +208,7 @@ function createSetupContext(): SupperContextValue {
     planNextWeek: async () => setupUnavailable(),
     savePlanningPeople: async () => setupUnavailable(),
     saveWeekPeople: async () => setupUnavailable(),
+    reorderMeals: async () => setupUnavailable(),
     toggleSavedMeal: async () => setupUnavailable(),
     removeSavedMeal: async () => setupUnavailable(),
     requestSavedMeal: async () => setupUnavailable(),
@@ -834,6 +838,16 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
         }).then(() => {
           wakeWeekOrPlanChange();
         }),
+      reorderMeals: (sourceMealId, targetMealId) =>
+        runOptimistic(
+          `reorder:${sourceMealId}:${targetMealId}`,
+          (snap) => swapMealContent(snap, sourceMealId, targetMealId),
+          async () => {
+            const client = createSupabaseBrowserClient();
+            if (!client) throw new Error("Not signed in");
+            await supabaseReorderWeekMeals(client, sourceMealId, targetMealId);
+          },
+        ),
       toggleSavedMeal: (mealId) => {
         const current = session;
         const visible = displayRef.current;

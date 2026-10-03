@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AuthGate } from "@/components/auth-gate";
-import { BallotCard } from "@/components/ballot-card";
+import { BallotCard, type MealReorderHandlers } from "@/components/ballot-card";
 import { WaitingBotCheck } from "@/components/bot-check-frequency";
 import { BallotToast } from "@/components/ballot-toast";
 import { EmptyDayCard } from "@/components/empty-day-card";
@@ -39,6 +39,13 @@ import {
 import { botCheckForHousehold, botCheckForSnapshot } from "@/lib/bot-check";
 import { FINISH_WAKE_BEFORE_CREATE } from "@/lib/bot-wake";
 import { formatMealCardDayLabel, weekdayLabelFromNight } from "@/lib/dates";
+import {
+  mealReorderAllowed,
+  mealReorderAnnouncement,
+  mealReorderControls,
+  mealReorderDropAllowed,
+  orderedMovableMealIds,
+} from "@/lib/meal-reorder";
 import { PAST_WEEKS_LABEL, todayInTimeZone } from "@/lib/meal-history";
 import {
   frozenWeekdays,
@@ -96,11 +103,13 @@ function WeekBody() {
 
 function WeekBallot() {
   const router = useRouter();
-  const { session, snapshot, setVote, requestWeekBallot, planNextWeek, savePlanningPeople, saveWeekPeople } =
+  const { session, snapshot, setVote, requestWeekBallot, planNextWeek, savePlanningPeople, saveWeekPeople, reorderMeals } =
     useSupper();
   const { role, scope, past, hasPlanning, stops, index, setViewedWeek } = useViewedWeek();
   const searchParams = useSearchParams();
   const [toast, setToast] = useState<string | undefined>();
+  const [reorderBusy, setReorderBusy] = useState<ReadonlySet<string>>(new Set());
+  const [reorderStatus, setReorderStatus] = useState("");
   const [waitingOpen, setWaitingOpen] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [editWeekId, setEditWeekId] = useState<string | null>(null);
@@ -184,6 +193,36 @@ function WeekBallot() {
     [stops, index, setViewedWeek, router, hasPlanning, session?.role, snapshot?.household.setupStep, startPlanning],
   );
 
+  const moveMeals = useCallback(
+    (sourceId: string, targetId: string) => {
+      if (!snapshot || !scope) return;
+      const today = todayInTimeZone(new Date(), snapshot.household.timezone);
+      const movableIds = orderedMovableMealIds(scope.meals, scope.votes, snapshot.memberships, {
+        viewingPast: false,
+        weekStatus: scope.week.status,
+        editableFrom: scope.week.editableFrom,
+        todayIso: today,
+      });
+      if (!mealReorderDropAllowed(sourceId, targetId, movableIds)) return;
+      const source = scope.meals.find((meal) => meal.id === sourceId);
+      const target = scope.meals.find((meal) => meal.id === targetId);
+      if (!source || !target) return;
+      setReorderBusy(new Set([sourceId, targetId]));
+      setReorderStatus(
+        mealReorderAnnouncement({
+          mealTitle: source.title,
+          weekday: weekdayLabelFromNight(target.nightDate),
+          otherMealTitle: target.title,
+          otherWeekday: weekdayLabelFromNight(source.nightDate),
+        }),
+      );
+      void reorderMeals(sourceId, targetId)
+        .catch(() => setReorderStatus(""))
+        .finally(() => setReorderBusy(new Set()));
+    },
+    [snapshot, scope, reorderMeals],
+  );
+
   if (!snapshot) return null;
   const viewingPast = Boolean(past);
   if (!viewingPast && !scope) return null;
@@ -203,6 +242,16 @@ function WeekBallot() {
   const botCheck = botCheckForHousehold(snapshot);
   const check = scope ? checkWeekLock(scope.meals, scope.votes, snapshot.memberships) : { ready: false };
   const nights = scope ? recipeNightsForWeek(scope.meals) : [];
+  const canReorderMeals = Boolean(session?.membershipId) && canActOnBallot(session?.role);
+  const movableMealIds =
+    scope == null
+      ? []
+      : orderedMovableMealIds(scope.meals, scope.votes, snapshot.memberships, {
+          viewingPast,
+          weekStatus: scope.week.status,
+          editableFrom: scope.week.editableFrom,
+          todayIso,
+        });
   const dinner = scope ? upcomingDinner(scope.meals, scope.votes, todayIso) : undefined;
   const firstMeal =
     scope && showFirstMealRow({ weekStatus: scope.week.status, pendingFill, meal: dinner }) && dinner
@@ -397,6 +446,43 @@ function WeekBallot() {
               Boolean(session?.membershipId) && canActOnBallot(session?.role) && !nightLocked;
             const presentation = weekNightPresentation(lifecycle, nightLocked);
             const awaitingMeal = awaitingMealSlot(meal, scope?.votes ?? [], snapshot.memberships);
+            const reorderState = mealReorderControls({
+              mealId: meal.id,
+              canAct: canReorderMeals,
+              allowed: mealReorderAllowed({
+                viewingPast,
+                weekStatus: scope?.week.status ?? "voting",
+                nightDate: meal.nightDate,
+                editableFrom: scope?.week.editableFrom ?? null,
+                todayIso,
+                lifecycle,
+                title: meal.title,
+              }),
+              movableIds: movableMealIds,
+            });
+            const reorderIndex = movableMealIds.indexOf(meal.id);
+            const reorder: MealReorderHandlers | undefined = reorderState
+              ? {
+                  mealId: meal.id,
+                  canMoveEarlier: reorderState.canMoveEarlier,
+                  canMoveLater: reorderState.canMoveLater,
+                  busy: reorderBusy.has(meal.id),
+                  onMoveEarlier: () => {
+                    const previous = movableMealIds[reorderIndex - 1];
+                    if (previous) moveMeals(meal.id, previous);
+                  },
+                  onMoveLater: () => {
+                    const next = movableMealIds[reorderIndex + 1];
+                    if (next) moveMeals(meal.id, next);
+                  },
+                  onDrop: (targetId) => moveMeals(meal.id, targetId),
+                }
+              : undefined;
+            const frameTap = lockedDinnerTap({
+              locked: nightLocked,
+              pending: pendingFill,
+              presentation,
+            });
 
             return (
               <div
@@ -419,6 +505,8 @@ function WeekBallot() {
                   lifecycle,
                   onAct: act,
                   onWaiting: () => setWaitingOpen(true),
+                  reorder,
+                  openHref: presentation === "ballot" && frameTap === "none" ? `/week/${meal.id}` : undefined,
                 })}
               </div>
             );
@@ -465,6 +553,9 @@ function WeekBallot() {
           }}
         />
       ) : null}
+      <p className="sr-only" role="status" aria-live="polite" data-slot="meal-reorder-status">
+        {reorderStatus}
+      </p>
       <BallotToast message={toast} onDismiss={dismissToast} />
       <PostLockWaitingSheet
         open={waitingOpen}
@@ -490,6 +581,8 @@ function renderNightCard({
   lifecycle,
   onAct,
   onWaiting,
+  reorder,
+  openHref,
 }: {
   presentation: WeekNightPresentation;
   dayLabel: string;
@@ -503,6 +596,8 @@ function renderNightCard({
   lifecycle: NightLifecycle;
   onAct: (mealId: string, choice: VoteChoice, note?: string) => void;
   onWaiting: () => void;
+  reorder?: MealReorderHandlers;
+  openHref?: string;
 }): ReactNode {
   switch (presentation) {
     case "empty":
@@ -553,6 +648,8 @@ function renderNightCard({
             locked={locked}
             onSwap={canVote ? (reason) => onAct(meal.id, "swap", reason) : undefined}
             onRemove={canVote ? () => onAct(meal.id, "remove") : undefined}
+            reorder={reorder}
+            openHref={openHref}
           />
         </LockedNightFrame>
       );

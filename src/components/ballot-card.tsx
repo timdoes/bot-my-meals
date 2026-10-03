@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { CircleMinus, RefreshCw } from "lucide-react";
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import Link from "next/link";
+import { ChevronDown, ChevronUp, CircleMinus, GripVertical, RefreshCw } from "lucide-react";
 import {
   REMOVE_CONFIRM_ACTION,
   REMOVE_CONFIRM_KEEP,
@@ -36,7 +37,117 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { mealCardControlId } from "@/lib/dates";
+import { MOVE_EARLIER_LABEL, MOVE_LATER_LABEL, reorderGripLabel } from "@/lib/meal-reorder";
 import { cn } from "@/lib/utils";
+
+const REORDER_HIT =
+  "inline-flex size-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-[var(--radius-button)] outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+export type MealReorderHandlers = {
+  mealId: string;
+  canMoveEarlier: boolean;
+  canMoveLater: boolean;
+  busy: boolean;
+  onMoveEarlier: () => void;
+  onMoveLater: () => void;
+  onDrop: (targetMealId: string) => void;
+};
+
+function reorderTargetAtPoint(x: number, y: number, sourceId: string): string | null {
+  const stack = document.elementsFromPoint(x, y);
+  for (const node of stack) {
+    const card = node.closest("[data-reorder-id]");
+    if (!card) continue;
+    const id = card.getAttribute("data-reorder-id");
+    if (!id || id === sourceId) continue;
+    if (card.getAttribute("data-reorderable") !== "true") continue;
+    return id;
+  }
+  return null;
+}
+
+function markReorderDrop(targetId: string | null) {
+  for (const node of document.querySelectorAll("[data-reorder-id]")) {
+    if (targetId && node.getAttribute("data-reorder-id") === targetId) {
+      node.setAttribute("data-drop", "true");
+    } else {
+      node.removeAttribute("data-drop");
+    }
+  }
+}
+
+function clearCardLift(article: HTMLElement, animate: boolean) {
+  article.dataset.dragging = "false";
+  article.style.zIndex = "";
+  const reduce =
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!animate || reduce) {
+    article.style.transition = "";
+    article.style.transform = "";
+    return;
+  }
+  article.style.transition = "transform 160ms ease";
+  window.requestAnimationFrame(() => {
+    article.style.transform = "";
+  });
+}
+
+function useMealCardDrag(
+  articleRef: RefObject<HTMLElement | null>,
+  reorder: MealReorderHandlers | undefined,
+) {
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const enabled = Boolean(reorder) && !reorder?.busy;
+  const sourceId = reorder?.mealId ?? "";
+  const onDrop = reorder?.onDrop;
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!enabled || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    origin.current = { x: event.clientX, y: event.clientY };
+    const article = articleRef.current;
+    if (!article) return;
+    article.dataset.dragging = "true";
+    article.style.transition = "none";
+    article.style.zIndex = "30";
+    article.style.transform = "translate3d(0, 0, 0)";
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = origin.current;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    const article = articleRef.current;
+    if (article) article.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+    const moved = Math.hypot(dx, dy) >= 8;
+    markReorderDrop(moved ? reorderTargetAtPoint(event.clientX, event.clientY, sourceId) : null);
+  };
+
+  const finish = (event: ReactPointerEvent<HTMLButtonElement>, commit: boolean) => {
+    const start = origin.current;
+    origin.current = null;
+    markReorderDrop(null);
+    const article = articleRef.current;
+    const dx = start ? event.clientX - start.x : 0;
+    const dy = start ? event.clientY - start.y : 0;
+    const target =
+      commit && Math.hypot(dx, dy) >= 8
+        ? reorderTargetAtPoint(event.clientX, event.clientY, sourceId)
+        : null;
+    if (article) clearCardLift(article, !target);
+    if (target) onDrop?.(target);
+  };
+
+  return {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp: (event: ReactPointerEvent<HTMLButtonElement>) => finish(event, true),
+    onPointerCancel: (event: ReactPointerEvent<HTMLButtonElement>) => finish(event, false),
+  };
+}
 
 export function BallotCard({
   dayLabel,
@@ -50,6 +161,8 @@ export function BallotCard({
   locked = false,
   onSwap,
   onRemove,
+  reorder,
+  openHref,
   className,
 }: {
   dayLabel: string;
@@ -63,11 +176,17 @@ export function BallotCard({
   locked?: boolean;
   onSwap?: (reason: string) => void | Promise<void>;
   onRemove?: () => void | Promise<void>;
+  reorder?: MealReorderHandlers;
+  /** Body tap opens the meal. Omitted when a parent link already wraps the card. */
+  openHref?: string;
   className?: string;
 }) {
+  const articleRef = useRef<HTMLElement>(null);
+  const drag = useMealCardDrag(articleRef, reorder);
   const [sheet, setSheet] = useState<"swap" | "remove" | null>(null);
   const [reason, setReason] = useState(swapNote ?? "");
   const canAct = Boolean(onSwap || onRemove) && !locked;
+  const showActions = canAct || Boolean(reorder);
   const swapFieldId = mealCardControlId("swap-reason", dayLabel);
 
   const sendSwap = () => {
@@ -84,17 +203,8 @@ export function BallotCard({
     void Promise.resolve(pending).catch(() => undefined);
   };
 
-  return (
-    <article
-      data-slot="ballot-card"
-      data-swapped={swapped ? "true" : "false"}
-      data-muted={muted ? "true" : "false"}
-      className={cn(
-        "rounded-[14px] p-4 shadow-card",
-        muted ? "bg-secondary text-secondary-foreground" : "bg-card text-card-foreground",
-        className,
-      )}
-    >
+  const body = (
+    <>
       <p
         data-slot="meal-day-label"
         className={cn(
@@ -141,8 +251,89 @@ export function BallotCard({
           {swapNote ? <p className="type-body text-muted-foreground">{swapNote}</p> : null}
         </div>
       ) : null}
-      {canAct ? (
-        <div className="mt-4 flex gap-2" role="group" aria-label={`Vote on ${title}`}>
+    </>
+  );
+
+  return (
+    <article
+      ref={articleRef}
+      data-slot="ballot-card"
+      data-swapped={swapped ? "true" : "false"}
+      data-muted={muted ? "true" : "false"}
+      data-reorder-id={reorder ? reorder.mealId : undefined}
+      data-reorderable={reorder ? "true" : undefined}
+      data-dragging="false"
+      aria-busy={reorder?.busy ? true : undefined}
+      className={cn(
+        "relative rounded-[14px] p-4 shadow-card",
+        "data-[dragging=true]:z-30 data-[dragging=true]:shadow-[0_16px_40px_rgb(0_0_0/0.22)]",
+        "data-[drop=true]:bg-primary/10 data-[drop=true]:ring-2 data-[drop=true]:ring-primary",
+        reorder && "flex items-start gap-1",
+        muted ? "bg-secondary text-secondary-foreground" : "bg-card text-card-foreground",
+        className,
+      )}
+    >
+      {reorder ? (
+        <button
+          type="button"
+          data-slot="meal-reorder-grip"
+          className={cn(REORDER_HIT, "cursor-grab touch-none text-muted-foreground active:cursor-grabbing")}
+          aria-label={reorderGripLabel(title)}
+          disabled={reorder.busy}
+          onPointerDown={drag.onPointerDown}
+          onPointerMove={drag.onPointerMove}
+          onPointerUp={drag.onPointerUp}
+          onPointerCancel={drag.onPointerCancel}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          <GripVertical aria-hidden className="size-5" />
+        </button>
+      ) : null}
+      <div className={cn(reorder && "min-w-0 flex-1")}>
+        {openHref ? (
+          <Link href={openHref} data-slot="meal-card-open" draggable={false} className="block">
+            {body}
+          </Link>
+        ) : (
+          body
+        )}
+      {showActions ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label={`Actions for ${title}`}>
+          {reorder ? (
+            <>
+              <button
+                type="button"
+                data-slot="meal-reorder-earlier"
+                className={cn(REORDER_HIT, "border border-border text-foreground disabled:opacity-40")}
+                aria-label={MOVE_EARLIER_LABEL}
+                disabled={reorder.busy || !reorder.canMoveEarlier}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  reorder.onMoveEarlier();
+                }}
+              >
+                <ChevronUp aria-hidden className="size-5" />
+              </button>
+              <button
+                type="button"
+                data-slot="meal-reorder-later"
+                className={cn(REORDER_HIT, "border border-border text-foreground disabled:opacity-40")}
+                aria-label={MOVE_LATER_LABEL}
+                disabled={reorder.busy || !reorder.canMoveLater}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  reorder.onMoveLater();
+                }}
+              >
+                <ChevronDown aria-hidden className="size-5" />
+              </button>
+            </>
+          ) : null}
           {onSwap ? (
             <Button
               type="button"
@@ -251,6 +442,7 @@ export function BallotCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </article>
   );
 }
