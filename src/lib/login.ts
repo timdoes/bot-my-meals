@@ -1,7 +1,7 @@
 export const PASSWORD_MIN_LENGTH = 8;
 
 export const CREATE_ACCOUNT_TITLE = "Create your account";
-export const CREATE_ACCOUNT_HELPER = "Use your own email. You’ll sign in in this browser.";
+export const CREATE_ACCOUNT_HELPER = "Use your own email. You’ll sign in using this browser.";
 export const CREATE_ACCOUNT_CTA = "Create account";
 export const CREATE_ACCOUNT_BUSY = "Creating…";
 export const CREATE_ACCOUNT_SWITCH = "Already have an account?";

@@ -15,7 +15,7 @@ const srcRoot = path.resolve(import.meta.dirname, "..");
 describe("setup polish copy lock", () => {
   it("keeps Create account and Sign in in the app, not a mail-link button", () => {
     expect(CREATE_ACCOUNT_TITLE).toBe("Create your account");
-    expect(CREATE_ACCOUNT_HELPER).toBe("Use your own email. You’ll sign in in this browser.");
+    expect(CREATE_ACCOUNT_HELPER).toBe("Use your own email. You’ll sign in using this browser.");
     expect(SIGN_IN_TITLE).toBe("Sign in");
     expect(RESET_BODY).toMatch(/open Bot My Meals and sign in/);
 

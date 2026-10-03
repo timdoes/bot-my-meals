@@ -48,7 +48,7 @@ const srcRoot = path.resolve(import.meta.dirname, "..");
 describe("email and password sign-in copy", () => {
   it("locks Create account, Sign in, and reset in the app", () => {
     expect(CREATE_ACCOUNT_TITLE).toBe("Create your account");
-    expect(CREATE_ACCOUNT_HELPER).toBe("Use your own email. You’ll sign in in this browser.");
+    expect(CREATE_ACCOUNT_HELPER).toBe("Use your own email. You’ll sign in using this browser.");
     expect(CREATE_ACCOUNT_CTA).toBe("Create account");
     expect(PASSWORD_HINT).toBe("At least 8 characters.");
     expect(PASSWORD_TOO_SHORT).toBe("Use at least 8 characters.");
