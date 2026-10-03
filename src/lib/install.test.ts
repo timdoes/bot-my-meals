@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  INSTALL_BROWSER_COPY,
   INSTALL_DISMISSED_KEY,
   INSTALL_IOS_COPY,
   INSTALL_PROMPT_COPY,
@@ -56,6 +57,9 @@ describe("install hints", () => {
     expect(banner).toContain('size="fat"');
     expect(banner).toContain("shadow-card");
     expect(INSTALL_IOS_COPY).toMatch(/Share/);
+    expect(INSTALL_BROWSER_COPY).toBe(
+      "Install from this browser: Add to Home Screen, or Install.",
+    );
     expect(INSTALL_PROMPT_COPY).toMatch(/Home Screen/);
   });
 });

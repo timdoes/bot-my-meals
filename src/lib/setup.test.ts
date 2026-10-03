@@ -192,6 +192,8 @@ describe("setup surfaces", () => {
     expect(gate).toContain("BackendSetupGate");
     expect(setupGate).toContain('data-slot="backend-setup-gate"');
     expect(setupGate).toContain("BACKEND_SETUP_STEPS");
+    expect(setupGate).toContain("INSTALL_BROWSER_COPY");
+    expect(setupGate).not.toContain("INSTALL_IOS_COPY");
     expect(setupGate).toContain("BACKEND_SETUP_CTA");
     expect(setupGate).toContain('size="fat"');
   });
