@@ -76,6 +76,15 @@ function markReorderDrop(targetId: string | null) {
   }
 }
 
+function beginReorderHold() {
+  document.documentElement.setAttribute("data-reorder-hold", "true");
+  window.getSelection()?.removeAllRanges();
+}
+
+function endReorderHold() {
+  document.documentElement.removeAttribute("data-reorder-hold");
+}
+
 function clearCardLift(article: HTMLElement, animate: boolean) {
   article.dataset.dragging = "false";
   article.style.zIndex = "";
@@ -107,6 +116,7 @@ function useMealCardDrag(
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     origin.current = { x: event.clientX, y: event.clientY };
+    beginReorderHold();
     const article = articleRef.current;
     if (!article) return;
     article.dataset.dragging = "true";
@@ -129,6 +139,7 @@ function useMealCardDrag(
   const finish = (event: ReactPointerEvent<HTMLButtonElement>, commit: boolean) => {
     const start = origin.current;
     origin.current = null;
+    endReorderHold();
     markReorderDrop(null);
     const article = articleRef.current;
     const dx = start ? event.clientX - start.x : 0;
@@ -186,7 +197,7 @@ export function BallotCard({
   const [sheet, setSheet] = useState<"swap" | "remove" | null>(null);
   const [reason, setReason] = useState(swapNote ?? "");
   const canAct = Boolean(onSwap || onRemove) && !locked;
-  const showActions = canAct || Boolean(reorder);
+  const showActions = canAct;
   const swapFieldId = mealCardControlId("swap-reason", dayLabel);
 
   const sendSwap = () => {
@@ -268,72 +279,79 @@ export function BallotCard({
         "relative rounded-[14px] p-4 shadow-card",
         "data-[dragging=true]:z-30 data-[dragging=true]:shadow-[0_16px_40px_rgb(0_0_0/0.22)]",
         "data-[drop=true]:bg-primary/10 data-[drop=true]:ring-2 data-[drop=true]:ring-primary",
-        reorder && "flex items-start gap-1",
         muted ? "bg-secondary text-secondary-foreground" : "bg-card text-card-foreground",
         className,
       )}
     >
-      {reorder ? (
-        <button
-          type="button"
-          data-slot="meal-reorder-grip"
-          className={cn(REORDER_HIT, "cursor-grab touch-none text-muted-foreground active:cursor-grabbing")}
-          aria-label={reorderGripLabel(title)}
-          disabled={reorder.busy}
-          onPointerDown={drag.onPointerDown}
-          onPointerMove={drag.onPointerMove}
-          onPointerUp={drag.onPointerUp}
-          onPointerCancel={drag.onPointerCancel}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-          }}
-        >
-          <GripVertical aria-hidden className="size-5" />
-        </button>
-      ) : null}
-      <div className={cn(reorder && "min-w-0 flex-1")}>
-        {openHref ? (
-          <Link href={openHref} data-slot="meal-card-open" draggable={false} className="block">
-            {body}
-          </Link>
-        ) : (
-          body
-        )}
+      <div className={cn(reorder && "flex items-start gap-2")}>
+        <div className={cn(reorder && "min-w-0 flex-1")}>
+          {openHref ? (
+            <Link href={openHref} data-slot="meal-card-open" draggable={false} className="block">
+              {body}
+            </Link>
+          ) : (
+            body
+          )}
+        </div>
+        {reorder ? (
+          <div data-slot="meal-reorder-side" className="flex shrink-0 flex-col gap-1">
+            <button
+              type="button"
+              data-slot="meal-reorder-grip"
+              draggable={false}
+              className={cn(
+                REORDER_HIT,
+                "cursor-grab touch-none select-none text-muted-foreground active:cursor-grabbing",
+              )}
+              aria-label={reorderGripLabel(title)}
+              disabled={reorder.busy}
+              onPointerDown={drag.onPointerDown}
+              onPointerMove={drag.onPointerMove}
+              onPointerUp={drag.onPointerUp}
+              onPointerCancel={drag.onPointerCancel}
+              onContextMenu={(event) => {
+                event.preventDefault();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
+              <GripVertical aria-hidden className="size-5" />
+            </button>
+            <button
+              type="button"
+              data-slot="meal-reorder-earlier"
+              className={cn(REORDER_HIT, "border border-border text-foreground disabled:opacity-40")}
+              aria-label={MOVE_EARLIER_LABEL}
+              disabled={reorder.busy || !reorder.canMoveEarlier}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                reorder.onMoveEarlier();
+              }}
+            >
+              <ChevronUp aria-hidden className="size-5" />
+            </button>
+            <button
+              type="button"
+              data-slot="meal-reorder-later"
+              className={cn(REORDER_HIT, "border border-border text-foreground disabled:opacity-40")}
+              aria-label={MOVE_LATER_LABEL}
+              disabled={reorder.busy || !reorder.canMoveLater}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                reorder.onMoveLater();
+              }}
+            >
+              <ChevronDown aria-hidden className="size-5" />
+            </button>
+          </div>
+        ) : null}
+      </div>
       {showActions ? (
         <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label={`Actions for ${title}`}>
-          {reorder ? (
-            <>
-              <button
-                type="button"
-                data-slot="meal-reorder-earlier"
-                className={cn(REORDER_HIT, "border border-border text-foreground disabled:opacity-40")}
-                aria-label={MOVE_EARLIER_LABEL}
-                disabled={reorder.busy || !reorder.canMoveEarlier}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  reorder.onMoveEarlier();
-                }}
-              >
-                <ChevronUp aria-hidden className="size-5" />
-              </button>
-              <button
-                type="button"
-                data-slot="meal-reorder-later"
-                className={cn(REORDER_HIT, "border border-border text-foreground disabled:opacity-40")}
-                aria-label={MOVE_LATER_LABEL}
-                disabled={reorder.busy || !reorder.canMoveLater}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  reorder.onMoveLater();
-                }}
-              >
-                <ChevronDown aria-hidden className="size-5" />
-              </button>
-            </>
-          ) : null}
           {onSwap ? (
             <Button
               type="button"
@@ -442,7 +460,6 @@ export function BallotCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
     </article>
   );
 }

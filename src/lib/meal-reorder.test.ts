@@ -323,10 +323,22 @@ describe("meal reorder copy and wiring", () => {
     expect(html).toContain(`href="/week/${meal.id}"`);
     expect(html).toContain(">Swap<");
     expect(html).toContain(">Remove<");
+    expect(html).toContain("select-none");
     const openAt = html.indexOf('data-slot="meal-card-open"');
+    const sideAt = html.indexOf('data-slot="meal-reorder-side"');
+    const actionsAt = html.indexOf('role="group"');
+    expect(openAt).toBeGreaterThan(-1);
+    expect(sideAt).toBeGreaterThan(openAt);
+    expect(actionsAt).toBeGreaterThan(sideAt);
     const open = html.slice(openAt, html.indexOf("</a>", openAt));
     expect(open).not.toContain("meal-reorder-grip");
     expect(open).not.toContain(MOVE_EARLIER_LABEL);
+    const side = html.slice(sideAt, actionsAt);
+    expect(side).toContain("meal-reorder-grip");
+    expect(side).toContain(MOVE_EARLIER_LABEL);
+    expect(side).toContain(MOVE_LATER_LABEL);
+    expect(side.indexOf("meal-reorder-grip")).toBeLessThan(side.indexOf(MOVE_EARLIER_LABEL));
+    expect(side.indexOf(MOVE_EARLIER_LABEL)).toBeLessThan(side.indexOf(MOVE_LATER_LABEL));
     expect(html.match(/disabled=""/g)?.length).toBe(1);
 
     const hidden = renderToStaticMarkup(
@@ -396,9 +408,19 @@ describe("meal reorder copy and wiring", () => {
     const house = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
     const week = readFileSync(path.join(srcRoot, "app/week/page.tsx"), "utf8");
 
+    const css = readFileSync(path.join(srcRoot, "app/globals.css"), "utf8");
     expect(card).toContain('data-slot="meal-reorder-grip"');
+    expect(card).toContain('data-slot="meal-reorder-side"');
     expect(card).toContain("onPointerDown={drag.onPointerDown}");
+    expect(card).toContain("beginReorderHold");
+    expect(card).toContain("endReorderHold");
+    expect(card).toContain("onContextMenu");
     expect(card).not.toMatch(/Safari|iPhone|Android/);
+    expect(css).toContain('[data-slot="meal-reorder-grip"]');
+    expect(css).toContain('html[data-reorder-hold="true"]');
+    expect(css).toContain("-webkit-touch-callout: none");
+    expect(css).toContain("user-select: none");
+    expect(css).not.toMatch(/Safari|iPhone|Android/);
     expect(strip).not.toContain("meal-reorder");
     expect(strip).not.toContain(MOVE_EARLIER_LABEL);
     expect(navigator).not.toContain("meal-reorder");

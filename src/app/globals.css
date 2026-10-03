@@ -222,6 +222,20 @@
   line-height: 16px;
 }
 
+/* Grip: no text selection and no system callout. Hold covers the card text while pressed. */
+[data-slot="meal-reorder-grip"] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html[data-reorder-hold="true"],
+html[data-reorder-hold="true"] * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 @utility tap-target {
   min-height: 48px;
   min-width: 48px;
