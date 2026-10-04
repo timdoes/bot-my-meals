@@ -157,13 +157,13 @@ describe("foreground week refresh", () => {
       weekId: "this-week",
       screenActive: true,
     };
-    let release: ((value: string) => void) | null = null;
+    const release: { current: ((value: string) => void) | null } = { current: null };
     const loads: string[] = [];
     const refetch = createViewedWeekRefetch({
       load: (weekId) => {
         loads.push(weekId);
         return new Promise<string>((resolve) => {
-          release = resolve;
+          release.current = resolve;
         });
       },
       paint: (weekId) => {
@@ -176,17 +176,17 @@ describe("foreground week refresh", () => {
     const skipped = refetch("this-week");
     expect(loads).toEqual(["this-week"]);
     view = { weekId: null, screenActive: false };
-    release?.("this-week");
+    release.current?.("this-week");
     await pending;
     await skipped;
     expect(painted).toEqual([]);
 
     view = { weekId: "next-week", screenActive: true };
-    let releaseNext: ((value: string) => void) | null = null;
+    const releaseNext: { current: ((value: string) => void) | null } = { current: null };
     const switched = createViewedWeekRefetch({
       load: () =>
         new Promise<string>((resolve) => {
-          releaseNext = resolve;
+          releaseNext.current = resolve;
         }),
       paint: (weekId) => {
         painted.push(weekId);
@@ -195,7 +195,7 @@ describe("foreground week refresh", () => {
     });
     const late = switched("this-week");
     view = { weekId: "next-week", screenActive: true };
-    releaseNext?.("this-week");
+    releaseNext.current?.("this-week");
     await late;
     expect(painted).toEqual([]);
     expect(shouldPaintWeekRefetch({
