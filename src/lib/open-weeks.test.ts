@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { PostLockWaitingCard } from "@/components/post-lock-waiting";
 import { addDays, formatWeekRange } from "./dates";
 import {
-  PLAN_NEXT_WEEK_LABEL,
   planningTargetStarts,
   shoppingListTitle,
   splitOpenWeeks,
@@ -97,7 +96,6 @@ describe("open weeks", () => {
         planning: { week: { startsOn: "2026-10-04" } } as never,
       }),
     ).toBe("2026-10-04");
-    expect(PLAN_NEXT_WEEK_LABEL).toBe("Plan next week");
   });
 
   it("names next week on the waiting card", () => {

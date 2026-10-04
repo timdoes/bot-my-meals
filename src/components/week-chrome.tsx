@@ -5,7 +5,6 @@ import { ChevronRight, ClipboardList, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { WeekNavigator } from "@/components/week-navigator";
 import { LOCK_SUCCESS_LIST_CTA } from "@/lib/lock-success";
-import { PLAN_NEXT_WEEK_LABEL } from "@/lib/open-weeks";
 import { featuredMealEyebrow } from "@/lib/week-chrome";
 import type { WeekStripNight } from "@/lib/week-strip";
 
@@ -26,7 +25,6 @@ export function WeekChrome({
   firstMeal,
   onSelect,
   onStep,
-  planNext,
   processing = null,
 }: {
   startsOn: string;
@@ -39,7 +37,6 @@ export function WeekChrome({
   firstMeal: WeekChromeMeal | null;
   onSelect: (mealId: string) => void;
   onStep: (direction: -1 | 1) => boolean;
-  planNext: { busy: boolean; onPlan: () => void } | null;
   processing?: ReactNode;
 }) {
   return (
@@ -54,7 +51,6 @@ export function WeekChrome({
       firstMeal={firstMeal}
       onSelect={onSelect}
       onStep={onStep}
-      planNext={planNext}
       processing={processing}
     />
   );
@@ -71,7 +67,6 @@ export function WeekChromeView({
   firstMeal,
   onSelect,
   onStep,
-  planNext,
   processing = null,
 }: {
   startsOn: string;
@@ -84,7 +79,6 @@ export function WeekChromeView({
   firstMeal: WeekChromeMeal | null;
   onSelect: (mealId: string) => void;
   onStep: (direction: -1 | 1) => boolean;
-  planNext: { busy: boolean; onPlan: () => void } | null;
   processing?: ReactNode;
 }) {
   const showRows = showShoppingList || Boolean(firstMeal);
@@ -102,19 +96,6 @@ export function WeekChromeView({
         onSelect={onSelect}
         onStep={onStep}
       />
-      {planNext ? (
-        <p className="bg-card px-4 py-2 text-center">
-          <button
-            type="button"
-            data-slot="plan-next-week"
-            className="type-meta min-h-11 text-muted-foreground underline decoration-muted-foreground/40 underline-offset-4"
-            disabled={planNext.busy}
-            onClick={planNext.onPlan}
-          >
-            {planNext.busy ? "Saving…" : PLAN_NEXT_WEEK_LABEL}
-          </button>
-        </p>
-      ) : null}
       {showRows ? (
         <div className="space-y-2 bg-card p-4">
           {showShoppingList ? (
