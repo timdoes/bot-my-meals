@@ -6,6 +6,7 @@ import { BallotToast } from "@/components/ballot-toast";
 import { botCheckForHousehold } from "@/lib/bot-check";
 import { patchPlanningPeople } from "@/lib/planning-people";
 import { FINISH_WAKE_BEFORE_CREATE, shouldWakeNeedsWork } from "@/lib/bot-wake";
+import { createViewedWeekRefetch, shouldWakeAfterRefresh } from "@/lib/foreground-week-refresh";
 import { fetchBotWakeConfigured, requestBotWake } from "@/lib/bot-wake-client";
 import {
   PENDING_REFRESH_EVENT,
@@ -114,6 +115,8 @@ type SupperContextValue = {
   setViewedWeek: (selection: ViewedWeekSelection) => void;
   error: string | null;
   refresh: () => Promise<void>;
+  refetchViewedWeek: (weekId: string) => Promise<void>;
+  setForegroundWeekTarget: (weekId: string | null) => void;
   signUpWithPassword: (email: string, password: string) => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
@@ -178,6 +181,8 @@ function createSetupContext(): SupperContextValue {
     setViewedWeek: () => undefined,
     error: null,
     refresh: async () => {},
+    refetchViewedWeek: async () => {},
+    setForegroundWeekTarget: () => undefined,
     signUpWithPassword: async () => setupUnavailable(),
     signInWithPassword: async () => setupUnavailable(),
     requestPasswordReset: async () => setupUnavailable(),
@@ -238,6 +243,15 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
   const patchesRef = useRef<PendingOptimistic<HouseholdSnapshot>[]>([]);
   const patchSeq = useRef(0);
   const refreshGen = useRef(0);
+  const pollTargetRef = useRef<string | null>(null);
+  const pollApplyRef = useRef(false);
+  const pollLoadRef = useRef<(weekId: string) => Promise<{ session: Session | null; snapshot: HouseholdSnapshot | null } | null>>(
+    async () => null,
+  );
+  const pollPaintRef = useRef<(loaded: { session: Session | null; snapshot: HouseholdSnapshot | null }) => void>(
+    () => undefined,
+  );
+  const pollGateRef = useRef<((weekId: string) => Promise<void>) | null>(null);
   const chainsRef = useRef(new Map<string, Promise<void>>());
   const cancelledStoreAdds = useRef(new Set<string>());
   const storePatchKeys = useRef(new Map<string, string>());
@@ -287,6 +301,48 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
   }, [publish]);
+
+  const setForegroundWeekTarget = useCallback((weekId: string | null) => {
+    pollTargetRef.current = weekId;
+  }, []);
+
+  const refetchViewedWeek = useCallback(
+    async (weekId: string) => {
+      if (pollGateRef.current == null) {
+        pollGateRef.current = createViewedWeekRefetch({
+          load: (id) => pollLoadRef.current(id),
+          paint: (_weekId, loaded) => pollPaintRef.current(loaded),
+          viewing: () => ({
+            weekId: pollTargetRef.current,
+            screenActive: pollTargetRef.current != null,
+          }),
+        });
+      }
+      pollLoadRef.current = async () => {
+        try {
+          const client = createSupabaseBrowserClient();
+          if (!client) return null;
+          const seenGen = refreshGen.current;
+          const { data: userData } = await client.auth.getUser();
+          if (seenGen !== refreshGen.current || !userData.user) return null;
+          const nextSession = await fetchSupabaseSession(client);
+          if (seenGen !== refreshGen.current) return null;
+          const nextSnapshot = nextSession ? await fetchSupabaseSnapshot(client, nextSession) : null;
+          if (seenGen !== refreshGen.current) return null;
+          return { session: nextSession, snapshot: nextSnapshot };
+        } catch {
+          return null;
+        }
+      };
+      pollPaintRef.current = (loaded) => {
+        pollApplyRef.current = true;
+        setSession(loaded.session);
+        publish(loaded.snapshot);
+      };
+      await pollGateRef.current?.(weekId);
+    },
+    [publish],
+  );
 
   const dismissNotice = useCallback(() => setNotice(null), []);
 
@@ -453,13 +509,15 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
     }
     const needs = botCheckForHousehold(snapshot).needs_work;
     const previous = needsWorkRef.current;
+    const fromPoll = pollApplyRef.current;
+    pollApplyRef.current = false;
     needsWorkRef.current = needs;
-    if (shouldWakeNeedsWork(previous, needs)) {
-      requestPendingRefresh();
-      void requestBotWake("needs_work").then((result) => {
-        if (result === "posted" || result === "debounced") markBotWakeNotified();
-      });
-    }
+    const wake = shouldWakeAfterRefresh({ fromPoll, previous, next: needs }) && shouldWakeNeedsWork(previous, needs);
+    if (!wake) return;
+    requestPendingRefresh();
+    void requestBotWake("needs_work").then((result) => {
+      if (result === "posted" || result === "debounced") markBotWakeNotified();
+    });
   }, [snapshot]);
 
   const wakeWeekOrPlanChange = useCallback(() => {
@@ -483,6 +541,8 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
       setViewedWeek,
       error,
       refresh,
+      refetchViewedWeek,
+      setForegroundWeekTarget,
       bootstrapHousehold: (input) =>
         run(async () => {
           const client = createSupabaseBrowserClient();

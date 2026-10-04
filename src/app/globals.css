@@ -236,6 +236,39 @@ html[data-reorder-hold="true"] * {
   user-select: none;
 }
 
+.week-processing-track {
+  height: 2px;
+  width: 120px;
+  max-width: 120px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f3ecdf;
+}
+
+.week-processing-fill {
+  display: block;
+  height: 100%;
+  width: 36%;
+  background: #c4b49a;
+  animation: week-processing-travel 1.1s ease-in-out infinite;
+}
+
+@keyframes week-processing-travel {
+  from {
+    transform: translateX(-130%);
+  }
+  to {
+    transform: translateX(320%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .week-processing-fill {
+    animation: none;
+    transform: none;
+  }
+}
+
 @utility tap-target {
   min-height: 48px;
   min-width: 48px;

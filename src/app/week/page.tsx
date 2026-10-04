@@ -23,7 +23,9 @@ import { WeekChrome } from "@/components/week-chrome";
 import { Onboarding } from "@/components/onboarding";
 import { SetupWizard } from "@/components/setup-wizard";
 import { useSupper } from "@/components/supper-provider";
+import { useForegroundWeekRefresh } from "@/components/use-foreground-week-refresh";
 import { useViewedWeek } from "@/components/use-viewed-week";
+import { WeekProcessingMark } from "@/components/week-processing-mark";
 import { isHouseSetupComplete, shouldShowHouseSetup } from "@/lib/house-setup";
 import { isAdmin } from "@/lib/users";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,7 @@ import {
   type WeekNightPresentation,
 } from "@/lib/ballot";
 import { botCheckForHousehold, botCheckForSnapshot } from "@/lib/bot-check";
+import { viewedWeekDataSignature } from "@/lib/foreground-week-refresh";
 import { FINISH_WAKE_BEFORE_CREATE } from "@/lib/bot-wake";
 import { formatMealCardDayLabel, weekdayLabelFromNight } from "@/lib/dates";
 import {
@@ -223,6 +226,27 @@ function WeekBallot() {
     [snapshot, scope, reorderMeals],
   );
 
+  const foregroundWeekId = snapshot && scope && !past ? scope.week.id : null;
+  const foregroundWaiting =
+    snapshot && scope && !past
+      ? botCheckForSnapshot({
+          household: snapshot.household,
+          meals: scope.meals,
+          votes: scope.votes,
+          memberships: snapshot.memberships,
+          ballotRequest: scope.ballotRequest,
+          week: scope.week,
+          recipes: scope.recipes,
+          shoppingList: scope.shoppingList,
+        }).needs_work
+      : false;
+  const foregroundSignature = scope && !past ? viewedWeekDataSignature(scope) : "";
+  const processing = useForegroundWeekRefresh({
+    weekId: foregroundWeekId,
+    waiting: foregroundWaiting,
+    signature: foregroundSignature,
+  });
+
   if (!snapshot) return null;
   const viewingPast = Boolean(past);
   if (!viewingPast && !scope) return null;
@@ -372,6 +396,13 @@ function WeekBallot() {
           firstMeal={firstMeal}
           onSelect={jumpToNight}
           onStep={stepWeek}
+          processing={
+            <WeekProcessingMark
+              phase={processing.phase}
+              stretchKey={processing.stretchKey}
+              announce={processing.announce}
+            />
+          }
           planNext={
             showPlan
               ? {
