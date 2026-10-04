@@ -99,6 +99,73 @@ describe("optimistic snapshot patches", () => {
     expect(removed.votes[0]).toMatchObject({ choice: "remove", note: "" });
   });
 
+  it("saves Request dinner people on that night only", () => {
+    const base = snapshot();
+    const other: Meal = {
+      ...base.meals[0]!,
+      id: "meal-2",
+      dayIndex: 1,
+      nightDate: "2026-09-28",
+      servings: 5,
+    };
+    const housePlates = [...base.household.nightHeadcounts];
+    const starting = {
+      ...base,
+      meals: [...base.meals, other],
+      recipes: [
+        {
+          id: "recipe-1",
+          mealId: "meal-1",
+          servings: 3,
+          prepMinutes: 10,
+          cookMinutes: 20,
+          steps: ["Cook."],
+          ingredients: [],
+        },
+        {
+          id: "recipe-2",
+          mealId: "meal-2",
+          servings: 5,
+          prepMinutes: 10,
+          cookMinutes: 20,
+          steps: ["Cook."],
+          ingredients: [],
+        },
+      ],
+      week: { ...base.week, nightHeadcounts: [3, 5, 5, 1, 5, 3, 3] },
+    };
+    starting.meals[0] = { ...starting.meals[0]!, servings: 3 };
+    const memberId = starting.memberships[0]?.id ?? "";
+    const next = patchVote(starting, {
+      mealId: "meal-1",
+      membershipId: memberId,
+      householdId: starting.household.id,
+      choice: "request_new_meal",
+      note: "Something light.",
+      servings: 7,
+    });
+    expect(next.votes[0]).toMatchObject({ choice: "request_new_meal", note: "Something light." });
+    expect(next.meals[0]?.servings).toBe(7);
+    expect(next.meals[1]?.servings).toBe(5);
+    expect(next.recipes[0]?.servings).toBe(7);
+    expect(next.recipes[1]?.servings).toBe(5);
+    expect(next.week.nightHeadcounts).toEqual([7, 5, 5, 1, 5, 3, 3]);
+    expect(next.household.nightHeadcounts).toEqual(housePlates);
+    expect(starting.meals[0]?.servings).toBe(3);
+    expect(starting.meals[1]?.servings).toBe(5);
+    expect(starting.week.nightHeadcounts).toEqual([3, 5, 5, 1, 5, 3, 3]);
+    const swapOnly = patchVote(starting, {
+      mealId: "meal-1",
+      membershipId: memberId,
+      householdId: starting.household.id,
+      choice: "swap",
+      note: "Too heavy.",
+      servings: 7,
+    });
+    expect(swapOnly.meals[0]?.servings).toBe(3);
+    expect(swapOnly.week.nightHeadcounts).toEqual([3, 5, 5, 1, 5, 3, 3]);
+  });
+
   it("updates house plate defaults without rewriting this week's meals", () => {
     const base = snapshot();
     const servings = base.meals[0]?.servings;

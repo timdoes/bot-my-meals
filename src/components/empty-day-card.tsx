@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import {
+  ADD_SHEET_PEOPLE_LABEL,
   ADD_SHEET_NOTE_LABEL,
   ADD_SHEET_PLACEHOLDER,
   ADD_SHEET_SEND,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { mealCardControlId } from "@/lib/dates";
+import { MAX_HEADCOUNT, MIN_HEADCOUNT, dinnerRequestPeople } from "@/lib/headcount";
 import { AWAITING_MEAL_LABEL } from "@/lib/wake-feedback";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +44,7 @@ function renderEmptyDayBody({
 }: {
   state: "empty" | "pending" | "locked" | "awaiting";
   note?: string;
-  onAdd?: (note: string) => void | Promise<void>;
+  onAdd?: (note: string, people: number) => void | Promise<void>;
   onCancel?: () => void | Promise<void>;
   openAdd: () => void;
   cancelRequest: () => void;
@@ -105,6 +107,7 @@ export function EmptyDayCard({
   dayName,
   state,
   note,
+  servings,
   onAdd,
   onCancel,
 }: {
@@ -112,17 +115,26 @@ export function EmptyDayCard({
   dayName: string;
   state: "empty" | "pending" | "locked" | "awaiting";
   note?: string;
-  onAdd?: (note: string) => void | Promise<void>;
+  servings?: number;
+  onAdd?: (note: string, people: number) => void | Promise<void>;
   onCancel?: () => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
+  const [people, setPeople] = useState(() => dinnerRequestPeople(servings));
   const noteFieldId = mealCardControlId("add-note", dayLabel);
+  const peopleFieldId = mealCardControlId("add-people", dayLabel);
+
+  const beginAdd = () => {
+    setPeople(dinnerRequestPeople(servings));
+    setOpen(true);
+  };
 
   const requestDinner = () => {
     if (!onAdd) return;
-    const pending = onAdd(draft.trim());
+    const pending = onAdd(draft.trim(), dinnerRequestPeople(people));
     setDraft("");
+    setPeople(dinnerRequestPeople(servings));
     setOpen(false);
     void Promise.resolve(pending).catch(() => undefined);
   };
@@ -154,7 +166,7 @@ export function EmptyDayCard({
       >
         {dayLabel}
       </p>
-      {renderEmptyDayBody({ state, note, onAdd, onCancel, openAdd: () => setOpen(true), cancelRequest })}
+      {renderEmptyDayBody({ state, note, onAdd, onCancel, openAdd: beginAdd, cancelRequest })}
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
@@ -168,17 +180,58 @@ export function EmptyDayCard({
               {addSheetHelper(dayName)}
             </SheetDescription>
           </SheetHeader>
-          <div className="space-y-2 px-4">
-            <Label htmlFor={noteFieldId} className="type-meta text-muted-foreground">
-              {ADD_SHEET_NOTE_LABEL}
-            </Label>
-            <Textarea
-              id={noteFieldId}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder={ADD_SHEET_PLACEHOLDER}
-              className="min-h-24 rounded-[var(--radius-button)] text-base"
-            />
+          <div className="space-y-4 px-4">
+            <div className="space-y-2">
+              <Label htmlFor={peopleFieldId} className="type-meta text-muted-foreground">
+                {ADD_SHEET_PEOPLE_LABEL}
+              </Label>
+              <div
+                data-slot="dinner-people-stepper"
+                className="flex items-center justify-between gap-3 rounded-[14px] bg-secondary px-3 py-2"
+              >
+                <button
+                  type="button"
+                  aria-label={`Fewer people on ${dayName}`}
+                  disabled={people <= MIN_HEADCOUNT}
+                  onClick={() => setPeople(dinnerRequestPeople(people - 1))}
+                  className="tap-target flex size-12 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-card disabled:opacity-40"
+                >
+                  <Minus className="size-5" />
+                </button>
+                <input
+                  id={peopleFieldId}
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_HEADCOUNT}
+                  max={MAX_HEADCOUNT}
+                  value={people}
+                  onChange={(event) => setPeople(dinnerRequestPeople(Number(event.target.value)))}
+                  aria-label={`People on ${dayName}`}
+                  className="h-12 w-14 rounded-[var(--radius-button)] border border-border bg-card text-center font-mono text-lg font-semibold tabular-nums"
+                />
+                <button
+                  type="button"
+                  aria-label={`More people on ${dayName}`}
+                  disabled={people >= MAX_HEADCOUNT}
+                  onClick={() => setPeople(dinnerRequestPeople(people + 1))}
+                  className="tap-target flex size-12 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-card disabled:opacity-40"
+                >
+                  <Plus className="size-5" />
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={noteFieldId} className="type-meta text-muted-foreground">
+                {ADD_SHEET_NOTE_LABEL}
+              </Label>
+              <Textarea
+                id={noteFieldId}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder={ADD_SHEET_PLACEHOLDER}
+                className="min-h-24 rounded-[var(--radius-button)] text-base"
+              />
+            </div>
           </div>
           <SheetFooter className="flex-row gap-2">
             <Button

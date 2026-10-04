@@ -345,9 +345,9 @@ function WeekBallot() {
     />
   );
 
-  const act = async (mealId: string, choice: VoteChoice, note?: string) => {
+  const act = async (mealId: string, choice: VoteChoice, note?: string, servings?: number) => {
     try {
-      const message = await setVote(mealId, choice, note);
+      const message = await setVote(mealId, choice, note, servings);
       if (message) setToast(message);
     } catch {
       // The provider rolls the night back and shows the error.
@@ -611,7 +611,7 @@ function renderNightCard({
   locked: boolean;
   pending: boolean;
   lifecycle: NightLifecycle;
-  onAct: (mealId: string, choice: VoteChoice, note?: string) => void;
+  onAct: (mealId: string, choice: VoteChoice, note?: string, servings?: number) => void;
   onWaiting: () => void;
   reorder?: MealReorderHandlers;
   openHref?: string;
@@ -623,10 +623,11 @@ function renderNightCard({
           dayLabel={dayLabel}
           dayName={dayName}
           state={awaitingMeal ? "awaiting" : "empty"}
+          servings={meal.servings}
           onAdd={
             awaitingMeal || !canVote
               ? undefined
-              : (note) => onAct(meal.id, "request_new_meal", note)
+              : (note, people) => onAct(meal.id, "request_new_meal", note, people)
           }
         />
       );

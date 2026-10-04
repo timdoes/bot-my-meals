@@ -131,7 +131,7 @@ type SupperContextValue = {
   removeMember: (memberId: string) => Promise<void>;
   removeInvite: (inviteId: string) => Promise<void>;
   signOut: () => Promise<void>;
-  setVote: (mealId: string, choice: VoteChoice, note?: string) => Promise<string | undefined>;
+  setVote: (mealId: string, choice: VoteChoice, note?: string, servings?: number) => Promise<string | undefined>;
   proposeReplacement: (mealId: string, proposal: MealProposalInput) => Promise<void>;
   applyIdea: (mealId: string, ideaId: string) => Promise<void>;
   markLeftovers: (mealId: string, sourceMealId: string) => Promise<void>;
@@ -649,7 +649,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
           const client = createSupabaseBrowserClient();
           await client?.auth.signOut();
         }),
-      setVote: (mealId, choice, note) => {
+      setVote: (mealId, choice, note, servings) => {
         const current = session;
         const visible = displayRef.current;
         if (!current?.membershipId || !current.householdId || !visible) {
@@ -667,11 +667,12 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
               householdId: current.householdId ?? "",
               choice,
               note: trimmed,
+              servings,
             }),
           async () => {
             const client = createSupabaseBrowserClient();
             if (!client) throw new Error("Not signed in");
-            return supabaseSetVote(client, current, mealId, choice, trimmed);
+            return supabaseSetVote(client, current, mealId, choice, trimmed, servings);
           },
         );
       },

@@ -15,6 +15,27 @@ export function clampHeadcount(value: number): number {
   return Math.min(MAX_HEADCOUNT, Math.max(MIN_HEADCOUNT, Math.round(value)));
 }
 
+/**
+ * People count on Request a new dinner. Floor is 1. Missing values become 1,
+ * never a house default of 2 or 4.
+ */
+export function dinnerRequestPeople(servings: number | null | undefined): number {
+  if (typeof servings !== "number" || !Number.isFinite(servings)) return MIN_HEADCOUNT;
+  return Math.min(MAX_HEADCOUNT, Math.max(MIN_HEADCOUNT, Math.round(servings)));
+}
+
+/** Write one weekday's plates. Other nights stay. Null week plates stay null. */
+export function withNightServings(
+  counts: number[] | null | undefined,
+  nightDate: string,
+  servings: number,
+): number[] | null {
+  if (!Array.isArray(counts) || counts.length !== 7) return counts ?? null;
+  const next = [...counts];
+  next[weekdayIndexFromDate(nightDate)] = dinnerRequestPeople(servings);
+  return next;
+}
+
 export function clampNightHeadcount(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_FAMILY_SIZE;
   return Math.min(MAX_HEADCOUNT, Math.max(MIN_NIGHT_HEADCOUNT, Math.round(value)));
