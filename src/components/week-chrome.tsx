@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ChevronRight, ClipboardList, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { WeekNavigator } from "@/components/week-navigator";
@@ -26,6 +27,7 @@ export function WeekChrome({
   onSelect,
   onStep,
   planNext,
+  processing = null,
 }: {
   startsOn: string;
   nights: readonly WeekStripNight[];
@@ -38,6 +40,7 @@ export function WeekChrome({
   onSelect: (mealId: string) => void;
   onStep: (direction: -1 | 1) => boolean;
   planNext: { busy: boolean; onPlan: () => void } | null;
+  processing?: ReactNode;
 }) {
   return (
     <WeekChromeView
@@ -52,6 +55,7 @@ export function WeekChrome({
       onSelect={onSelect}
       onStep={onStep}
       planNext={planNext}
+      processing={processing}
     />
   );
 }
@@ -68,6 +72,7 @@ export function WeekChromeView({
   onSelect,
   onStep,
   planNext,
+  processing = null,
 }: {
   startsOn: string;
   nights: readonly WeekStripNight[];
@@ -80,11 +85,13 @@ export function WeekChromeView({
   onSelect: (mealId: string) => void;
   onStep: (direction: -1 | 1) => boolean;
   planNext: { busy: boolean; onPlan: () => void } | null;
+  processing?: ReactNode;
 }) {
   const showRows = showShoppingList || Boolean(firstMeal);
   const featuredEyebrow = firstMeal ? featuredMealEyebrow(firstMeal.nightDate, todayIso) : null;
   return (
     <div data-slot="week-chrome" data-locked={locked ? "true" : "false"} className="min-w-0">
+      {processing}
       <WeekNavigator
         startsOn={startsOn}
         nights={nights}
