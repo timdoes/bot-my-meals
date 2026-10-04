@@ -7,6 +7,7 @@ import { WeekChromeView } from "@/components/week-chrome";
 import { WeekStrip } from "@/components/week-strip";
 import { UNLOCK_WEEK_CONFIRM } from "./lock-success";
 import type { Meal, Vote } from "./types";
+import { navigatorStops, navigatorTitle, stepNavigator } from "./week-navigator";
 import {
   featuredMealEyebrow,
   nightHasStripMeal,
@@ -214,7 +215,6 @@ describe("week chrome markup", () => {
         firstMeal: { id: "tue", title: "Lemon roast chicken", nightDate: "2026-09-29" },
         onSelect: () => undefined,
         onStep: () => false,
-        planNext: null,
       }),
     );
     expect(both).toContain("Open shopping list");
@@ -242,7 +242,6 @@ describe("week chrome markup", () => {
         firstMeal: { id: "tue", title: "Tacos", nightDate: "2026-09-29" },
         onSelect: () => undefined,
         onStep: () => false,
-        planNext: null,
       }),
     );
     expect(mealOnly).not.toContain("Open shopping list");
@@ -263,7 +262,6 @@ describe("week chrome markup", () => {
         firstMeal: { id: "mon", title: "Soup", nightDate: "2026-09-28" },
         onSelect: () => undefined,
         onStep: () => false,
-        planNext: null,
       }),
     );
     expect(tonight).toContain("Tonight’s meal");
@@ -289,5 +287,52 @@ describe("week chrome markup", () => {
     expect(list).toContain('data-slot="dismiss-shopping"');
     expect(list).toContain("closeShoppingPrompt");
     expect(list).not.toContain("cart");
+  });
+
+  it("omits Plan next week and still switches This week and Next week", () => {
+    const root = path.resolve(import.meta.dirname, "..");
+    const chrome = readFileSync(path.join(root, "components/week-chrome.tsx"), "utf8");
+    const week = readFileSync(path.join(root, "app/week/page.tsx"), "utf8");
+    const html = renderToStaticMarkup(
+      createElement(WeekChromeView, {
+        startsOn,
+        nights,
+        selectedMealId: "mon",
+        todayIso: "2026-09-28",
+        locked: false,
+        mutedDates: [],
+        showShoppingList: false,
+        firstMeal: null,
+        onSelect: () => undefined,
+        onStep: () => true,
+      }),
+    );
+    expect(html).not.toContain("Plan next week");
+    expect(html).not.toContain('data-slot="plan-next-week"');
+    expect(chrome).not.toContain("Plan next week");
+    expect(chrome).not.toContain('data-slot="plan-next-week"');
+    expect(week).not.toContain("Plan next week");
+    expect(week).not.toContain('data-slot="plan-next-week"');
+    expect(week).not.toContain("planNext=");
+    expect(html).toContain('data-slot="week-navigator"');
+    expect(html).toContain('data-slot="week-nav-previous"');
+    expect(html).toContain('data-slot="week-nav-next"');
+    expect(week).toContain("onStep={stepWeek}");
+    expect(week).toContain("stepNavigator");
+
+    const stops = navigatorStops({
+      historyStartsOn: [],
+      cookingStartsOn: startsOn,
+      planningStartsOn: "2026-10-04",
+    });
+    const cookingIndex = stops.findIndex((stop) => stop.kind === "cooking");
+    const toNext = stepNavigator(stops, cookingIndex, 1);
+    expect(toNext.moved).toBe(true);
+    expect(toNext.stop.kind).toBe("planning");
+    expect(navigatorTitle(toNext.stop)).toBe("Next week");
+    const toThis = stepNavigator(stops, toNext.index, -1);
+    expect(toThis.moved).toBe(true);
+    expect(toThis.stop.kind).toBe("cooking");
+    expect(navigatorTitle(toThis.stop)).toBe("This week");
   });
 });

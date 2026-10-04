@@ -4,7 +4,6 @@ import type { HouseholdSnapshot, WeekRole, WeekScope, WeekStatus } from "./types
 
 export const THIS_WEEK_LABEL = "This week";
 export const NEXT_WEEK_LABEL = "Next week";
-export const PLAN_NEXT_WEEK_LABEL = "Plan next week";
 
 export type DatedWeek = {
   startsOn: string | null;

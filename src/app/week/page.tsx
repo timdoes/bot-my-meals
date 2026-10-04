@@ -315,12 +315,6 @@ function WeekBallot() {
   const activeStop = stops[index];
   const title = activeStop ? navigatorTitle(activeStop) : "This week";
   const eyebrow = activeStop ? navigatorEyebrow(activeStop) : null;
-  const showPlan =
-    !viewingPast &&
-    role === "cooking" &&
-    !hasPlanning &&
-    isAdmin(session?.role) &&
-    isHouseSetupComplete(snapshot.household.setupStep);
   const showPeopleGate =
     scope != null &&
     planningPeopleGateOpen({
@@ -402,14 +396,6 @@ function WeekBallot() {
               stretchKey={processing.stretchKey}
               announce={processing.announce}
             />
-          }
-          planNext={
-            showPlan
-              ? {
-                  busy: planning,
-                  onPlan: () => startPlanning(false),
-                }
-              : null
           }
         />
       }
