@@ -83,8 +83,9 @@ function expectStripNavigatorInstallPaste(doc: string) {
   expect(doc).toMatch(/cannot open a week-after-next/);
   expect(doc).toMatch(/titles only/);
   expect(doc).toMatch(/House → Past weeks/);
-  expect(doc).toMatch(/Plan next week/);
   expect(doc).toMatch(/0 gap/);
+  expect(doc).not.toMatch(/Plan next week/);
+  expect(doc).not.toMatch(/tap Plan next week/i);
   expect(doc).not.toMatch(/This week \| Next week switcher/);
   expect(doc).not.toMatch(/When both exist, (?:a \*\*)?This week \| Next week/);
   expect(doc).not.toMatch(/the app shows a This week \| Next week switcher/);
@@ -111,6 +112,7 @@ function expectDualWeekInstallPaste(paste: string) {
   );
   expect(paste).toMatch(/for the week that needs work/);
   expect(paste).not.toMatch(/7\) Tap Plan next week/);
+  expect(paste).not.toMatch(/Plan next week/);
   expect(paste).not.toMatch(/grandma/i);
 }
 
@@ -136,8 +138,11 @@ function expectPlanningPeopleGateInstallPaste(doc: string) {
   expect(doc).toMatch(/template for new weeks/);
   expect(doc).toMatch(/do(?:es)? not write/i);
   expect(doc).toMatch(/lands on (?:\*\*)?Next week/);
-  expect(doc).toMatch(/future swipe or ›/);
+  expect(doc).toMatch(/future swipe or › from cooking creates (?:\*\*)?Next week/);
+  expect(doc).toMatch(/Saved → (?:\*\*)?Request for next week/);
   expect(doc).not.toMatch(/the future edge soft-stops or offers Plan next week/);
+  expect(doc).not.toMatch(/soft-stops/);
+  expect(doc).not.toMatch(/Plan next week/);
   expect(doc).not.toMatch(/grandma/i);
 }
 
@@ -400,8 +405,10 @@ describe("Install docs — email + password + Wake on app event", () => {
     expect(saved).toMatch(/Requested for next week/);
     expect(saved).toMatch(/will not open a week after next/);
     expect(saved).toMatch(/do not say this week/);
-    expect(saved).toMatch(/Plan next week/);
-    expect(saved).toMatch(/same create path/);
+    expect(saved).not.toMatch(/Plan next week/);
+    expect(saved).toMatch(/stays its own path/);
+    expect(saved).toMatch(/future swipe from This week/);
+    expect(saved).toMatch(/when that week does not exist yet/);
     expect(saved).toMatch(/will not invent a third open week/);
     expect(saved).toMatch(/People per night(?:\*\*)? first/);
     expect(saved).toMatch(/Special instructions/);
