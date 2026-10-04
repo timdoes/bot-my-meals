@@ -72,8 +72,9 @@ describe("Clear Sky lock-success craft", () => {
     );
 
     expect(week).toContain(
-      "footer={!viewingPast && !locked && check.ready && !showPeopleGate ? <LockBar /> : undefined}",
+      "const showLockBar = !viewingPast && !locked && check.ready && !showPeopleGate",
     );
+    expect(week).toContain("{showLockBar ? <LockBar /> : null}");
     expect(week).toContain("<WeekChrome");
     expect(week).toContain("<UnlockWeekControl");
     expect(lockBar).toContain('data-slot="lock-bar"');

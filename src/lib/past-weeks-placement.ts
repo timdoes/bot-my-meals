@@ -1,28 +1,26 @@
 /**
- * Phone clearance for the This week "Past weeks" link.
+ * This week bottom stack.
  *
- * The lock footer is sticky at `3.75rem + safe-area` above the viewport bottom,
- * and main only keeps `pb-20` (5rem) when that footer is mounted. On a phone
- * the safe area eats that padding, so the link's bottom edge slides under the
- * lock bar. Extra padding under the link restores a gap above both the lock
- * footer and the fixed tab bar.
+ * Past weeks is a full-width row in the sticky footer, above Lock this week
+ * when that button is showing and above the tab bar when it is not. It does
+ * not sit in the meal scroll. Main padding is `5rem + safe-area` while the
+ * nav is showing so the sticky offset (`3.75rem + safe-area`) cannot cover
+ * the last meal card.
  */
 
-export const WEEK_MAIN_FOOTER_PADDING_REM = 5;
-export const WEEK_MAIN_NAV_PADDING_REM = 9;
+export const STACK_MAIN_PADDING_REM = 5;
 export const LOCK_FOOTER_BOTTOM_REM = 3.75;
-export const PAST_WEEKS_LINK_MIN_CLEARANCE_REM = 1;
+export const STACK_PAD_Y_REM = 0.5;
+export const STACK_GAP_REM = 0.5;
+export const STACK_INLINE_PAD_REM = 1;
+export const PAST_WEEKS_ROW_HEIGHT_REM = 3;
 
-/** Sticky lock footer: wrapper `py-2` + card `p-3` + fat button `h-12`. */
-export const LOCK_FOOTER_PADDING_Y_REM = 0.5;
+/** Lock card: `p-3` around a fat `h-12` button. Shell `py-2` is the stack pad. */
 export const LOCK_CARD_PADDING_REM = 0.75;
 export const LOCK_BUTTON_HEIGHT_REM = 3;
 
-export const pastWeeksLinkPositionClass =
-  "mt-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-center";
-
-export const pastWeeksLinkClass =
-  "type-meta tap-target inline-flex items-center justify-center px-3 text-muted-foreground underline decoration-muted-foreground/40 underline-offset-4";
+export const pastWeeksStackLinkClass =
+  "type-body flex min-h-12 w-full items-center justify-between gap-3 rounded-[14px] bg-card px-5 text-foreground shadow-card";
 
 export type Box = { top: number; right: number; bottom: number; left: number };
 
@@ -36,90 +34,123 @@ function rem(rootFontPx: number, value: number): number {
   return value * rootFontPx;
 }
 
-export function pastWeeksLinkClearancePx(safeAreaBottomPx: number, rootFontPx = 16): number {
-  return Math.max(rem(rootFontPx, PAST_WEEKS_LINK_MIN_CLEARANCE_REM), safeAreaBottomPx);
+export function lockCardHeightPx(rootFontPx = 16): number {
+  return rem(rootFontPx, LOCK_CARD_PADDING_REM) * 2 + rem(rootFontPx, LOCK_BUTTON_HEIGHT_REM);
 }
 
-export function lockFooterHeightPx(rootFontPx = 16): number {
-  return (
-    rem(rootFontPx, LOCK_FOOTER_PADDING_Y_REM) * 2 +
-    rem(rootFontPx, LOCK_CARD_PADDING_REM) * 2 +
-    rem(rootFontPx, LOCK_BUTTON_HEIGHT_REM)
-  );
-}
-
-export type WeekEndLayout = {
-  link: Box;
+export type WeekBottomStackLayout = {
+  meals: Box;
+  stack: Box;
+  pastWeeks: Box | null;
   lock: Box | null;
   lockButton: Box | null;
   nav: Box;
 };
 
-/** Viewport boxes at max scroll, when the link has been brought as low as it can go. */
-export function pastWeeksEndLayout(input: {
+/** Viewport boxes at max scroll. Past weeks lives in the sticky stack, not in the meal list. */
+export function weekBottomStackLayout(input: {
   viewportWidth: number;
   viewportHeight: number;
   safeAreaBottomPx: number;
   lockBarVisible: boolean;
+  pastWeeksVisible?: boolean;
   rootFontPx?: number;
-  linkClearancePx?: number;
-  linkHeightPx?: number;
-  linkWidthPx?: number;
-}): WeekEndLayout {
+  /** Phone home-indicator inset on the meal padding. Off, the last card slides under the stack. */
+  includeSafeAreaInMainPad?: boolean;
+}): WeekBottomStackLayout {
   const root = input.rootFontPx ?? 16;
   const safe = Math.max(0, input.safeAreaBottomPx);
-  const linkHeight = input.linkHeightPx ?? 48;
-  const linkWidth = input.linkWidthPx ?? Math.min(160, input.viewportWidth - 32);
-  const clearance = input.linkClearancePx ?? pastWeeksLinkClearancePx(safe, root);
-  const mainPad = rem(
-    root,
-    input.lockBarVisible ? WEEK_MAIN_FOOTER_PADDING_REM : WEEK_MAIN_NAV_PADDING_REM,
-  );
+  const pastWeeksVisible = input.pastWeeksVisible ?? true;
+  const includeSafe = input.includeSafeAreaInMainPad ?? true;
   const stickyBottom = rem(root, LOCK_FOOTER_BOTTOM_REM) + safe;
-  const lockHeight = input.lockBarVisible ? lockFooterHeightPx(root) : 0;
+  const mainPad = rem(root, STACK_MAIN_PADDING_REM) + (includeSafe ? safe : 0);
+  const padY = rem(root, STACK_PAD_Y_REM);
+  const gap = pastWeeksVisible && input.lockBarVisible ? rem(root, STACK_GAP_REM) : 0;
+  const rowHeight = pastWeeksVisible ? rem(root, PAST_WEEKS_ROW_HEIGHT_REM) : 0;
+  const lockHeight = input.lockBarVisible ? lockCardHeightPx(root) : 0;
+  const footerHeight = padY * 2 + rowHeight + gap + lockHeight;
   const navHeight = rem(root, 0.25) + 48 + Math.max(rem(root, 0.5), safe);
+  const inlinePad = rem(root, STACK_INLINE_PAD_REM);
   const viewportBottom = input.viewportHeight;
 
-  const linkBottom = viewportBottom - lockHeight - mainPad - clearance;
-  const linkLeft = (input.viewportWidth - linkWidth) / 2;
-  const link: Box = {
-    top: linkBottom - linkHeight,
-    right: linkLeft + linkWidth,
-    bottom: linkBottom,
-    left: linkLeft,
+  const stack: Box = {
+    top: viewportBottom - stickyBottom - footerHeight,
+    right: input.viewportWidth,
+    bottom: viewportBottom - stickyBottom,
+    left: 0,
   };
-
   const nav: Box = {
     top: viewportBottom - navHeight,
     right: input.viewportWidth,
     bottom: viewportBottom,
     left: 0,
   };
+  const meals: Box = {
+    top: stack.top - mainPad - rem(root, 4),
+    right: input.viewportWidth - inlinePad,
+    bottom: viewportBottom - footerHeight - mainPad,
+    left: inlinePad,
+  };
 
-  if (!input.lockBarVisible) {
-    return { link, lock: null, lockButton: null, nav };
+  const contentLeft = inlinePad;
+  const contentRight = input.viewportWidth - inlinePad;
+  const pastWeeks: Box | null = pastWeeksVisible
+    ? {
+        top: stack.top + padY,
+        right: contentRight,
+        bottom: stack.top + padY + rowHeight,
+        left: contentLeft,
+      }
+    : null;
+
+  if (!input.lockBarVisible || !pastWeeks) {
+    const lockOnly: Box | null =
+      input.lockBarVisible
+        ? {
+            top: stack.top + padY,
+            right: contentRight,
+            bottom: stack.top + padY + lockHeight,
+            left: contentLeft,
+          }
+        : null;
+    return {
+      meals,
+      stack,
+      pastWeeks,
+      lock: lockOnly,
+      lockButton: lockOnly ? lockButtonBox(lockOnly, root) : null,
+      nav,
+    };
   }
 
-  const lockTop = viewportBottom - stickyBottom - lockHeight;
   const lock: Box = {
-    top: lockTop,
-    right: input.viewportWidth,
-    bottom: viewportBottom - stickyBottom,
-    left: 0,
+    top: pastWeeks.bottom + gap,
+    right: contentRight,
+    bottom: pastWeeks.bottom + gap + lockHeight,
+    left: contentLeft,
   };
-  const buttonInsetY = rem(root, LOCK_FOOTER_PADDING_Y_REM) + rem(root, LOCK_CARD_PADDING_REM);
-  const buttonInsetX = rem(root, 1) + rem(root, LOCK_CARD_PADDING_REM);
-  const lockButton: Box = {
-    top: lock.top + buttonInsetY,
-    right: input.viewportWidth - buttonInsetX,
-    bottom: lock.top + buttonInsetY + rem(root, LOCK_BUTTON_HEIGHT_REM),
-    left: buttonInsetX,
-  };
-
-  return { link, lock, lockButton, nav };
+  return { meals, stack, pastWeeks, lock, lockButton: lockButtonBox(lock, root), nav };
 }
 
-export function pastWeeksLinkCovered(layout: WeekEndLayout): boolean {
+function lockButtonBox(lock: Box, rootFontPx: number): Box {
+  const inset = rem(rootFontPx, LOCK_CARD_PADDING_REM);
+  return {
+    top: lock.top + inset,
+    right: lock.right - inset,
+    bottom: lock.top + inset + rem(rootFontPx, LOCK_BUTTON_HEIGHT_REM),
+    left: lock.left + inset,
+  };
+}
+
+export function pastWeeksCovered(layout: WeekBottomStackLayout): boolean {
+  if (!layout.pastWeeks) return false;
   const blockers = [layout.nav, layout.lock, layout.lockButton].filter((box): box is Box => box != null);
-  return blockers.some((box) => boxesOverlap(layout.link, box));
+  return blockers.some((box) => boxesOverlap(layout.pastWeeks!, box));
+}
+
+export function mealsCoveredByStack(layout: WeekBottomStackLayout): boolean {
+  const blockers = [layout.stack, layout.nav, layout.lock, layout.lockButton, layout.pastWeeks].filter(
+    (box): box is Box => box != null,
+  );
+  return blockers.some((box) => boxesOverlap(layout.meals, box));
 }
