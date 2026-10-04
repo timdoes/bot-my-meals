@@ -1,4 +1,5 @@
 import { voteNotePersists, voteSavesDinnerPeople } from "@/lib/ballot";
+import { scaleIngredientQuantity } from "@/lib/shopping";
 import { audienceFromHeadcount, dinnerRequestPeople, withDerivedNightSettings, withNightServings } from "@/lib/headcount";
 import { nightsPlannedFromHeadcounts } from "@/lib/house-setup";
 import type {
@@ -147,9 +148,17 @@ function applyNightPeople(
       meals: meals.map((item) =>
         item.id === mealId ? { ...item, servings: people, audience } : item,
       ),
-      recipes: recipes.map((recipe) =>
-        recipe.mealId === mealId ? { ...recipe, servings: people } : recipe,
-      ),
+      recipes: recipes.map((recipe) => {
+        if (recipe.mealId !== mealId) return recipe;
+        return {
+          ...recipe,
+          servings: people,
+          ingredients: recipe.ingredients.map((ingredient) => ({
+            ...ingredient,
+            quantity: scaleIngredientQuantity(ingredient.quantity, recipe.servings, people),
+          })),
+        };
+      }),
       week:
         meal && week.nightHeadcounts
           ? {
@@ -301,6 +310,31 @@ export function patchSavedMealRequest(
   };
 }
 
+function recipesWithProposal(
+  recipes: Recipe[],
+  mealId: string,
+  proposal: MealProposalInput,
+): Recipe[] {
+  if (!proposal.ingredients) return recipes;
+  const existing = recipes.find((recipe) => recipe.mealId === mealId);
+  const next: Recipe = {
+    id: existing?.id ?? `optimistic-recipe-${mealId}`,
+    mealId,
+    servings: proposal.servings ?? existing?.servings ?? 1,
+    prepMinutes: existing?.prepMinutes ?? Math.min(15, proposal.prepMinutes),
+    cookMinutes: existing?.cookMinutes ?? Math.max(0, proposal.prepMinutes - 15),
+    steps: proposal.steps?.length ? proposal.steps : (existing?.steps ?? []),
+    ingredients: proposal.ingredients.map((ingredient, index) => ({
+      id: existing?.ingredients[index]?.id ?? `${mealId}-ingredient-${index}`,
+      name: ingredient.name,
+      quantity: ingredient.quantity,
+      unit: ingredient.unit,
+      storeId: ingredient.storeId,
+    })),
+  };
+  return [...recipes.filter((recipe) => recipe.mealId !== mealId), next];
+}
+
 function applyProposal(meal: HouseholdSnapshot["meals"][number], proposal: MealProposalInput) {
   return {
     ...meal,
@@ -327,6 +361,7 @@ export function patchMealProposal(
         meals: snapshot.planning.meals.map((meal) =>
           meal.id === mealId ? applyProposal(meal, proposal) : meal,
         ),
+        recipes: recipesWithProposal(snapshot.planning.recipes, mealId, proposal),
         votes: snapshot.planning.votes.filter((vote) => vote.mealId !== mealId),
       },
     };
@@ -334,6 +369,7 @@ export function patchMealProposal(
   return {
     ...snapshot,
     meals: snapshot.meals.map((meal) => (meal.id === mealId ? applyProposal(meal, proposal) : meal)),
+    recipes: recipesWithProposal(snapshot.recipes, mealId, proposal),
     votes: snapshot.votes.filter((vote) => vote.mealId !== mealId),
   };
 }

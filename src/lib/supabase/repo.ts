@@ -49,6 +49,7 @@ import { parseMealHistory, todayInTimeZone } from "@/lib/meal-history";
 import { splitOpenWeeks } from "@/lib/open-weeks";
 import { parseSavedMeals } from "@/lib/saved-meals";
 import { redactUntilLocked } from "@/lib/visibility";
+import { scaleIngredientQuantity, shoppingListsToRebuild, withRebuiltShoppingLists } from "@/lib/shopping";
 import { parseEditableFrom, parseShoppingPrompt } from "@/lib/week-chrome";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -444,11 +445,38 @@ export async function supabaseSaveNightServings(
 
   const { data: meal, error: mealError } = await client
     .from("meals")
-    .select("id, week_id, night_date, household_id")
+    .select("id, week_id, night_date, household_id, servings")
     .eq("id", mealId)
     .single();
   if (mealError || !meal) throw new Error(mealError?.message ?? "Meal not found");
   if (meal.household_id !== session.householdId) throw new Error("Meal not found");
+
+  const { data: recipeRow, error: recipeReadError } = await client
+    .from("recipes")
+    .select("id, servings")
+    .eq("meal_id", mealId)
+    .eq("household_id", session.householdId)
+    .maybeSingle();
+  if (recipeReadError) throw new Error(recipeReadError.message);
+  if (recipeRow) {
+    const fromServings = Number(recipeRow.servings);
+    const { data: ingredientRows, error: ingredientReadError } = await client
+      .from("recipe_ingredients")
+      .select("id, quantity")
+      .eq("recipe_id", recipeRow.id);
+    if (ingredientReadError) throw new Error(ingredientReadError.message);
+    await Promise.all(
+      (ingredientRows ?? []).map(async (ingredient) => {
+        const quantity = scaleIngredientQuantity(Number(ingredient.quantity), fromServings, people);
+        if (quantity === Number(ingredient.quantity)) return;
+        const { error: quantityError } = await client
+          .from("recipe_ingredients")
+          .update({ quantity })
+          .eq("id", ingredient.id);
+        if (quantityError) throw new Error(quantityError.message);
+      }),
+    );
+  }
 
   const { error: updateError } = await client
     .from("meals")
@@ -589,6 +617,34 @@ export async function supabaseProposeReplacement(
       })),
     );
     if (ingError) throw new Error(ingError.message);
+  }
+}
+
+export async function supabaseRebuildWeekShoppingList(
+  client: SupabaseClient,
+  weekId: string,
+): Promise<boolean> {
+  const { error } = await client.rpc("rebuild_week_shopping_list", { target_week: weekId });
+  return !error;
+}
+
+/** Persist a stale list for a week that already has one. Does not invent a list. */
+export async function supabaseSyncShoppingLists(
+  client: SupabaseClient,
+  session: Session,
+  snapshot: HouseholdSnapshot,
+): Promise<HouseholdSnapshot> {
+  const weekIds = shoppingListsToRebuild(snapshot);
+  if (weekIds.length === 0) return snapshot;
+  const wrote = await Promise.all(
+    weekIds.map((weekId) => supabaseRebuildWeekShoppingList(client, weekId)),
+  );
+  if (!wrote.some(Boolean)) return withRebuiltShoppingLists(snapshot);
+  try {
+    const refreshed = await fetchSupabaseSnapshot(client, session);
+    return withRebuiltShoppingLists(refreshed ?? snapshot);
+  } catch {
+    return withRebuiltShoppingLists(snapshot);
   }
 }
 

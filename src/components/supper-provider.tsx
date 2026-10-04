@@ -46,6 +46,7 @@ import {
   savedMealRequestActive,
 } from "@/lib/saved-meals";
 import { swapMealContent } from "@/lib/meal-reorder";
+import { withRebuiltShoppingLists } from "@/lib/shopping";
 import { planningTargetStarts, scopeForMeal, scopeForRole } from "@/lib/open-weeks";
 import type { ViewedWeekSelection } from "@/lib/week-navigator";
 import { PASSWORD_MIN_LENGTH, passwordResetRedirectUrl } from "@/lib/login";
@@ -53,6 +54,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   fetchSupabaseSession,
   fetchSupabaseSnapshot,
+  supabaseSyncShoppingLists,
   supabaseClaimJoinToken,
   supabaseCreateHousehold,
   supabaseCreateJoinToken,
@@ -258,7 +260,9 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
 
   const publish = useCallback((base: HouseholdSnapshot | null) => {
     baseRef.current = base;
-    const next = base ? applyOptimistic(base, patchesRef.current) : null;
+    const next = base
+      ? withRebuiltShoppingLists(applyOptimistic(base, patchesRef.current))
+      : null;
     displayRef.current = next;
     setSnapshot(next);
   }, []);
@@ -279,7 +283,12 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
     try {
       const nextSession = await fetchSupabaseSession(client);
       if (gen !== refreshGen.current) return;
-      const nextSnapshot = nextSession ? await fetchSupabaseSnapshot(client, nextSession) : null;
+      const fetched = nextSession ? await fetchSupabaseSnapshot(client, nextSession) : null;
+      if (gen !== refreshGen.current) return;
+      const nextSnapshot =
+        nextSession && fetched
+          ? await supabaseSyncShoppingLists(client, nextSession, fetched)
+          : fetched;
       if (gen !== refreshGen.current) return;
       setSession(nextSession);
       publish(nextSnapshot);
@@ -327,7 +336,12 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
           if (seenGen !== refreshGen.current || !userData.user) return null;
           const nextSession = await fetchSupabaseSession(client);
           if (seenGen !== refreshGen.current) return null;
-          const nextSnapshot = nextSession ? await fetchSupabaseSnapshot(client, nextSession) : null;
+          const fetched = nextSession ? await fetchSupabaseSnapshot(client, nextSession) : null;
+          if (seenGen !== refreshGen.current) return null;
+          const nextSnapshot =
+            nextSession && fetched
+              ? await supabaseSyncShoppingLists(client, nextSession, fetched)
+              : fetched;
           if (seenGen !== refreshGen.current) return null;
           return { session: nextSession, snapshot: nextSnapshot };
         } catch {
