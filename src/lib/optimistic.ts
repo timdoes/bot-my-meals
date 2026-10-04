@@ -1,15 +1,18 @@
-import { voteNotePersists } from "@/lib/ballot";
-import { withDerivedNightSettings } from "@/lib/headcount";
+import { voteNotePersists, voteSavesDinnerPeople } from "@/lib/ballot";
+import { audienceFromHeadcount, dinnerRequestPeople, withDerivedNightSettings, withNightServings } from "@/lib/headcount";
 import { nightsPlannedFromHeadcounts } from "@/lib/house-setup";
 import type {
   HouseholdSettingsPatch,
   HouseholdSnapshot,
+  Meal,
   MealProposalInput,
+  Recipe,
   Role,
   SavedMeal,
   ShoppingPrompt,
   Vote,
   VoteChoice,
+  Week,
 } from "@/lib/types";
 
 /** Temp ids for a store row the server has not inserted yet. */
@@ -131,6 +134,44 @@ function nextVotes(
     : [...votes, nextVote];
 }
 
+function applyNightPeople(
+  snapshot: HouseholdSnapshot,
+  mealId: string,
+  servings: number,
+): HouseholdSnapshot {
+  const people = dinnerRequestPeople(servings);
+  const audience = audienceFromHeadcount(people);
+  const patchScope = (meals: Meal[], recipes: Recipe[], week: Week) => {
+    const meal = meals.find((item) => item.id === mealId);
+    return {
+      meals: meals.map((item) =>
+        item.id === mealId ? { ...item, servings: people, audience } : item,
+      ),
+      recipes: recipes.map((recipe) =>
+        recipe.mealId === mealId ? { ...recipe, servings: people } : recipe,
+      ),
+      week:
+        meal && week.nightHeadcounts
+          ? {
+              ...week,
+              nightHeadcounts:
+                withNightServings(week.nightHeadcounts, meal.nightDate, people) ?? week.nightHeadcounts,
+            }
+          : week,
+    };
+  };
+
+  if (snapshot.planning?.meals.some((meal) => meal.id === mealId)) {
+    const next = patchScope(snapshot.planning.meals, snapshot.planning.recipes, snapshot.planning.week);
+    return {
+      ...snapshot,
+      planning: { ...snapshot.planning, ...next },
+    };
+  }
+  const next = patchScope(snapshot.meals, snapshot.recipes, snapshot.week);
+  return { ...snapshot, ...next };
+}
+
 export function patchVote(
   snapshot: HouseholdSnapshot,
   input: {
@@ -139,18 +180,22 @@ export function patchVote(
     householdId: string;
     choice: VoteChoice;
     note: string;
+    servings?: number;
   },
 ): HouseholdSnapshot {
-  if (snapshot.planning?.meals.some((meal) => meal.id === input.mealId)) {
-    return {
-      ...snapshot,
-      planning: {
-        ...snapshot.planning,
-        votes: nextVotes(snapshot.planning.votes, input),
-      },
-    };
-  }
-  return { ...snapshot, votes: nextVotes(snapshot.votes, input) };
+  const planning = snapshot.planning;
+  const voted =
+    planning && planning.meals.some((meal) => meal.id === input.mealId)
+      ? {
+          ...snapshot,
+          planning: {
+            ...planning,
+            votes: nextVotes(planning.votes, input),
+          },
+        }
+      : { ...snapshot, votes: nextVotes(snapshot.votes, input) };
+  if (!voteSavesDinnerPeople(input.choice) || input.servings == null) return voted;
+  return applyNightPeople(voted, input.mealId, input.servings);
 }
 
 export function patchHousehold(

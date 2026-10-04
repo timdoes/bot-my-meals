@@ -23,11 +23,27 @@ export const EMPTY_DAY_TITLE = "No dinner";
 export const EMPTY_DAY_HELPER = "Nothing planned for this night.";
 export const EMPTY_DAY_ADD = "Add meal";
 export const ADD_SHEET_TITLE = "Request a new dinner";
+export const ADD_SHEET_PEOPLE_LABEL = "People";
 export const ADD_SHEET_NOTE_LABEL = "Note";
 export const ADD_SHEET_PLACEHOLDER = "Something light. Kid-friendly.";
 export const ADD_SHEET_SEND = "Request dinner";
 export function addSheetHelper(dayLabel: string): string {
   return `We'll ask the meal bot for a proposal for ${dayLabel}.`;
+}
+
+/** Request dinner may persist that night's plate count. Swap and remove do not. */
+export function voteSavesDinnerPeople(choice: VoteChoice): boolean {
+  switch (choice) {
+    case "request_new_meal":
+      return true;
+    case "swap":
+    case "remove":
+      return false;
+    default: {
+      const _exhaustive: never = choice;
+      return _exhaustive;
+    }
+  }
 }
 export const PENDING_ADD_TITLE = "Requesting dinner…";
 export const PENDING_ADD_HELPER = "Waiting on a new proposal.";

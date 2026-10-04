@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { VoteChoice } from "./types";
 import {
+  ADD_SHEET_PEOPLE_LABEL,
   ADD_SHEET_PLACEHOLDER,
   ADD_SHEET_SEND,
   ADD_SHEET_TITLE,
@@ -36,6 +37,7 @@ import {
   voteActionLabel,
   voteConfirmation,
   voteNotePersists,
+  voteSavesDinnerPeople,
   weekNightPresentation,
 } from "./ballot";
 
@@ -113,8 +115,12 @@ describe("Ballot-2 microcopy", () => {
     expect(EMPTY_DAY_ADD).toBe("Add meal");
     expect(ADD_SHEET_TITLE).toBe("Request a new dinner");
     expect(addSheetHelper("Monday")).toBe("We'll ask the meal bot for a proposal for Monday.");
+    expect(ADD_SHEET_PEOPLE_LABEL).toBe("People");
     expect(ADD_SHEET_PLACEHOLDER).toBe("Something light. Kid-friendly.");
     expect(ADD_SHEET_SEND).toBe("Request dinner");
+    expect(voteSavesDinnerPeople("request_new_meal")).toBe(true);
+    expect(voteSavesDinnerPeople("swap")).toBe(false);
+    expect(voteSavesDinnerPeople("remove")).toBe(false);
     expect(PENDING_ADD_TITLE).toBe("Requesting dinner…");
     expect(PENDING_ADD_HELPER).toBe("Waiting on a new proposal.");
     expect(PENDING_ADD_CANCEL).toBe("Cancel request");
@@ -261,9 +267,38 @@ describe("Clear Sky ballot craft", () => {
       path.resolve(import.meta.dirname, "../components/empty-day-card.tsx"),
       "utf8",
     );
-    expect(empty).toContain('import { Plus } from "lucide-react"');
+    expect(empty).toContain('import { Minus, Plus } from "lucide-react"');
     expect(empty).toContain('<Plus className="size-5" />');
     expect(empty).toMatch(/size="fat"[\s\S]*?variant="outline"[\s\S]*?className="mt-4 w-full gap-2"/);
     expect(empty).not.toMatch(/variant="primary"[\s\S]{0,180}EMPTY_DAY_ADD/);
+  });
+
+  it("puts a People stepper above Note and starts from that night's servings", () => {
+    const empty = readFileSync(
+      path.resolve(import.meta.dirname, "../components/empty-day-card.tsx"),
+      "utf8",
+    );
+    const week = readFileSync(path.resolve(import.meta.dirname, "../app/week/page.tsx"), "utf8");
+    const people = empty.indexOf("ADD_SHEET_PEOPLE_LABEL");
+    const note = empty.indexOf("ADD_SHEET_NOTE_LABEL");
+    const send = empty.indexOf("ADD_SHEET_SEND");
+    expect(people).toBeGreaterThan(-1);
+    expect(note).toBeGreaterThan(people);
+    expect(send).toBeGreaterThan(note);
+    expect(empty).toContain('data-slot="dinner-people-stepper"');
+    expect(empty).toContain("dinnerRequestPeople(servings)");
+    expect(empty).toContain("disabled={people <= MIN_HEADCOUNT}");
+    expect(empty).toContain("setPeople(dinnerRequestPeople(people - 1))");
+    expect(empty).toContain("setPeople(dinnerRequestPeople(people + 1))");
+    expect(empty).toContain("onAdd(draft.trim(), dinnerRequestPeople(people))");
+    expect(empty).not.toMatch(/useState\(\s*[24]\s*\)/);
+    expect(empty).not.toContain("DEFAULT_FAMILY_SIZE");
+    expect(empty).not.toContain("DEFAULT_COUPLE_SIZE");
+    expect(empty).not.toContain("requestBotWake");
+    expect(empty).not.toContain("check_now");
+    expect(empty).not.toContain("needs_work");
+    expect(empty).not.toContain("wakeWeekOrPlanChange");
+    expect(week).toMatch(/EmptyDayCard[\s\S]*?servings=\{meal\.servings\}[\s\S]*?onAdd=\{/);
+    expect(week).toContain('onAct(meal.id, "request_new_meal", note, people)');
   });
 });

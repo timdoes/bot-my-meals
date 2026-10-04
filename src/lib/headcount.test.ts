@@ -4,6 +4,7 @@ import {
   clampHeadcount,
   clampNightHeadcount,
   coupleNightsFromHeadcounts,
+  dinnerRequestPeople,
   headcountForNight,
   nightKindLabel,
   normalizeNightHeadcounts,
@@ -11,6 +12,7 @@ import {
   typicalSizesFromHeadcounts,
   typicalWeekHeadcounts,
   typicalWeekLabel,
+  withNightServings,
 } from "./headcount";
 
 describe("night headcounts", () => {
@@ -77,5 +79,28 @@ describe("night headcounts", () => {
     expect(headcountForNight(household, "2026-09-11")).toBe(2); // Friday
     expect(headcountForNight(household, "2026-09-12")).toBe(2); // Saturday
     expect(coupleNightsFromHeadcounts(household.nightHeadcounts)).toEqual([5, 6]);
+  });
+});
+
+describe("Request a new dinner people", () => {
+  it("starts from that night's servings and never invents 2 or 4", () => {
+    expect(dinnerRequestPeople(3)).toBe(3);
+    expect(dinnerRequestPeople(5)).toBe(5);
+    expect(dinnerRequestPeople(1)).toBe(1);
+    expect(dinnerRequestPeople(7)).toBe(7);
+    expect(dinnerRequestPeople(undefined)).toBe(1);
+    expect(dinnerRequestPeople(null)).toBe(1);
+    expect(dinnerRequestPeople(Number.NaN)).toBe(1);
+    expect(dinnerRequestPeople(0)).toBe(1);
+    expect(dinnerRequestPeople(-2)).toBe(1);
+    expect(dinnerRequestPeople(13)).toBe(12);
+  });
+
+  it("writes one weekday on that week and leaves the others", () => {
+    const plates = [3, 5, 5, 1, 5, 3, 3];
+    expect(withNightServings(plates, "2026-09-30", 7)).toEqual([3, 5, 5, 7, 5, 3, 3]);
+    expect(withNightServings(plates, "2026-09-27", 1)).toEqual([1, 5, 5, 1, 5, 3, 3]);
+    expect(plates).toEqual([3, 5, 5, 1, 5, 3, 3]);
+    expect(withNightServings(null, "2026-09-30", 7)).toBeNull();
   });
 });

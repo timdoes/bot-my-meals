@@ -18,7 +18,7 @@ import type {
   WeekScope,
 } from "@/lib/types";
 import type { MemberDraft } from "@/lib/users";
-import { voteNotePersists } from "@/lib/ballot";
+import { voteNotePersists, voteSavesDinnerPeople } from "@/lib/ballot";
 import {
   botCheckForSnapshot,
   botCheckUpdateColumns,
@@ -38,7 +38,13 @@ import type { JoinPeek } from "@/lib/join";
 import { parseJoinPeek } from "@/lib/join";
 import { canActOnBallot, lastWriterWinsToast, latestVoteForMeal, migrateVoteChoice } from "@/lib/lock";
 import { isAdmin } from "@/lib/users";
-import { coupleNightsFromHeadcounts, normalizeNightHeadcounts } from "@/lib/headcount";
+import {
+  audienceFromHeadcount,
+  coupleNightsFromHeadcounts,
+  dinnerRequestPeople,
+  normalizeNightHeadcounts,
+  withNightServings,
+} from "@/lib/headcount";
 import { parseMealHistory, todayInTimeZone } from "@/lib/meal-history";
 import { splitOpenWeeks } from "@/lib/open-weeks";
 import { parseSavedMeals } from "@/lib/saved-meals";
@@ -425,15 +431,72 @@ export async function fetchSupabaseSnapshot(
   return redactUntilLocked(snapshot);
 }
 
+export async function supabaseSaveNightServings(
+  client: SupabaseClient,
+  session: Session,
+  mealId: string,
+  servings: number,
+) {
+  if (!session.householdId) throw new Error("Not in a household");
+  if (!canActOnBallot(session.role)) throw new Error("Eaters can look, not change the ballot.");
+  const people = dinnerRequestPeople(servings);
+  const audience = audienceFromHeadcount(people);
+
+  const { data: meal, error: mealError } = await client
+    .from("meals")
+    .select("id, week_id, night_date, household_id")
+    .eq("id", mealId)
+    .single();
+  if (mealError || !meal) throw new Error(mealError?.message ?? "Meal not found");
+  if (meal.household_id !== session.householdId) throw new Error("Meal not found");
+
+  const { error: updateError } = await client
+    .from("meals")
+    .update({ servings: people, audience })
+    .eq("id", mealId)
+    .eq("household_id", session.householdId);
+  if (updateError) throw new Error(updateError.message);
+
+  const { error: recipeError } = await client
+    .from("recipes")
+    .update({ servings: people })
+    .eq("meal_id", mealId)
+    .eq("household_id", session.householdId);
+  if (recipeError) throw new Error(recipeError.message);
+
+  const { data: week, error: weekError } = await client
+    .from("weeks")
+    .select("id, night_headcounts")
+    .eq("id", meal.week_id)
+    .maybeSingle();
+  if (weekError) throw new Error(weekError.message);
+  const nextPlates = withNightServings(
+    mapWeekPlates(week?.night_headcounts),
+    String(meal.night_date).slice(0, 10),
+    people,
+  );
+  if (!week || !nextPlates) return;
+  const { error: platesError } = await client
+    .from("weeks")
+    .update({ night_headcounts: nextPlates })
+    .eq("id", week.id)
+    .eq("household_id", session.householdId);
+  if (platesError) throw new Error(platesError.message);
+}
+
 export async function supabaseSetVote(
   client: SupabaseClient,
   session: Session,
   mealId: string,
   choice: VoteChoice,
   note: string,
+  servings?: number,
 ) {
   if (!session.membershipId || !session.householdId) throw new Error("Not in a household");
   if (!canActOnBallot(session.role)) throw new Error("Eaters can look, not change the ballot.");
+  if (voteSavesDinnerPeople(choice) && servings != null) {
+    await supabaseSaveNightServings(client, session, mealId, servings);
+  }
   const { data: existingRows } = await client
     .from("votes")
     .select("id, household_id, meal_id, membership_id, choice, note, updated_at")
