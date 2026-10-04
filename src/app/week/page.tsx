@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -50,7 +50,7 @@ import {
   orderedMovableMealIds,
 } from "@/lib/meal-reorder";
 import { PAST_WEEKS_LABEL, todayInTimeZone } from "@/lib/meal-history";
-import { pastWeeksLinkClass, pastWeeksLinkPositionClass } from "@/lib/past-weeks-placement";
+import { pastWeeksStackLinkClass } from "@/lib/past-weeks-placement";
 import {
   frozenWeekdays,
   prefillWeekHeadcounts,
@@ -346,6 +346,9 @@ function WeekBallot() {
     />
   );
 
+  const showLockBar = !viewingPast && !locked && check.ready && !showPeopleGate;
+  const showPastWeeks = snapshot.mealHistory.length > 0;
+
   const act = async (mealId: string, choice: VoteChoice, note?: string, servings?: number) => {
     try {
       const message = await setVote(mealId, choice, note, servings);
@@ -401,7 +404,23 @@ function WeekBallot() {
         />
       }
       status={undefined}
-      footer={!viewingPast && !locked && check.ready && !showPeopleGate ? <LockBar /> : undefined}
+      footer={
+        showPastWeeks || showLockBar ? (
+          <div data-slot="week-bottom-stack" className="space-y-2">
+            {showPastWeeks ? (
+              <Link
+                href="/settings/history"
+                data-slot="past-weeks-link"
+                className={pastWeeksStackLinkClass}
+              >
+                <span>{PAST_WEEKS_LABEL}</span>
+                <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+              </Link>
+            ) : null}
+            {showLockBar ? <LockBar /> : null}
+          </div>
+        ) : undefined
+      }
     >
       <InstallPrompt />
       {viewingPast && past ? (
@@ -531,17 +550,6 @@ function WeekBallot() {
           })}
         </div>
       )}
-      {snapshot.mealHistory.length > 0 ? (
-        <p className={pastWeeksLinkPositionClass}>
-          <Link
-            href="/settings/history"
-            data-slot="past-weeks-link"
-            className={pastWeeksLinkClass}
-          >
-            {PAST_WEEKS_LABEL}
-          </Link>
-        </p>
-      ) : null}
       {scope && !viewingPast ? (
         <EditNightsSheet
           key={scope.week.id}

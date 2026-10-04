@@ -122,7 +122,18 @@ export function AppShell({
         {chrome ? <div data-slot="shell-chrome">{chrome}</div> : null}
         {status}
       </div>
-      <main className={cn("min-w-0 flex-1 px-4 pt-4", footer ? "pb-20" : hideNav ? "pb-10" : "pb-36")}>
+      <main
+        className={cn(
+          "min-w-0 flex-1 px-4 pt-4",
+          footer
+            ? hideNav
+              ? "pb-20"
+              : "pb-[calc(5rem+env(safe-area-inset-bottom))]"
+            : hideNav
+              ? "pb-10"
+              : "pb-36",
+        )}
+      >
         {children}
       </main>
       {footer ? (
