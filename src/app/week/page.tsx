@@ -50,6 +50,7 @@ import {
   orderedMovableMealIds,
 } from "@/lib/meal-reorder";
 import { PAST_WEEKS_LABEL, todayInTimeZone } from "@/lib/meal-history";
+import { pastWeeksLinkClass, pastWeeksLinkPositionClass } from "@/lib/past-weeks-placement";
 import {
   frozenWeekdays,
   prefillWeekHeadcounts,
@@ -531,11 +532,11 @@ function WeekBallot() {
         </div>
       )}
       {snapshot.mealHistory.length > 0 ? (
-        <p className="mt-6 text-center">
+        <p className={pastWeeksLinkPositionClass}>
           <Link
             href="/settings/history"
             data-slot="past-weeks-link"
-            className="type-meta text-muted-foreground underline decoration-muted-foreground/40 underline-offset-4"
+            className={pastWeeksLinkClass}
           >
             {PAST_WEEKS_LABEL}
           </Link>
