@@ -6,6 +6,7 @@ import {
   WEEK_MAIN_FOOTER_PADDING_REM,
   WEEK_MAIN_NAV_PADDING_REM,
   pastWeeksEndLayout,
+  PAST_WEEKS_LINK_MIN_CLEARANCE_REM,
   pastWeeksLinkClass,
   pastWeeksLinkCovered,
   pastWeeksLinkPositionClass,
@@ -30,7 +31,12 @@ describe("Past weeks link clearance", () => {
     expect(week).toContain("pastWeeksLinkPositionClass");
     expect(week).toContain("pastWeeksLinkClass");
     expect(week).toContain('data-slot="past-weeks-link"');
-    expect(pastWeeksLinkPositionClass).toContain("pb-[max(1rem,env(safe-area-inset-bottom))]");
+    const placement = readFileSync(path.join(srcRoot, "lib/past-weeks-placement.ts"), "utf8");
+    expect(placement).toContain('pb-[max(1rem,env(safe-area-inset-bottom))]');
+    expect(placement).not.toContain("pb-[max(${");
+    expect(pastWeeksLinkPositionClass).toContain(
+      `pb-[max(${PAST_WEEKS_LINK_MIN_CLEARANCE_REM}rem,env(safe-area-inset-bottom))]`,
+    );
     expect(pastWeeksLinkClass).toContain("tap-target");
   });
 

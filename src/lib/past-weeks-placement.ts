@@ -18,7 +18,8 @@ export const LOCK_FOOTER_PADDING_Y_REM = 0.5;
 export const LOCK_CARD_PADDING_REM = 0.75;
 export const LOCK_BUTTON_HEIGHT_REM = 3;
 
-export const pastWeeksLinkPositionClass = `mt-6 pb-[max(${PAST_WEEKS_LINK_MIN_CLEARANCE_REM}rem,env(safe-area-inset-bottom))] text-center`;
+export const pastWeeksLinkPositionClass =
+  "mt-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-center";
 
 export const pastWeeksLinkClass =
   "type-meta tap-target inline-flex items-center justify-center px-3 text-muted-foreground underline decoration-muted-foreground/40 underline-offset-4";
