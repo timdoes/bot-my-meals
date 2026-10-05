@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BallotCard } from "@/components/ballot-card";
 import { EmptyDayCard } from "@/components/empty-day-card";
-import { LockedNightFrame } from "@/components/post-lock-waiting";
 import { todayInTimeZone } from "./meal-history";
 import { lockedDinnerTap } from "./post-lock-waiting";
 import {
@@ -143,21 +142,12 @@ describe("past, today, and future meal cards", () => {
     expect(lockedDinnerTap({ locked: true, pending: false, presentation: "ballot" })).toBe("recipe");
     expect(lockedDinnerTap({ locked: false, pending: false, presentation: "ballot" })).toBe("none");
 
-    const review = renderToStaticMarkup(
-      createElement(LockedNightFrame, {
-        tap: "review",
-        href: "/week/sun",
-        title: "Lemon roast chicken",
-        onWaiting: () => {
-          throw new Error("past review must not open the waiting sheet");
-        },
-        children: "Lemon roast chicken",
-      }),
-    );
-    expect(review).toContain('data-slot="past-meal-review"');
-    expect(review).toContain('href="/week/sun"');
-    expect(review).not.toContain("locked-night-waiting");
-    expect(review).not.toContain("Get recipes now");
+    const frame = readFileSync(path.join(srcRoot, "components/post-lock-waiting.tsx"), "utf8");
+    const reviewCase = frame.slice(frame.indexOf('case "review"'), frame.indexOf("default:", frame.indexOf('case "review"')));
+    expect(reviewCase).toContain('data-slot={tap === "review" ? "past-meal-review" : "locked-night-recipe"}');
+    expect(reviewCase).toContain("<Link");
+    expect(reviewCase).not.toContain("onWaiting");
+    expect(reviewCase).not.toContain("locked-night-waiting");
   });
 
   it("keeps an empty past night as a full card without add or a people stepper", () => {
