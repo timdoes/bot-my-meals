@@ -168,7 +168,7 @@ export function EmptyDayCard({
       </p>
       {renderEmptyDayBody({ state, note, onAdd, onCancel, openAdd: beginAdd, cancelRequest })}
 
-      <Sheet open={open} onOpenChange={setOpen}>
+      {onAdd ? <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="bottom"
           showCloseButton={false}
@@ -254,7 +254,7 @@ export function EmptyDayCard({
             </Button>
           </SheetFooter>
         </SheetContent>
-      </Sheet>
+      </Sheet> : null}
     </article>
   );
 }

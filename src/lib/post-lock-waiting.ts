@@ -76,7 +76,7 @@ export type PendingBotFillInput = {
   shoppingList: { items: readonly unknown[] } | null;
 };
 
-export type LockedDinnerTap = "none" | "waiting" | "recipe";
+export type LockedDinnerTap = "none" | "waiting" | "recipe" | "review";
 
 const MINUTE_MS = 60_000;
 
@@ -155,7 +155,10 @@ export function lockedDinnerTap(input: {
   locked: boolean;
   pending: boolean;
   presentation: WeekNightPresentation;
+  /** House-local past night. Opens the meal for review and does not open the waiting sheet. */
+  past?: boolean;
 }): LockedDinnerTap {
+  if (input.past && input.presentation === "ballot") return "review";
   if (!input.locked || input.presentation !== "ballot") return "none";
   return input.pending ? "waiting" : "recipe";
 }

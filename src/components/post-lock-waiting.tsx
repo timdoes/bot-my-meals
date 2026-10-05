@@ -300,8 +300,13 @@ export function LockedNightFrame({
         </button>
       );
     case "recipe":
+    case "review":
       return (
-        <Link href={href} data-slot="locked-night-recipe" className="block">
+        <Link
+          href={href}
+          data-slot={tap === "review" ? "past-meal-review" : "locked-night-recipe"}
+          className="block"
+        >
           {children}
         </Link>
       );
