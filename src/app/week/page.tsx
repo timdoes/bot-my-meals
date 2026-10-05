@@ -74,6 +74,8 @@ import { focusNightCard, nightCardAnchorId } from "@/lib/week-strip";
 import { canActOnBallot, checkWeekLock, latestVoteForMeal, nightLifecycle } from "@/lib/lock";
 import { recipeNightsForWeek } from "@/lib/recipes";
 import {
+  dinnerNightActionsOpen,
+  isPastDinnerNight,
   nightHasStripMeal,
   nightStaysLocked,
   showFirstMealRow,
@@ -479,8 +481,12 @@ function WeekBallot() {
               nightDate: meal.nightDate,
               editableFrom: scope?.week.editableFrom ?? null,
             });
-            const canVote =
-              Boolean(session?.membershipId) && canActOnBallot(session?.role) && !nightLocked;
+            const pastNight = role === "cooking" && isPastDinnerNight(meal.nightDate, todayIso);
+            const canVote = dinnerNightActionsOpen({
+              past: pastNight,
+              nightLocked,
+              canAct: Boolean(session?.membershipId) && canActOnBallot(session?.role),
+            });
             const presentation = weekNightPresentation(lifecycle, nightLocked);
             const awaitingMeal = awaitingMealSlot(meal, scope?.votes ?? [], snapshot.memberships);
             const reorderState = mealReorderControls({
@@ -519,6 +525,7 @@ function WeekBallot() {
               locked: nightLocked,
               pending: pendingFill,
               presentation,
+              past: pastNight,
             });
 
             return (
@@ -539,6 +546,7 @@ function WeekBallot() {
                   canVote,
                   locked: nightLocked,
                   pending: pendingFill,
+                  past: pastNight,
                   lifecycle,
                   onAct: act,
                   onWaiting: () => setWaitingOpen(true),
@@ -604,6 +612,7 @@ function renderNightCard({
   canVote,
   locked,
   pending,
+  past,
   lifecycle,
   onAct,
   onWaiting,
@@ -619,6 +628,7 @@ function renderNightCard({
   canVote: boolean;
   locked: boolean;
   pending: boolean;
+  past: boolean;
   lifecycle: NightLifecycle;
   onAct: (mealId: string, choice: VoteChoice, note?: string, servings?: number) => void;
   onWaiting: () => void;
@@ -655,7 +665,7 @@ function renderNightCard({
     case "ballot":
       return (
         <LockedNightFrame
-          tap={lockedDinnerTap({ locked, pending, presentation })}
+          tap={lockedDinnerTap({ locked, pending, presentation, past })}
           href={`/week/${meal.id}`}
           title={meal.title}
           onWaiting={onWaiting}
@@ -673,6 +683,7 @@ function renderNightCard({
               isNightOff: false,
             })}
             locked={locked}
+            made={past}
             onSwap={canVote ? (reason) => onAct(meal.id, "swap", reason) : undefined}
             onRemove={canVote ? () => onAct(meal.id, "remove") : undefined}
             reorder={reorder}

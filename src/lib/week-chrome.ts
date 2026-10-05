@@ -139,3 +139,33 @@ export function featuredMealEyebrow(nightDate: string, todayIso: string): string
   if (nightDate === todayIso) return "Tonight’s meal";
   return `${weekdayLabelFromNight(nightDate)}’s meal`;
 }
+
+/** Exact label on a past dinner card. */
+export const MADE_CHIP_LABEL = "Made";
+
+export type MealNightPhase = "past" | "today" | "future";
+
+/**
+ * A dinner night is past once that house-local calendar day has ended.
+ * `todayIso` is `todayInTimeZone` for the household. Today and later nights are not past.
+ */
+export function mealNightPhase(nightDate: string, todayIso: string): MealNightPhase {
+  if (nightDate < todayIso) return "past";
+  if (nightDate === todayIso) return "today";
+  return "future";
+}
+
+export function isPastDinnerNight(nightDate: string, todayIso: string): boolean {
+  return mealNightPhase(nightDate, todayIso) === "past";
+}
+
+/** Past cooking nights stay review-only, locked or unlocked. Today and future follow the week lock. */
+export function dinnerNightActionsOpen(input: {
+  past: boolean;
+  nightLocked: boolean;
+  canAct: boolean;
+}): boolean {
+  if (input.past) return false;
+  if (input.nightLocked) return false;
+  return input.canAct;
+}

@@ -15,11 +15,12 @@ import { EMPTY_DAY_TITLE } from "@/lib/ballot";
 import { formatNightDate, weekdayLabelFromNight } from "@/lib/dates";
 import { servingsLabel } from "@/lib/headcount";
 import { REPLACEMENT_IDEAS } from "@/lib/ideas";
+import { todayInTimeZone } from "@/lib/meal-history";
 import { canActOnBallot, isNightOff, latestVoteForMeal, voteFor, votingMembers } from "@/lib/lock";
 import { scopeForMeal, weekHomeTitle } from "@/lib/open-weeks";
 import { nightShowsRecipePending } from "@/lib/post-lock-waiting";
 import { SAVE_TOAST, UNSAVE_TOAST, mealRecipeKey, mealSaveAvailability, savedMealForKey } from "@/lib/saved-meals";
-import { nightStaysLocked } from "@/lib/week-chrome";
+import { isPastDinnerNight, nightStaysLocked } from "@/lib/week-chrome";
 import type { VoteChoice } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +62,12 @@ function MealDetail({ mealId }: { mealId: string }) {
           editableFrom: scope.week.editableFrom,
         }) && !weekLocked
       : false;
-  const readOnly = weekLocked || pastLocked;
+  const calendarPast =
+    snapshot != null &&
+    meal != null &&
+    weekRole === "cooking" &&
+    isPastDinnerNight(meal.nightDate, todayInTimeZone(new Date(), snapshot.household.timezone));
+  const readOnly = weekLocked || pastLocked || calendarPast;
 
   if (!snapshot || !scope || !meal) {
     return (

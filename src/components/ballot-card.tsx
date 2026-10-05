@@ -38,6 +38,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { mealCardControlId } from "@/lib/dates";
 import { MOVE_EARLIER_LABEL, MOVE_LATER_LABEL, reorderGripLabel } from "@/lib/meal-reorder";
+import { MADE_CHIP_LABEL } from "@/lib/week-chrome";
 import { cn } from "@/lib/utils";
 
 const REORDER_HIT =
@@ -170,6 +171,7 @@ export function BallotCard({
   swapNote,
   muted = false,
   locked = false,
+  made = false,
   onSwap,
   onRemove,
   reorder,
@@ -185,6 +187,8 @@ export function BallotCard({
   swapNote?: string;
   muted?: boolean;
   locked?: boolean;
+  /** Past dinner night: Made chip, muted title, no edit actions. */
+  made?: boolean;
   onSwap?: (reason: string) => void | Promise<void>;
   onRemove?: () => void | Promise<void>;
   reorder?: MealReorderHandlers;
@@ -196,9 +200,13 @@ export function BallotCard({
   const drag = useMealCardDrag(articleRef, reorder);
   const [sheet, setSheet] = useState<"swap" | "remove" | null>(null);
   const [reason, setReason] = useState(swapNote ?? "");
-  const canAct = Boolean(onSwap || onRemove) && !locked;
+  const canAct = Boolean(onSwap || onRemove) && !locked && !made;
   const showActions = canAct;
   const swapFieldId = mealCardControlId("swap-reason", dayLabel);
+  const dayLabelClass = cn(
+    "type-day-label",
+    muted ? "text-secondary-foreground/70" : "text-muted-foreground",
+  );
 
   const sendSwap = () => {
     if (!onSwap) return;
@@ -216,16 +224,26 @@ export function BallotCard({
 
   const body = (
     <>
-      <p
-        data-slot="meal-day-label"
-        className={cn(
-          "type-day-label",
-          muted ? "text-secondary-foreground/70" : "text-muted-foreground",
-        )}
-      >
-        {dayLabel}
-      </p>
-      <h2 className="type-section mt-1">{title}</h2>
+      {made ? (
+        <div className="flex items-center justify-between gap-2">
+          <p data-slot="meal-day-label" className={dayLabelClass}>
+            {dayLabel}
+          </p>
+          <span
+            data-slot="made-chip"
+            className="inline-flex h-5 shrink-0 items-center rounded-full bg-foreground px-2 type-chip font-semibold whitespace-nowrap text-background"
+          >
+            {MADE_CHIP_LABEL}
+          </span>
+        </div>
+      ) : (
+        <p data-slot="meal-day-label" className={dayLabelClass}>
+          {dayLabel}
+        </p>
+      )}
+      <h2 className={cn("type-section mt-1", made && "text-foreground/80")} data-slot="meal-card-title">
+        {title}
+      </h2>
       {pitch ? (
         <p
           className={cn(
@@ -271,6 +289,7 @@ export function BallotCard({
       data-slot="ballot-card"
       data-swapped={swapped ? "true" : "false"}
       data-muted={muted ? "true" : "false"}
+      data-past={made ? "true" : "false"}
       data-reorder-id={reorder ? reorder.mealId : undefined}
       data-reorderable={reorder ? "true" : undefined}
       data-dragging="false"
@@ -280,6 +299,7 @@ export function BallotCard({
         "data-[dragging=true]:z-30 data-[dragging=true]:shadow-[0_16px_40px_rgb(0_0_0/0.22)]",
         "data-[drop=true]:bg-primary/10 data-[drop=true]:ring-2 data-[drop=true]:ring-primary",
         muted ? "bg-secondary text-secondary-foreground" : "bg-card text-card-foreground",
+        made && "[&_img]:opacity-80",
         className,
       )}
     >
@@ -385,6 +405,8 @@ export function BallotCard({
         </div>
       ) : null}
 
+      {made ? null : (
+      <>
       <Sheet open={sheet === "swap"} onOpenChange={(open) => setSheet(open ? "swap" : null)}>
         <SheetContent
           side="bottom"
@@ -460,6 +482,8 @@ export function BallotCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </>
+      )}
     </article>
   );
 }
