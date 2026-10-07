@@ -371,7 +371,7 @@ describe("meal reorder copy and wiring", () => {
       "utf8",
     );
     const reorderStart = provider.indexOf("reorderMeals: (sourceMealId, targetMealId)");
-    const reorder = provider.slice(reorderStart, provider.indexOf("toggleSavedMeal:", reorderStart));
+    const reorder = provider.slice(reorderStart, provider.indexOf("sendMealFavorite:", reorderStart));
     const move = week.slice(week.indexOf("const moveMeals"), week.indexOf("if (!snapshot) return null"));
 
     expect(reorder).toContain("swapMealContent");

@@ -310,6 +310,7 @@ export function emptyHousehold(name: string, owner?: UserProfile): HouseholdSnap
     pendingInvites: [],
     mealHistory: [],
     savedMeals: [],
+    mealDislikes: [],
   };
 }
 

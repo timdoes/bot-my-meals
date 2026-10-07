@@ -103,7 +103,7 @@ function expectDualWeekInstallPaste(paste: string) {
   expect(paste).toMatch(/Shopping · This week/);
   expect(paste).toMatch(/Shopping · Next week/);
   expect(paste).toMatch(/never merge cooking \+ planning/);
-  expect(paste).toMatch(/Request for next week/);
+  expect(paste).toMatch(/Make next week/);
   expect(paste).toMatch(/planning week/);
   expect(paste).toMatch(/needs_work is true on any open week/);
   expect(paste).toMatch(/Fulfill by week/);
@@ -123,7 +123,7 @@ function expectDualWeekProductLoop(readme: string) {
   expect(readme).toMatch(/Shopping · This week/);
   expect(readme).toMatch(/Shopping · Next week/);
   expect(readme).toMatch(/never merge cooking \+ planning/);
-  expect(readme).toMatch(/Request for next week/);
+  expect(readme).toMatch(/Make next week/);
   expect(readme).toMatch(/needs_work/);
   expect(readme).not.toMatch(/grandma/i);
 }
@@ -139,7 +139,7 @@ function expectPlanningPeopleGateInstallPaste(doc: string) {
   expect(doc).toMatch(/do(?:es)? not write/i);
   expect(doc).toMatch(/lands on (?:\*\*)?Next week/);
   expect(doc).toMatch(/future swipe or › from cooking creates (?:\*\*)?Next week/);
-  expect(doc).toMatch(/Saved → (?:\*\*)?Request for next week/);
+  expect(doc).toMatch(/Favorites → (?:\*\*)?Make next week/);
   expect(doc).not.toMatch(/the future edge soft-stops or offers Plan next week/);
   expect(doc).not.toMatch(/soft-stops/);
   expect(doc).not.toMatch(/Plan next week/);
@@ -400,9 +400,9 @@ describe("Install docs — email + password + Wake on app event", () => {
     expect(firstBallotAt).toBeGreaterThan(setupAt);
     expect(dualWeekAt).toBeGreaterThan(firstBallotAt);
 
-    expect(saved).toMatch(/Request for next week/);
+    expect(saved).toMatch(/Make next week/);
     expect(saved).toMatch(/planning week/);
-    expect(saved).toMatch(/Requested for next week/);
+    expect(saved).toMatch(/Added for next week/);
     expect(saved).toMatch(/will not open a week after next/);
     expect(saved).toMatch(/do not say this week/);
     expect(saved).not.toMatch(/Plan next week/);

@@ -12,26 +12,38 @@ export const SAVED_MEAL_COOLDOWN_DAYS = SAVED_MEAL_COOLDOWN_WEEKS * 7;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const SAVED_MEALS_LABEL = "Saved meals";
-export const SAVED_MEALS_ROW_SUB = "Meals your house kept for later";
-export const SAVED_MEALS_HELPER =
-  "Your bot may suggest these again after a break. Request one anytime for next week.";
-export const SAVED_MEALS_EMPTY_TITLE = "No saved meals yet";
-export const SAVED_MEALS_EMPTY_BODY =
-  "Open a dinner\u2019s recipe and tap Save when you want it back later.";
-export const SAVED_MEALS_EMPTY_BACK = "Back to This week";
+export const FAVORITES_LABEL = "Favorites";
+export const FAVORITES_HELPER = "Your bot suggests these again. Pick when.";
+export const FAVORITES_EMPTY_TITLE = "No favorites yet";
+export const FAVORITES_EMPTY_BODY = "Open a dinner and tap thumbs-up.";
+export const FAVORITES_EMPTY_BACK = "Back to This week";
 
-export const SAVE_LABEL = "Save";
-export const SAVED_LABEL = "Saved";
-export const SAVE_TOAST = "Saved for your house.";
-export const UNSAVE_TOAST = "Removed from saved.";
-export const SAVE_WAIT_TIP = "Save when the recipe is ready.";
+export const FAVORITE_SWITCH_LABEL = "Add to favorites";
+export const FAVORITE_NEXT_WEEK = "Make next week";
+export const FAVORITE_IN_THREE_WEEKS = "Make in ~3 weeks";
+export const FAVORITE_NOTE_LABEL = "What did you like about this meal?";
+export const FAVORITE_SEND_LABEL = "Send";
+export const FAVORITE_CANCEL_LABEL = "Cancel";
+export const FAVORITE_NEXT_TOAST = "Added for next week.";
+export const FAVORITE_SAVED_TOAST = "Added to favorites.";
+export const FAVORITE_LIKE_TOAST = "Got it.";
+export const FAVORITE_REMOVED_TOAST = "Removed from favorites.";
+export const FAVORITE_ROW_NEXT = "Next week";
+export const FAVORITE_ROW_LATER = "In ~3 weeks";
+export const FAVORITE_ACTION_NEXT = "Next week";
+export const FAVORITE_ACTION_LATER = "~3 weeks";
+export const REMOVE_FAVORITE_LABEL = "Remove";
 
-export const REQUEST_NEXT_WEEK_LABEL = "Request for next week";
-export const REQUESTED_LABEL = "Requested";
-export const REQUESTED_TOAST = "Requested for next week.";
-export const ALREADY_REQUESTED_TOAST = "Already requested for next week.";
-export const REMOVE_SAVED_LABEL = "Remove";
+export const FAVORITE_TIMINGS = ["next", "cooldown"] as const;
+export type FavoriteTiming = (typeof FAVORITE_TIMINGS)[number];
+
+export type FavoriteDraft = {
+  favorite: boolean;
+  timing: FavoriteTiming;
+  note: string;
+};
+
+export type FavoriteAction = "next" | "cooldown" | "like" | "remove";
 
 export type MealSaveAvailability = "ready" | "wait" | "hidden";
 
@@ -62,6 +74,75 @@ export function savedMealRequestActive(
   currentWeekStartsOn: string,
 ): boolean {
   return Boolean(meal.requestedForWeek && meal.requestedForWeek >= currentWeekStartsOn);
+}
+
+/**
+ * The planning week that follows the cooking week.
+ * A later date still lands on cooking + 7 so a request never targets the cooking week or a week after next.
+ */
+export function favoriteNextWeekStarts(cookingStartsOn: string, planningStartsOn: string | null): string {
+  void planningStartsOn;
+  return addDays(cookingStartsOn, 7);
+}
+
+export function favoriteTimingFor(
+  meal: Pick<SavedMeal, "requestedForWeek"> | undefined,
+  planningStartsOn: string,
+): FavoriteTiming {
+  if (meal && savedMealRequestActive(meal, planningStartsOn)) return "next";
+  return "cooldown";
+}
+
+export function favoriteTimingLabel(
+  meal: Pick<SavedMeal, "requestedForWeek">,
+  planningStartsOn: string,
+): typeof FAVORITE_ROW_NEXT | typeof FAVORITE_ROW_LATER {
+  return favoriteTimingFor(meal, planningStartsOn) === "next" ? FAVORITE_ROW_NEXT : FAVORITE_ROW_LATER;
+}
+
+/**
+ * Thumbs-up Send. Switch on stores a favorite (timing required).
+ * Switch off with text stores a like and drops a favorite.
+ * Switch off, empty, and already a favorite removes it.
+ * Switch off, empty, and not a favorite stores nothing.
+ */
+export function favoriteSendAction(draft: FavoriteDraft, wasFavorite: boolean): FavoriteAction | null {
+  if (draft.favorite) {
+    switch (draft.timing) {
+      case "next":
+      case "cooldown":
+        return draft.timing;
+      default: {
+        const _exhaustive: never = draft.timing;
+        return _exhaustive;
+      }
+    }
+  }
+  if (draft.note.trim()) return "like";
+  if (wasFavorite) return "remove";
+  return null;
+}
+
+export function favoriteToast(action: FavoriteAction): string {
+  switch (action) {
+    case "next":
+      return FAVORITE_NEXT_TOAST;
+    case "cooldown":
+      return FAVORITE_SAVED_TOAST;
+    case "like":
+      return FAVORITE_LIKE_TOAST;
+    case "remove":
+      return FAVORITE_REMOVED_TOAST;
+    default: {
+      const _exhaustive: never = action;
+      return _exhaustive;
+    }
+  }
+}
+
+/** Recipe identity is enough to react. Waiting, empty, and removed nights stay hidden. */
+export function mealReactionVisible(availability: MealSaveAvailability): boolean {
+  return availability === "ready";
 }
 
 export function savedMealInCooldown(lastLockedAt: string | null, now: Date): boolean {

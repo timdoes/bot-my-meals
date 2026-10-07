@@ -29,9 +29,7 @@ import {
   patchStoreAdded,
   patchStoreRemoved,
   LIST_CHECK_SAVE_ERROR,
-  patchSavedMealAdded,
   patchSavedMealRemoved,
-  patchSavedMealRequest,
   patchShoppingPrompt,
   patchVote,
   queueOptimistic,
@@ -39,15 +37,26 @@ import {
   type PendingOptimistic,
 } from "@/lib/optimistic";
 import { getPublicSupabaseConfig, isSupabaseConfigured } from "@/lib/config";
+import { applyDislikeAction, applyFavoriteAction } from "@/lib/meal-reactions";
 import {
+  dislikeSendAction,
+  mealDislikeForKey,
+  type DislikeAction,
+  type DislikeDraft,
+} from "@/lib/meal-dislikes";
+import {
+  favoriteNextWeekStarts,
+  favoriteSendAction,
   lastCookedAtForSave,
   mealRecipeKey,
   savedMealForKey,
-  savedMealRequestActive,
+  type FavoriteAction,
+  type FavoriteDraft,
+  type FavoriteTiming,
 } from "@/lib/saved-meals";
 import { swapMealContent } from "@/lib/meal-reorder";
 import { withRebuiltShoppingLists } from "@/lib/shopping";
-import { planningTargetStarts, scopeForMeal, scopeForRole } from "@/lib/open-weeks";
+import { scopeForMeal, scopeForRole } from "@/lib/open-weeks";
 import type { ViewedWeekSelection } from "@/lib/week-navigator";
 import { PASSWORD_MIN_LENGTH, passwordResetRedirectUrl } from "@/lib/login";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -66,11 +75,14 @@ import {
   supabaseProposeReplacement,
   supabaseRemoveInvite,
   supabaseRemoveMember,
+  supabaseAllowMealAgain,
+  supabaseInsertMealLike,
   supabaseRemoveSavedMeal,
-  supabaseRequestSavedMeal,
   supabaseReorderWeekMeals,
+  supabaseSetFavoriteTiming,
+  supabaseUpsertFavorite,
+  supabaseUpsertMealDislike,
   supabaseRequestWeekBallot,
-  supabaseSaveMeal,
   supabaseSaveWeekPeople,
   supabaseSavePlanningPeople,
   supabaseSetMemberRole,
@@ -84,8 +96,10 @@ import type { JoinPeek } from "@/lib/join";
 import type {
   HouseholdSettingsPatch,
   HouseholdSnapshot,
+  MealDislike,
   MealProposalInput,
   Role,
+  SavedMeal,
   Session,
   ShoppingPrompt,
   VoteChoice,
@@ -104,6 +118,46 @@ const passwordResetStorage = {
 
 function actionMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Something went wrong.";
+}
+
+function favoriteRow(input: {
+  existing: SavedMeal | undefined;
+  recipeKey: string;
+  title: string;
+  householdId: string;
+  sourceRecipeId: string | null;
+  lastLockedAt: string | null;
+  requestedForWeek: string | null;
+}): SavedMeal {
+  return {
+    id: input.existing?.id ?? `optimistic-saved-${input.recipeKey}`,
+    householdId: input.householdId,
+    recipeKey: input.recipeKey,
+    title: input.title,
+    savedAt: input.existing?.savedAt ?? new Date().toISOString(),
+    lastLockedAt: input.lastLockedAt,
+    requestedForWeek: input.requestedForWeek,
+    sourceRecipeId: input.sourceRecipeId ?? input.existing?.sourceRecipeId ?? null,
+  };
+}
+
+function dislikeRow(input: {
+  existing: MealDislike | undefined;
+  recipeKey: string;
+  title: string;
+  householdId: string;
+  neverAgain: boolean;
+  note: string;
+}): MealDislike {
+  return {
+    id: input.existing?.id ?? `optimistic-dislike-${input.recipeKey}`,
+    householdId: input.householdId,
+    recipeKey: input.recipeKey,
+    title: input.title,
+    neverAgain: input.neverAgain,
+    note: input.note.trim(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 type SupperContextValue = {
@@ -154,9 +208,11 @@ type SupperContextValue = {
   savePlanningPeople: (counts: number[], instructions: string) => Promise<string>;
   saveWeekPeople: (weekId: string, counts: number[], instructions: string | null) => Promise<void>;
   reorderMeals: (sourceMealId: string, targetMealId: string) => Promise<void>;
-  toggleSavedMeal: (mealId: string) => Promise<"saved" | "removed">;
+  sendMealFavorite: (mealId: string, draft: FavoriteDraft) => Promise<FavoriteAction>;
+  setFavoriteTiming: (recipeKey: string, timing: FavoriteTiming) => Promise<void>;
   removeSavedMeal: (recipeKey: string) => Promise<void>;
-  requestSavedMeal: (recipeKey: string) => Promise<"requested" | "already">;
+  sendMealDislike: (mealId: string, draft: DislikeDraft) => Promise<DislikeAction>;
+  allowMealAgain: (recipeKey: string) => Promise<void>;
 };
 
 const SupperContext = createContext<SupperContextValue | null>(null);
@@ -216,9 +272,11 @@ function createSetupContext(): SupperContextValue {
     savePlanningPeople: async () => setupUnavailable(),
     saveWeekPeople: async () => setupUnavailable(),
     reorderMeals: async () => setupUnavailable(),
-    toggleSavedMeal: async () => setupUnavailable(),
+    sendMealFavorite: async () => setupUnavailable(),
+    setFavoriteTiming: async () => setupUnavailable(),
     removeSavedMeal: async () => setupUnavailable(),
-    requestSavedMeal: async () => setupUnavailable(),
+    sendMealDislike: async () => setupUnavailable(),
+    allowMealAgain: async () => setupUnavailable(),
   };
 }
 
@@ -476,6 +534,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "shopping_items" }, () => void refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "ballot_requests" }, () => void refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "saved_meals" }, () => void refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "meal_dislikes" }, () => void refresh())
       .subscribe();
     return () => {
       cancelled = true;
@@ -923,7 +982,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
             await supabaseReorderWeekMeals(client, sourceMealId, targetMealId);
           },
         ),
-      toggleSavedMeal: (mealId) => {
+      sendMealFavorite: (mealId, draft) => {
         const current = session;
         const visible = displayRef.current;
         if (!current || !visible) {
@@ -941,43 +1000,74 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
         const recipe = located.scope.recipes.find((item) => item.mealId === meal.id);
         const recipeKey = mealRecipeKey({ title: meal.title, recipeKey: recipe?.recipeKey });
         const existing = savedMealForKey(visible.savedMeals, recipeKey);
-        if (existing) {
-          return runOptimistic(`saved:${recipeKey}`, (snap) => patchSavedMealRemoved(snap, recipeKey), async () => {
-            const client = createSupabaseBrowserClient();
-            if (!client) throw new Error("Not signed in");
-            await supabaseRemoveSavedMeal(client, current, recipeKey);
-            return "removed" as const;
+        const action = favoriteSendAction(draft, Boolean(existing));
+        if (!action || !recipeKey) {
+          return run(async () => {
+            throw new Error("Nothing to send.");
           });
         }
-        const savedAt = new Date().toISOString();
-        const lastLockedAt = lastCookedAtForSave({
-          weekStatus: located.scope.week.status,
-          nightDate: meal.nightDate,
-          timeZone: visible.household.timezone,
+        const nextWeek = favoriteNextWeekStarts(visible.week.startsOn, visible.planning?.week.startsOn ?? null);
+        const favoriteMeal = favoriteRow({
+          existing,
+          recipeKey,
+          title: meal.title.trim(),
+          householdId: current.householdId ?? visible.household.id,
+          sourceRecipeId: recipe?.id ?? null,
+          lastLockedAt:
+            lastCookedAtForSave({
+              weekStatus: located.scope.week.status,
+              nightDate: meal.nightDate,
+              timeZone: visible.household.timezone,
+            }) ?? existing?.lastLockedAt ?? null,
+          requestedForWeek: action === "next" ? nextWeek : null,
         });
+        return runOptimistic(`saved:${recipeKey}`, (snap) => applyFavoriteAction(snap, action, favoriteMeal), async () => {
+          const client = createSupabaseBrowserClient();
+          if (!client) throw new Error("Not signed in");
+          if (action === "next" || action === "cooldown") {
+            await supabaseUpsertFavorite(client, current, {
+              recipeKey,
+              title: favoriteMeal.title,
+              sourceRecipeId: favoriteMeal.sourceRecipeId,
+              lastLockedAt: favoriteMeal.lastLockedAt,
+              requestedForWeek: action === "next" ? nextWeek : null,
+            });
+          } else if (existing) {
+            await supabaseRemoveSavedMeal(client, current, recipeKey);
+          }
+          if (draft.note.trim() && action !== "remove") {
+            await supabaseInsertMealLike(client, current, {
+              recipeKey,
+              title: favoriteMeal.title,
+              note: draft.note,
+            });
+          }
+          return action;
+        });
+      },
+      setFavoriteTiming: (recipeKey, timing) => {
+        const current = session;
+        const visible = displayRef.current;
+        if (!current || !visible) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        const existing = savedMealForKey(visible.savedMeals, recipeKey);
+        if (!existing) {
+          return run(async () => {
+            throw new Error("That favorite is gone.");
+          });
+        }
+        const nextWeek = favoriteNextWeekStarts(visible.week.startsOn, visible.planning?.week.startsOn ?? null);
+        const requestedForWeek = timing === "next" ? nextWeek : null;
         return runOptimistic(
           `saved:${recipeKey}`,
-          (snap) =>
-            patchSavedMealAdded(snap, {
-              id: `optimistic-saved-${recipeKey}`,
-              householdId: current.householdId ?? snap.household.id,
-              recipeKey,
-              title: meal.title.trim(),
-              savedAt,
-              lastLockedAt,
-              requestedForWeek: null,
-              sourceRecipeId: recipe?.id ?? null,
-            }),
+          (snap) => applyFavoriteAction(snap, timing, { ...existing, requestedForWeek }),
           async () => {
             const client = createSupabaseBrowserClient();
             if (!client) throw new Error("Not signed in");
-            await supabaseSaveMeal(client, current, {
-              recipeKey,
-              title: meal.title.trim(),
-              sourceRecipeId: recipe?.id ?? null,
-              lastLockedAt,
-            });
-            return "saved" as const;
+            await supabaseSetFavoriteTiming(client, current, recipeKey, requestedForWeek);
           },
         );
       },
@@ -989,7 +1079,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
           await supabaseRemoveSavedMeal(client, current, recipeKey);
         });
       },
-      requestSavedMeal: (recipeKey) => {
+      sendMealDislike: (mealId, draft) => {
         const current = session;
         const visible = displayRef.current;
         if (!current || !visible) {
@@ -997,30 +1087,60 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
             throw new Error("Not signed in");
           });
         }
-        const existing = savedMealForKey(visible.savedMeals, recipeKey);
-        if (!existing) {
+        const located = scopeForMeal(visible, mealId);
+        const meal = located?.scope.meals.find((item) => item.id === mealId);
+        if (!meal || !located) {
           return run(async () => {
-            throw new Error("That saved meal is gone.");
+            throw new Error("That night is not on this week.");
           });
         }
-        const requestedForWeek = planningTargetStarts(visible);
-        if (savedMealRequestActive(existing, requestedForWeek)) {
-          return Promise.resolve("already" as const);
+        const recipe = located.scope.recipes.find((item) => item.mealId === meal.id);
+        const recipeKey = mealRecipeKey({ title: meal.title, recipeKey: recipe?.recipeKey });
+        const existing = mealDislikeForKey(visible.mealDislikes, recipeKey);
+        const action = dislikeSendAction(draft, Boolean(existing?.neverAgain));
+        if (!action || !recipeKey) {
+          return run(async () => {
+            throw new Error("Nothing to send.");
+          });
+        }
+        const row = dislikeRow({
+          existing,
+          recipeKey,
+          title: meal.title.trim(),
+          householdId: current.householdId ?? visible.household.id,
+          neverAgain: action === "block",
+          note: action === "allow" ? "" : draft.note,
+        });
+        return runOptimistic(`dislike:${recipeKey}`, (snap) => applyDislikeAction(snap, action, row), async () => {
+          const client = createSupabaseBrowserClient();
+          if (!client) throw new Error("Not signed in");
+          await supabaseUpsertMealDislike(client, current, {
+            recipeKey,
+            title: row.title,
+            neverAgain: action === "block",
+            note: action === "allow" ? "" : draft.note,
+          });
+          return action;
+        });
+      },
+      allowMealAgain: (recipeKey) => {
+        const current = session;
+        const visible = displayRef.current;
+        const existing = visible ? mealDislikeForKey(visible.mealDislikes, recipeKey) : undefined;
+        if (!current || !existing?.neverAgain) {
+          return run(async () => {
+            throw new Error("That meal is not blocked.");
+          });
         }
         return runOptimistic(
-          `saved-request:${recipeKey}`,
-          (snap) => patchSavedMealRequest(snap, recipeKey, requestedForWeek),
+          `dislike:${recipeKey}`,
+          (snap) => applyDislikeAction(snap, "allow", { ...existing, neverAgain: false }),
           async () => {
             const client = createSupabaseBrowserClient();
             if (!client) throw new Error("Not signed in");
-            const result = await supabaseRequestSavedMeal(client, current, recipeKey);
-            if (result === "requested") setViewedWeek({ kind: "planning" });
-            return result;
+            await supabaseAllowMealAgain(client, current, recipeKey, existing.note);
           },
-        ).then((result) => {
-          if (result === "requested") wakeWeekOrPlanChange();
-          return result;
-        });
+        );
       },
     }),
     // refresh/run close over the latest session and snapshot on each render.
