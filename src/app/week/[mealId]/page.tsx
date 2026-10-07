@@ -4,9 +4,10 @@ import { use, useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGate } from "@/components/auth-gate";
 import { BallotToast } from "@/components/ballot-toast";
+import { DislikeMealControl } from "@/components/dislike-meal";
+import { FavoriteMealControl } from "@/components/favorite-meal";
 import { RecipePendingNotice } from "@/components/post-lock-waiting";
 import { RecipeBlock } from "@/components/recipe-view";
-import { SaveMealControl } from "@/components/save-meal-button";
 import { useSupper } from "@/components/supper-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,9 +18,17 @@ import { servingsLabel } from "@/lib/headcount";
 import { REPLACEMENT_IDEAS } from "@/lib/ideas";
 import { todayInTimeZone } from "@/lib/meal-history";
 import { canActOnBallot, isNightOff, latestVoteForMeal, voteFor, votingMembers } from "@/lib/lock";
-import { scopeForMeal, weekHomeTitle } from "@/lib/open-weeks";
+import { dislikeToast, mealDislikeForKey } from "@/lib/meal-dislikes";
+import { planningTargetStarts, scopeForMeal, weekHomeTitle } from "@/lib/open-weeks";
 import { nightShowsRecipePending } from "@/lib/post-lock-waiting";
-import { SAVE_TOAST, UNSAVE_TOAST, mealRecipeKey, mealSaveAvailability, savedMealForKey } from "@/lib/saved-meals";
+import {
+  favoriteTimingFor,
+  favoriteToast,
+  mealReactionVisible,
+  mealRecipeKey,
+  mealSaveAvailability,
+  savedMealForKey,
+} from "@/lib/saved-meals";
 import { isPastDinnerNight, nightStaysLocked } from "@/lib/week-chrome";
 import type { VoteChoice } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -34,8 +43,17 @@ export default function MealPage({ params }: { params: Promise<{ mealId: string 
 }
 
 function MealDetail({ mealId }: { mealId: string }) {
-  const { snapshot, session, setVote, applyIdea, markLeftovers, proposeReplacement, toggleSavedMeal, setViewedRole } =
-    useSupper();
+  const {
+    snapshot,
+    session,
+    setVote,
+    applyIdea,
+    markLeftovers,
+    proposeReplacement,
+    sendMealFavorite,
+    sendMealDislike,
+    setViewedRole,
+  } = useSupper();
   const [note, setNote] = useState("");
   const [customTitle, setCustomTitle] = useState("");
   const [customPitch, setCustomPitch] = useState("");
@@ -102,22 +120,33 @@ function MealDetail({ mealId }: { mealId: string }) {
     recipes: scope.recipes,
   });
   const recipeKey = mealRecipeKey({ title: meal.title, recipeKey: recipe?.recipeKey });
-  const saved = Boolean(savedMealForKey(snapshot.savedMeals, recipeKey));
-  const saveControl = (
-    <SaveMealControl
-      availability={saveAvailability}
-      saved={saved}
-      canAct={canActOnBallot(session?.role)}
-      onToggle={() => {
-        void toggleSavedMeal(meal.id)
-          .then((result) => {
-            if (result === "saved") setToast(SAVE_TOAST);
-            if (result === "removed") setToast(UNSAVE_TOAST);
-          })
-          .catch(() => undefined);
-      }}
-    />
-  );
+  const saved = savedMealForKey(snapshot.savedMeals, recipeKey);
+  const dislike = mealDislikeForKey(snapshot.mealDislikes, recipeKey);
+  const reactionVisible = mealReactionVisible(saveAvailability) && canActOnBallot(session?.role);
+  const reactions = reactionVisible ? (
+    <div data-slot="meal-detail-actions" className="flex flex-wrap items-center gap-2">
+      <FavoriteMealControl
+        visible
+        favorite={Boolean(saved)}
+        timing={favoriteTimingFor(saved, planningTargetStarts(snapshot))}
+        onSend={async (draft) => {
+          const action = await sendMealFavorite(meal.id, draft);
+          if (action) setToast(favoriteToast(action));
+          return action;
+        }}
+      />
+      <DislikeMealControl
+        visible
+        blocked={Boolean(dislike?.neverAgain)}
+        note={dislike?.note ?? ""}
+        onSend={async (draft) => {
+          const action = await sendMealDislike(meal.id, draft);
+          if (action) setToast(dislikeToast(action));
+          return action;
+        }}
+      />
+    </div>
+  ) : null;
 
   const choose = (choice: VoteChoice) => {
     void setVote(meal.id, choice, note).catch(() => undefined);
@@ -144,14 +173,14 @@ function MealDetail({ mealId }: { mealId: string }) {
           </p>
         ) : pendingRecipe ? (
           <>
-            {saveControl}
+            {reactions}
             <div className="mt-4">
               <RecipePendingNotice weekRole={weekRole} />
             </div>
           </>
         ) : (
           <>
-            {saveControl}
+            {reactions}
             <div className="mt-4">
               <RecipeBlock recipe={recipe} servings={meal.servings} />
             </div>
@@ -210,7 +239,7 @@ function MealDetail({ mealId }: { mealId: string }) {
           </section> : null}
 
           <section className="mt-8 space-y-4">
-            {saveControl}
+            {reactions}
             <div className="rounded-[14px] border border-dashed border-border bg-card p-5 shadow-card">
               <h2 className="type-section">Recipe</h2>
               <p className="type-body mt-2 text-muted-foreground">

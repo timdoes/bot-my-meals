@@ -11,22 +11,15 @@ import {
 } from "@/lib/optimistic";
 import type { Membership, Recipe, Vote } from "@/lib/types";
 import {
-  ALREADY_REQUESTED_TOAST,
-  REMOVE_SAVED_LABEL,
-  REQUEST_NEXT_WEEK_LABEL,
-  REQUESTED_LABEL,
-  REQUESTED_TOAST,
-  SAVE_LABEL,
-  SAVE_TOAST,
-  SAVE_WAIT_TIP,
-  SAVED_LABEL,
+  FAVORITES_EMPTY_BODY,
+  FAVORITES_EMPTY_TITLE,
+  FAVORITES_HELPER,
+  FAVORITES_LABEL,
+  FAVORITE_IN_THREE_WEEKS,
+  FAVORITE_NEXT_WEEK,
+  FAVORITE_REMOVED_TOAST,
+  REMOVE_FAVORITE_LABEL,
   SAVED_MEAL_COOLDOWN_DAYS,
-  SAVED_MEALS_EMPTY_BODY,
-  SAVED_MEALS_EMPTY_TITLE,
-  SAVED_MEALS_HELPER,
-  SAVED_MEALS_LABEL,
-  SAVED_MEALS_ROW_SUB,
-  UNSAVE_TOAST,
   cookNightInstant,
   lastCookedAtForSave,
   mealRecipeKey,
@@ -326,30 +319,19 @@ describe("save availability", () => {
   });
 });
 
-describe("saved meals surfaces", () => {
+describe("favorites surfaces", () => {
   it("locks the household copy", () => {
-    expect(SAVED_MEALS_LABEL).toBe("Saved meals");
-    expect(SAVED_MEALS_ROW_SUB).toBe("Meals your house kept for later");
-    expect(SAVED_MEALS_HELPER).toBe(
-      "Your bot may suggest these again after a break. Request one anytime for next week.",
-    );
-    expect(SAVED_MEALS_EMPTY_TITLE).toBe("No saved meals yet");
-    expect(SAVED_MEALS_EMPTY_BODY).toBe(
-      "Open a dinner\u2019s recipe and tap Save when you want it back later.",
-    );
-    expect(SAVE_LABEL).toBe("Save");
-    expect(SAVED_LABEL).toBe("Saved");
-    expect(SAVE_TOAST).toBe("Saved for your house.");
-    expect(UNSAVE_TOAST).toBe("Removed from saved.");
-    expect(SAVE_WAIT_TIP).toBe("Save when the recipe is ready.");
-    expect(REQUEST_NEXT_WEEK_LABEL).toBe("Request for next week");
-    expect(REQUESTED_LABEL).toBe("Requested");
-    expect(REQUESTED_TOAST).toBe("Requested for next week.");
-    expect(ALREADY_REQUESTED_TOAST).toBe("Already requested for next week.");
-    expect(REMOVE_SAVED_LABEL).toBe("Remove");
+    expect(FAVORITES_LABEL).toBe("Favorites");
+    expect(FAVORITES_HELPER).toBe("Your bot suggests these again. Pick when.");
+    expect(FAVORITES_EMPTY_TITLE).toBe("No favorites yet");
+    expect(FAVORITES_EMPTY_BODY).toBe("Open a dinner and tap thumbs-up.");
+    expect(FAVORITE_NEXT_WEEK).toBe("Make next week");
+    expect(FAVORITE_IN_THREE_WEEKS).toBe("Make in ~3 weeks");
+    expect(FAVORITE_REMOVED_TOAST).toBe("Removed from favorites.");
+    expect(REMOVE_FAVORITE_LABEL).toBe("Remove");
   });
 
-  it("puts Save on meal detail and the list under House, not on week cards or Past weeks", () => {
+  it("puts thumbs-up on meal detail and Favorites under House, not on week cards or Past weeks", () => {
     const detail = readFileSync(path.join(srcRoot, "app/week/[mealId]/page.tsx"), "utf8");
     const week = readFileSync(path.join(srcRoot, "app/week/page.tsx"), "utf8");
     const card = readFileSync(path.join(srcRoot, "components/ballot-card.tsx"), "utf8");
@@ -361,29 +343,33 @@ describe("saved meals surfaces", () => {
     const shell = readFileSync(path.join(srcRoot, "components/app-shell.tsx"), "utf8");
     const shopping = readFileSync(path.join(srcRoot, "app/list/page.tsx"), "utf8");
 
-    expect(detail).toContain("SaveMealControl");
-    expect(detail).toContain("toggleSavedMeal");
-    expect(detail).toContain("SAVE_TOAST");
-    expect(detail).toContain("UNSAVE_TOAST");
-    expect(week).not.toContain("SaveMealControl");
-    expect(week).not.toContain('data-slot="save-meal"');
-    expect(card).not.toContain("SaveMealControl");
-    expect(night).not.toContain("SaveMealControl");
-    expect(history).not.toContain("SaveMealControl");
-    expect(shopping).not.toContain("SaveMealControl");
+    expect(detail).toContain("FavoriteMealControl");
+    expect(detail).toContain("sendMealFavorite");
+    expect(detail).toContain('data-slot="meal-detail-actions"');
+    expect(detail).not.toContain("SaveMealControl");
+    expect(detail).not.toContain("toggleSavedMeal");
+    expect(week).not.toContain("FavoriteMealControl");
+    expect(week).not.toContain('data-slot="favorite-meal"');
+    expect(card).not.toContain("FavoriteMealControl");
+    expect(night).not.toContain("FavoriteMealControl");
+    expect(history).not.toContain("FavoriteMealControl");
+    expect(shopping).not.toContain("FavoriteMealControl");
     expect(shell.match(/href: "\//g)).toHaveLength(4);
 
-    expect(settings).toContain('data-slot="saved-meals-row"');
+    expect(settings).toContain('data-slot="favorites-row"');
     expect(settings).toContain('href="/settings/saved"');
-    expect(settings).toContain("SAVED_MEALS_LABEL");
+    expect(settings).toContain("FAVORITES_LABEL");
     expect(settings).toContain('data-slot="past-weeks-row"');
     expect(listPage).toContain('backHref="/settings"');
     expect(listPage).toContain('backLabel="House"');
-    expect(list).toContain("SAVED_MEALS_EMPTY_TITLE");
-    expect(list).toContain("SAVED_MEALS_EMPTY_BODY");
-    expect(list).toContain('data-slot="saved-meal-request"');
-    expect(list).toContain('data-slot="saved-meal-remove"');
-    expect(list).toContain("SAVED_MEALS_HELPER");
+    expect(listPage).toContain("setFavoriteTiming");
+    expect(listPage).not.toContain("requestSavedMeal");
+    expect(list).toContain("FAVORITES_EMPTY_TITLE");
+    expect(list).toContain("FAVORITES_EMPTY_BODY");
+    expect(list).toContain("FAVORITES_HELPER");
+    expect(list).toContain('data-slot="favorite-timing-edit"');
+    expect(list).toContain('data-slot="favorite-remove"');
+    expect(list).not.toContain("Request for next week");
 
     const ui = `${detail}\n${settings}\n${listPage}\n${list}`;
     expect(ui).not.toMatch(/grandma/i);
@@ -422,11 +408,12 @@ describe("saved meals surfaces", () => {
     expect(migration).not.toMatch(/grandma/i);
 
     expect(repo).toContain('from("saved_meals")');
-    expect(repo).toContain("supabaseSaveMeal");
+    expect(repo).toContain("supabaseUpsertFavorite");
     expect(repo).toContain("supabaseRemoveSavedMeal");
-    expect(repo).toContain("supabaseRequestSavedMeal");
+    expect(repo).toContain("supabaseSetFavoriteTiming");
     expect(provider).toContain('table: "saved_meals"');
-    expect(provider).toContain("toggleSavedMeal");
+    expect(provider).toContain("sendMealFavorite");
+    expect(provider).toContain("setFavoriteTiming");
     expect(provider).toContain("lastCookedAtForSave");
     expect(provider).not.toContain("week.lockedAt");
     expect(cookNight).toContain("private.cook_night_instant");

@@ -74,6 +74,7 @@ function planningSnapshot(): HouseholdSnapshot {
     },
     mealHistory: [],
     savedMeals: [],
+    mealDislikes: [],
   };
 }
 

@@ -47,6 +47,7 @@ import {
 } from "@/lib/headcount";
 import { parseMealHistory, todayInTimeZone } from "@/lib/meal-history";
 import { splitOpenWeeks } from "@/lib/open-weeks";
+import { parseMealDislikes } from "@/lib/meal-dislikes";
 import { parseSavedMeals } from "@/lib/saved-meals";
 import { redactUntilLocked } from "@/lib/visibility";
 import { scaleIngredientQuantity, shoppingListsToRebuild, withRebuiltShoppingLists } from "@/lib/shopping";
@@ -208,6 +209,7 @@ export async function fetchSupabaseSnapshot(
     ballotRequestRes,
     historyRes,
     savedMealsRes,
+    mealDislikesRes,
   ] = await Promise.all([
     client.from("households").select("*").eq("id", householdId).single(),
     client.from("memberships").select("*").eq("household_id", householdId),
@@ -244,6 +246,11 @@ export async function fetchSupabaseSnapshot(
       .select("*")
       .eq("household_id", householdId)
       .order("saved_at", { ascending: false }),
+    client
+      .from("meal_dislikes")
+      .select("*")
+      .eq("household_id", householdId)
+      .order("updated_at", { ascending: false }),
   ]);
 
   const householdRow = required(householdRes.data, householdRes.error, "Household not found");
@@ -427,6 +434,7 @@ export async function fetchSupabaseSnapshot(
     ballotRequest: cooking.ballotRequest,
     mealHistory: parseMealHistory(historyRes.error ? null : historyRes.data),
     savedMeals: parseSavedMeals(savedMealsRes.error ? null : savedMealsRes.data),
+    mealDislikes: parseMealDislikes(mealDislikesRes.error ? null : mealDislikesRes.data),
   };
 
   return redactUntilLocked(snapshot);
@@ -940,6 +948,151 @@ export async function supabaseRemoveSavedMeal(
   const { error } = await client
     .from("saved_meals")
     .delete()
+    .eq("household_id", session.householdId)
+    .eq("recipe_key", key);
+  if (error) throw new Error(error.message);
+}
+
+const MEAL_NOTE_MAX = 500;
+
+function requireDislikeVoter(session: Session) {
+  if (!session.householdId) throw new Error("Not in a household");
+  if (!canActOnBallot(session.role)) throw new Error("Eaters can look, not change this meal.");
+}
+
+export async function supabaseUpsertFavorite(
+  client: SupabaseClient,
+  session: Session,
+  input: {
+    recipeKey: string;
+    title: string;
+    sourceRecipeId: string | null;
+    lastLockedAt: string | null;
+    requestedForWeek: string | null;
+  },
+) {
+  requireVoter(session);
+  const recipeKey = input.recipeKey.trim();
+  const title = input.title.trim();
+  if (!recipeKey || !title) throw new Error("That meal is not ready.");
+  const { error } = await client.from("saved_meals").upsert(
+    {
+      household_id: session.householdId,
+      recipe_key: recipeKey,
+      title,
+      source_recipe_id: input.sourceRecipeId,
+      last_locked_at: input.lastLockedAt,
+      requested_for_week: input.requestedForWeek,
+      saved_at: new Date().toISOString(),
+    },
+    { onConflict: "household_id,recipe_key" },
+  );
+  if (error) throw new Error(error.message);
+}
+
+/** Timing only. Does not create a planning week and does not wake the bot. */
+export async function supabaseSetFavoriteTiming(
+  client: SupabaseClient,
+  session: Session,
+  recipeKey: string,
+  requestedForWeek: string | null,
+) {
+  requireVoter(session);
+  const key = recipeKey.trim();
+  if (!key) throw new Error("That favorite is gone.");
+  const { error } = await client
+    .from("saved_meals")
+    .update({
+      requested_for_week: requestedForWeek,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("household_id", session.householdId)
+    .eq("recipe_key", key);
+  if (error) throw new Error(error.message);
+}
+
+export async function supabaseInsertMealLike(
+  client: SupabaseClient,
+  session: Session,
+  input: { recipeKey: string; title: string; note: string },
+) {
+  requireDislikeVoter(session);
+  const note = input.note.trim().slice(0, MEAL_NOTE_MAX);
+  const recipeKey = input.recipeKey.trim();
+  const title = input.title.trim();
+  if (!note || !recipeKey || !title) return;
+  const { error } = await client.from("meal_likes").insert({
+    household_id: session.householdId,
+    recipe_key: recipeKey,
+    title,
+    note,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function supabaseUpsertMealDislike(
+  client: SupabaseClient,
+  session: Session,
+  input: { recipeKey: string; title: string; neverAgain: boolean; note: string },
+) {
+  requireDislikeVoter(session);
+  const recipeKey = input.recipeKey.trim();
+  const title = input.title.trim();
+  const note = input.note.trim().slice(0, MEAL_NOTE_MAX);
+  if (!recipeKey || !title) throw new Error("That meal is not ready.");
+  if (!input.neverAgain && !note) {
+    const { error } = await client
+      .from("meal_dislikes")
+      .delete()
+      .eq("household_id", session.householdId)
+      .eq("recipe_key", recipeKey);
+    if (error) throw new Error(error.message);
+    return;
+  }
+  const { error } = await client.from("meal_dislikes").upsert(
+    {
+      household_id: session.householdId,
+      recipe_key: recipeKey,
+      title,
+      never_again: input.neverAgain,
+      note,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "household_id,recipe_key" },
+  );
+  if (error) throw new Error(error.message);
+  if (input.neverAgain) {
+    const { error: savedError } = await client
+      .from("saved_meals")
+      .delete()
+      .eq("household_id", session.householdId)
+      .eq("recipe_key", recipeKey);
+    if (savedError) throw new Error(savedError.message);
+  }
+}
+
+export async function supabaseAllowMealAgain(
+  client: SupabaseClient,
+  session: Session,
+  recipeKey: string,
+  note: string,
+) {
+  requireDislikeVoter(session);
+  const key = recipeKey.trim();
+  if (!key) throw new Error("That meal is not blocked.");
+  const trimmed = note.trim().slice(0, MEAL_NOTE_MAX);
+  if (!trimmed) {
+    const { error } = await client
+      .from("meal_dislikes")
+      .delete()
+      .eq("household_id", session.householdId)
+      .eq("recipe_key", key);
+    if (error) throw new Error(error.message);
+    return;
+  }
+  const { error } = await client
+    .from("meal_dislikes")
+    .update({ never_again: false, note: trimmed, updated_at: new Date().toISOString() })
     .eq("household_id", session.householdId)
     .eq("recipe_key", key);
   if (error) throw new Error(error.message);

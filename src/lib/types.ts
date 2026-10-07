@@ -173,7 +173,7 @@ export type MealHistoryWeek = {
   nights: MealHistoryNight[];
 };
 
-/** Household-shared save. One row per recipe identity. */
+/** Household favorite. One row per recipe identity. The UI calls this Favorites. */
 export type SavedMeal = {
   id: string;
   householdId: string;
@@ -183,6 +183,17 @@ export type SavedMeal = {
   lastLockedAt: string | null;
   requestedForWeek: string | null;
   sourceRecipeId: string | null;
+};
+
+/** Household dislike. `neverAgain` blocks the whole meal. A note alone does not. */
+export type MealDislike = {
+  id: string;
+  householdId: string;
+  recipeKey: string;
+  title: string;
+  neverAgain: boolean;
+  note: string;
+  updatedAt: string;
 };
 
 export type ShoppingItem = {
@@ -282,6 +293,7 @@ export type HouseholdSnapshot = {
   planning?: WeekScope | null;
   mealHistory: MealHistoryWeek[];
   savedMeals: SavedMeal[];
+  mealDislikes: MealDislike[];
 };
 
 export type ReplacementIdea = {
