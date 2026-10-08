@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 import type { HouseholdSnapshot, Meal, Membership, Recipe, ShoppingItem, ShoppingList, Store, Vote } from "./types";
 import { emptyHousehold } from "./seed";
 import {
+  FALLBACK_STORE_ID,
+  STORE_LABEL_FALLBACK,
+  STORE_LABEL_FALLBACK_OTHER,
   STORE_LABEL_SMITHS,
   STORE_LABEL_TRADER_JOES,
   buildShoppingItems,
@@ -18,6 +21,20 @@ import {
   shoppingListsToRebuild,
   withRebuiltShoppingLists,
 } from "./shopping";
+
+const storeLine = (id: string, storeId: string, name: string): ShoppingItem => ({
+  id,
+  householdId: "h",
+  shoppingListId: "l",
+  storeId,
+  name,
+  quantity: 1,
+  unit: "ct",
+  priceCents: null,
+  priceSource: null,
+  pricedAt: null,
+  checked: false,
+});
 
 const meal = (id: string): Meal => ({
   id,
@@ -144,72 +161,93 @@ describe("shopping merge", () => {
 });
 
 describe("sticky store labels", () => {
-  it("labels Trader Joe's and Smith's only — never Kroger or a third store", () => {
+  it("keeps the fixed Trader Joe's and Smith's labels and names every other store", () => {
     expect(listStoreLabel({ slug: "trader-joes" })).toBe(STORE_LABEL_TRADER_JOES);
     expect(listStoreLabel({ slug: "smiths" })).toBe(STORE_LABEL_SMITHS);
     expect(listStoreLabel({ slug: "trader-joe-s" })).toBe(STORE_LABEL_TRADER_JOES);
     expect(listStoreLabel({ slug: "smith-s" })).toBe(STORE_LABEL_SMITHS);
-    expect(listStoreLabel({ slug: "kroger" })).toBeNull();
-    expect(listStoreLabel({ slug: "costco" })).toBeNull();
+    expect(listStoreLabel({ slug: "trader-joes", name: "TJ" })).toBe(STORE_LABEL_TRADER_JOES);
+    expect(listStoreLabel({ slug: "smiths", name: "Smiths Market" })).toBe(STORE_LABEL_SMITHS);
     expect(STORE_LABEL_TRADER_JOES).toBe("Trader Joe's");
     expect(STORE_LABEL_SMITHS).toBe("Smith's");
 
+    expect(listStoreLabel({ slug: "kroger", name: "Kroger" })).toBe("Kroger");
+    expect(listStoreLabel({ slug: "walmart", name: "  Walmart  " })).toBe("Walmart");
+    expect(listStoreLabel({ slug: "corner-market", name: "Rosa's Corner Market" })).toBe("Rosa's Corner Market");
+    // No saved name: catalog name, then a readable slug.
+    expect(listStoreLabel({ slug: "h-e-b", name: "" })).toBe("H-E-B");
+    expect(listStoreLabel({ slug: "costco" })).toBe("Costco");
+    expect(listStoreLabel({ slug: "fresh-farm-stand", name: " " })).toBe("Fresh Farm Stand");
+    expect(listStoreLabel({ slug: "", name: "" })).toBeNull();
+  });
+
+  it("groups TJ + Kroger + Smith's in the house's store order, keeping TJ/Smith's labels", () => {
     const stores: Store[] = [
       { id: "tj", householdId: "h", name: "TJ", slug: "trader-joes", sortOrder: 0 },
       { id: "sm", householdId: "h", name: "Kroger", slug: "kroger", sortOrder: 1 },
       { id: "smiths", householdId: "h", name: "Smiths Market", slug: "smiths", sortOrder: 2 },
     ];
     const items: ShoppingItem[] = [
-      {
-        id: "1",
-        householdId: "h",
-        shoppingListId: "l",
-        storeId: "tj",
-        name: "Salsa",
-        quantity: 1,
-        unit: "jar",
-        priceCents: null,
-        priceSource: null,
-        pricedAt: null,
-        checked: false,
-      },
-      {
-        id: "2",
-        householdId: "h",
-        shoppingListId: "l",
-        storeId: "sm",
-        name: "Milk",
-        quantity: 1,
-        unit: "gal",
-        priceCents: 399,
-        priceSource: "invented",
-        pricedAt: "2026-09-01",
-        checked: false,
-      },
-      {
-        id: "3",
-        householdId: "h",
-        shoppingListId: "l",
-        storeId: "smiths",
-        name: "Chicken",
-        quantity: 1,
-        unit: "ct",
-        priceCents: null,
-        priceSource: null,
-        pricedAt: null,
-        checked: false,
-      },
+      storeLine("1", "tj", "Salsa"),
+      { ...storeLine("2", "sm", "Milk"), priceCents: 399, priceSource: "invented", pricedAt: "2026-09-01" },
+      storeLine("3", "smiths", "Chicken"),
     ];
 
     const groups = groupStickyStoreLists(items, stores);
-    expect(groups.map((group) => group.label)).toEqual(["Trader Joe's", "Smith's"]);
-    expect(groups.flatMap((group) => group.items.map((item) => item.name))).toEqual([
-      "Salsa",
-      "Chicken",
-    ]);
-    expect(JSON.stringify(groups)).not.toContain("Kroger");
-    expect(JSON.stringify(groups)).not.toContain("Milk");
-    expect(JSON.stringify(groups)).not.toContain("399");
+    expect(groups.map((group) => group.label)).toEqual(["Trader Joe's", "Kroger", "Smith's"]);
+    expect(groups.map((group) => group.items.map((item) => item.name))).toEqual([["Salsa"], ["Milk"], ["Chicken"]]);
+    expect(groups.map((group) => group.label)).not.toContain(STORE_LABEL_FALLBACK_OTHER);
+    expect(JSON.stringify(groups.map((group) => group.label))).not.toContain("399");
+  });
+
+  it("gives a Walmart + Kroger house a full list, grouped and labelled by its own stores", () => {
+    const stores: Store[] = [
+      { id: "kr", householdId: "h", name: "Kroger", slug: "kroger", sortOrder: 1 },
+      { id: "wm", householdId: "h", name: "Walmart", slug: "walmart", sortOrder: 0 },
+    ];
+    const items: ShoppingItem[] = [
+      storeLine("1", "kr", "Ground turkey"),
+      storeLine("2", "wm", "Tortillas"),
+      storeLine("3", "kr", "Avocados"),
+      storeLine("4", "wm", "Black beans"),
+    ];
+
+    const groups = groupStickyStoreLists(items, stores);
+    expect(groups.map((group) => group.label)).toEqual(["Walmart", "Kroger"]);
+    expect(groups.map((group) => group.store.slug)).toEqual(["walmart", "kroger"]);
+    expect(groups[0]?.items.map((item) => item.name)).toEqual(["Black beans", "Tortillas"]);
+    expect(groups[1]?.items.map((item) => item.name)).toEqual(["Avocados", "Ground turkey"]);
+    expect(groups.flatMap((group) => group.items)).toHaveLength(items.length);
+  });
+
+  it("puts lines with an unknown or deleted store in one trailing section", () => {
+    const stores: Store[] = [
+      { id: "tj", householdId: "h", name: "Trader Joe's", slug: "trader-joes", sortOrder: 0 },
+      { id: "smiths", householdId: "h", name: "Smith's", slug: "smiths", sortOrder: 1 },
+      { id: "blank", householdId: "h", name: "", slug: "", sortOrder: 2 },
+    ];
+    const items: ShoppingItem[] = [
+      storeLine("1", "tj", "Salsa"),
+      storeLine("2", "gone-store", "Paper towels"),
+      storeLine("3", "smiths", "Chicken"),
+      storeLine("4", "blank", "Basil"),
+    ];
+
+    const groups = groupStickyStoreLists(items, stores);
+    expect(groups.map((group) => group.label)).toEqual(["Trader Joe's", "Smith's", STORE_LABEL_FALLBACK_OTHER]);
+    expect(groups[2]?.store.id).toBe(FALLBACK_STORE_ID);
+    expect(groups[2]?.items.map((item) => item.name)).toEqual(["Basil", "Paper towels"]);
+    expect(groups.flatMap((group) => group.items)).toHaveLength(items.length);
+  });
+
+  it("shows the whole list under one section when the house has no stores", () => {
+    const items: ShoppingItem[] = [storeLine("1", "x", "Onion"), storeLine("2", "y", "Butter")];
+    const groups = groupStickyStoreLists(items, []);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.label).toBe(STORE_LABEL_FALLBACK);
+    expect(groups[0]?.store.id).toBe(FALLBACK_STORE_ID);
+    expect(groups[0]?.items.map((item) => item.name)).toEqual(["Butter", "Onion"]);
+    expect(groupStickyStoreLists([], [])).toEqual([]);
   });
 
   it("renders items when the store slug is the apostrophe form smith-s", () => {

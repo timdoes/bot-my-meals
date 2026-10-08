@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  catalogNameForSlug,
   catalogSlugForName,
   classifyPostalCode,
   grocersForPostalCode,
@@ -59,5 +60,15 @@ describe("static regional grocers", () => {
     expect(
       storeMatchesGrocer({ slug: "winco", name: "WinCo" }, { slug: "smiths", name: "Smith's" }),
     ).toBe(false);
+  });
+});
+
+describe("catalogNameForSlug", () => {
+  it("names catalog slugs and leaves household-typed ones alone", () => {
+    expect(catalogNameForSlug("walmart")).toBe("Walmart");
+    expect(catalogNameForSlug("kroger")).toBe("Kroger");
+    expect(catalogNameForSlug(" Smiths ")).toBe("Smith's");
+    expect(catalogNameForSlug("rosas-corner-market")).toBeNull();
+    expect(catalogNameForSlug("")).toBeNull();
   });
 });
