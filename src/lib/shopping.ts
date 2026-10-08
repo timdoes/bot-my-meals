@@ -1,3 +1,4 @@
+import { catalogNameForSlug } from "./grocers";
 import { isNightOff } from "./lock";
 import { cookingScope } from "./open-weeks";
 import type {
@@ -238,20 +239,45 @@ export function shoppingListsToRebuild(snapshot: HouseholdSnapshot): string[] {
   });
 }
 
-/** Locked-list sticky headers — Trader Joe’s / Smith’s only. Never a cart. */
+/**
+ * Locked-list sticky headers. Never a cart.
+ * Trader Joe's and Smith's keep their fixed labels (any slug form). Every other
+ * store the house set up shows under its own name, so a Walmart/Kroger house
+ * gets a full list too.
+ */
 export const STORE_LABEL_TRADER_JOES = "Trader Joe's";
 export const STORE_LABEL_SMITHS = "Smith's";
+/** One section for the whole list when the house has no usable store. */
+export const STORE_LABEL_FALLBACK = "Groceries";
+/** Trailing section for lines whose store is gone or unknown, after the house's stores. */
+export const STORE_LABEL_FALLBACK_OTHER = "Everything else";
+export const FALLBACK_STORE_ID = "__list-fallback";
+export const FALLBACK_STORE_SLUG = "other";
 
-export function listStoreLabel(store: Pick<Store, "slug">): string | null {
-  switch (store.slug) {
+function labelFromSlug(slug: string): string | null {
+  const words = slug
+    .trim()
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
+  return words.length ? words.join(" ") : null;
+}
+
+export function listStoreLabel(store: Pick<Store, "slug"> & Partial<Pick<Store, "name">>): string | null {
+  const slug = (store.slug ?? "").trim().toLowerCase();
+  switch (slug) {
     case "trader-joes":
     case "trader-joe-s":
       return STORE_LABEL_TRADER_JOES;
     case "smiths":
     case "smith-s":
       return STORE_LABEL_SMITHS;
-    default:
-      return null;
+    default: {
+      const name = store.name?.replace(/\s+/g, " ").trim();
+      if (name) return name;
+      if (!slug) return null;
+      return catalogNameForSlug(slug) ?? labelFromSlug(slug);
+    }
   }
 }
 
@@ -270,15 +296,38 @@ export function groupItemsByStore(
     .filter((group) => group.items.length > 0);
 }
 
-/** Post-lock sticky sections. Catalog slugs, plus apostrophe slugs saved before the picker passed a slug. */
+/**
+ * Post-lock sticky sections, in the house's store order. Every line shows:
+ * a line whose store is missing (deleted, unknown id, or no stores at all) or
+ * has no usable label lands in one fallback section at the end.
+ */
 export function groupStickyStoreLists(
   items: ShoppingItem[],
   stores: Store[],
 ): Array<{ store: Store; label: string; items: ShoppingItem[] }> {
-  return groupItemsByStore(items, stores).flatMap((group) => {
+  const labelled: Array<{ store: Store; label: string; items: ShoppingItem[] }> = [];
+  const placed = new Set<string>();
+  for (const group of groupItemsByStore(items, stores)) {
     const label = listStoreLabel(group.store);
-    return label ? [{ ...group, label }] : [];
-  });
+    if (!label) continue;
+    labelled.push({ ...group, label });
+    for (const item of group.items) placed.add(item.id);
+  }
+
+  const leftover = items
+    .filter((item) => !placed.has(item.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (leftover.length === 0) return labelled;
+
+  const label = labelled.length ? STORE_LABEL_FALLBACK_OTHER : STORE_LABEL_FALLBACK;
+  const fallback: Store = {
+    id: FALLBACK_STORE_ID,
+    householdId: leftover[0]?.householdId ?? "",
+    name: label,
+    slug: FALLBACK_STORE_SLUG,
+    sortOrder: Number.MAX_SAFE_INTEGER,
+  };
+  return [...labelled, { store: fallback, label, items: leftover }];
 }
 
 export function formatQuantity(quantity: number, unit: string): string {

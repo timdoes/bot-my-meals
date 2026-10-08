@@ -321,6 +321,13 @@ function normalizeStoreName(name: string): string {
   return name.trim().toLowerCase().replace(/[\u2018\u2019]/g, "'");
 }
 
+/** Curated display name for a catalog slug (`kroger` → `Kroger`). Null when the slug is not in the catalog. */
+export function catalogNameForSlug(slug: string): string | null {
+  const wanted = slug.trim().toLowerCase();
+  if (!wanted) return null;
+  return allCatalogGrocers().find((grocer) => grocer.slug === wanted)?.name ?? null;
+}
+
 /** Catalog slug for a curated grocer name. Null for a household-typed store. */
 export function catalogSlugForName(name: string): string | null {
   const normalized = normalizeStoreName(name);
