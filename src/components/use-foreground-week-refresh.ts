@@ -32,6 +32,7 @@ export function useForegroundWeekRefresh(input: {
     setForegroundWeekTarget(weekId);
     const unbind = bindForegroundWeekRefresh({
       document,
+      win: window,
       refresh: () => {
         void refetchViewedWeek(weekId);
       },

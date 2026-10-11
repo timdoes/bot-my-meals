@@ -23,6 +23,7 @@ import { WeekChrome } from "@/components/week-chrome";
 import { Onboarding } from "@/components/onboarding";
 import { SetupWizard } from "@/components/setup-wizard";
 import { useSupper } from "@/components/supper-provider";
+import { useBotWorking } from "@/components/use-bot-wake";
 import { useForegroundWeekRefresh } from "@/components/use-foreground-week-refresh";
 import { useViewedWeek } from "@/components/use-viewed-week";
 import { WeekProcessingMark } from "@/components/week-processing-mark";
@@ -244,6 +245,7 @@ function WeekBallot() {
         }).needs_work
       : false;
   const foregroundSignature = scope && !past ? viewedWeekDataSignature(scope) : "";
+  const botWorking = useBotWorking(foregroundSignature);
   const processing = useForegroundWeekRefresh({
     weekId: foregroundWeekId,
     waiting: foregroundWaiting,
@@ -401,6 +403,7 @@ function WeekBallot() {
               phase={processing.phase}
               stretchKey={processing.stretchKey}
               announce={processing.announce}
+              working={botWorking}
             />
           }
         />

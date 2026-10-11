@@ -32,8 +32,8 @@ describe("wake feedback copy", () => {
     expect(WAKE_COOLDOWN_MS).toBeLessThanOrEqual(30_000);
     expect(PENDING_REFRESH_INTERVAL_MS).toBeGreaterThanOrEqual(3_000);
     expect(PENDING_REFRESH_INTERVAL_MS).toBeLessThanOrEqual(10_000);
-    expect(PENDING_REFRESH_WINDOW_MS).toBeGreaterThanOrEqual(60_000);
-    expect(PENDING_REFRESH_WINDOW_MS).toBeLessThanOrEqual(90_000);
+    expect(PENDING_REFRESH_WINDOW_MS).toBeGreaterThanOrEqual(240_000);
+    expect(PENDING_REFRESH_WINDOW_MS).toBeLessThanOrEqual(360_000);
     expect(wakeControlLabel("idle", "Check now", WAKE_CHECKING_LABEL)).toBe("Check now");
     expect(wakeControlLabel("waking", "Check now", WAKE_CHECKING_LABEL)).toBe("Checking\u2026");
     expect(wakeControlLabel("waking", "Get recipes now", WAKE_WAKING_LABEL)).toBe("Waking\u2026");
@@ -137,7 +137,7 @@ describe("wake feedback copy", () => {
     expect(provider).toContain('requestBotWake("needs_work")');
     expect(provider).toContain("requestPendingRefresh");
     expect(provider).toContain("markBotWakeNotified");
-    expect(provider).toContain("PENDING_REFRESH_WINDOW_MS");
+    expect(provider).toContain("createBurst");
     expect(wake).toContain("WAKE_COOLDOWN_MS");
     expect(wake).toContain("BOT_WAKE_SOFT_FAIL");
     expect(wake).toContain('requestBotWake("check_now")');

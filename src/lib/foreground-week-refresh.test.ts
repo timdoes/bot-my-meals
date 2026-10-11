@@ -7,6 +7,7 @@ import { WeekProcessingMark } from "@/components/week-processing-mark";
 import { BOT_CHECK_NOW_LABEL } from "./bot-check";
 import {
   FOREGROUND_WEEK_REFRESH_MS,
+  RESUME_REFRESH_MIN_GAP_MS,
   STILL_PROCESSING_LINE,
   UPDATING_WEEK_ANNOUNCEMENT,
   WEEK_PROCESSING_CAP_MS,
@@ -82,6 +83,62 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("foreground week refresh: resume", () => {
+  function withWindow(doc: ReturnType<typeof fakeDocument>) {
+    const listeners = new Map<string, Set<() => void>>();
+    const win = {
+      addEventListener(type: string, listener: () => void) {
+        if (!listeners.has(type)) listeners.set(type, new Set());
+        listeners.get(type)!.add(listener);
+      },
+      removeEventListener(type: string, listener: () => void) {
+        listeners.get(type)?.delete(listener);
+      },
+    } as unknown as Pick<Window, "addEventListener" | "removeEventListener">;
+    const fire = (type: string) => [...(listeners.get(type) ?? [])].forEach((listener) => listener());
+    const refresh = vi.fn();
+    const unbind = bindForegroundWeekRefresh({ refresh, document: doc, win });
+    return { refresh, fire, unbind, count: () => [...listeners.values()].reduce((n, set) => n + set.size, 0) };
+  }
+
+  it("refreshes once on focus and pageshow while visible, and not at all while hidden", () => {
+    vi.useFakeTimers();
+    const doc = fakeDocument(false);
+    const w = withWindow(doc);
+    w.fire("focus");
+    expect(w.refresh).toHaveBeenCalledTimes(1);
+    w.fire("pageshow");
+    expect(w.refresh).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(RESUME_REFRESH_MIN_GAP_MS);
+    w.fire("pageshow");
+    expect(w.refresh).toHaveBeenCalledTimes(2);
+    doc.setHidden(true);
+    vi.advanceTimersByTime(60_000);
+    w.fire("focus");
+    expect(w.refresh).toHaveBeenCalledTimes(2);
+    w.unbind();
+    expect(w.count()).toBe(0);
+  });
+
+  it("collapses visibilitychange + focus + pageshow on return into one read", () => {
+    vi.useFakeTimers();
+    const doc = fakeDocument(true);
+    const w = withWindow(doc);
+    vi.advanceTimersByTime(5 * 60_000);
+    expect(w.refresh).not.toHaveBeenCalled();
+    doc.setHidden(false);
+    w.fire("focus");
+    w.fire("pageshow");
+    expect(w.refresh).toHaveBeenCalledTimes(1);
+    w.unbind();
+  });
+
+  it("never wakes the bot: the resume read is the same read-only refresh", () => {
+    const source = readFileSync(path.join(srcRoot, "lib/foreground-week-refresh.ts"), "utf8");
+    expect(source).not.toMatch(/requestBotWake|[^a-zA-Z]fetch\(/);
+  });
+});
+
 describe("foreground week refresh", () => {
   it("refetches every 30 seconds only while the week is visible", () => {
     vi.useFakeTimers();
@@ -109,10 +166,12 @@ describe("foreground week refresh", () => {
     doc.setHidden(false);
     expect(timer.active()).toBe(1);
     expect(timer.delays.at(-1)).toBe(30_000);
-    vi.advanceTimersByTime(29_999);
-    expect(timer.refresh).toHaveBeenCalledTimes(2);
-    vi.advanceTimersByTime(1);
+    // Coming back rereads once right away (read only), then the 30 s cadence resumes.
     expect(timer.refresh).toHaveBeenCalledTimes(3);
+    vi.advanceTimersByTime(29_999);
+    expect(timer.refresh).toHaveBeenCalledTimes(3);
+    vi.advanceTimersByTime(1);
+    expect(timer.refresh).toHaveBeenCalledTimes(4);
   });
 
   it("does not run the timer while the document is hidden", () => {
@@ -126,8 +185,9 @@ describe("foreground week refresh", () => {
     expect(timer.refresh).not.toHaveBeenCalled();
 
     doc.setHidden(false);
-    vi.advanceTimersByTime(30_000);
     expect(timer.refresh).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(30_000);
+    expect(timer.refresh).toHaveBeenCalledTimes(2);
     expect(timer.delays.every((delay) => delay === 30_000)).toBe(true);
   });
 

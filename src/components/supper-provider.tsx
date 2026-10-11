@@ -10,10 +10,11 @@ import { createViewedWeekRefetch, shouldWakeAfterRefresh } from "@/lib/foregroun
 import { fetchBotWakeConfigured, requestBotWake } from "@/lib/bot-wake-client";
 import {
   PENDING_REFRESH_EVENT,
+  notifyBotBurstEnd,
   markBotWakeNotified,
   requestPendingRefresh,
 } from "@/components/use-bot-wake";
-import { PENDING_REFRESH_INTERVAL_MS, PENDING_REFRESH_WINDOW_MS } from "@/lib/wake-feedback";
+import { browserBurstEnv, createBurst } from "@/lib/wake-refresh-schedule";
 import { storeSlugForAdd } from "@/lib/grocers";
 import { createId } from "@/lib/ids";
 import { todayInTimeZone } from "@/lib/meal-history";
@@ -543,32 +544,27 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const needsWorkRef = useRef<boolean | null>(null);
-  const burstRef = useRef<number | null>(null);
+  const burstRef = useRef<ReturnType<typeof createBurst> | null>(null);
   const stopBurst = useCallback(() => {
-    if (burstRef.current == null) return;
-    window.clearInterval(burstRef.current);
-    burstRef.current = null;
+    burstRef.current?.stop();
   }, []);
 
   useEffect(() => {
-    const start = () => {
-      stopBurst();
-      const endsAt = Date.now() + PENDING_REFRESH_WINDOW_MS;
-      void refresh();
-      burstRef.current = window.setInterval(() => {
-        if (Date.now() >= endsAt) {
-          stopBurst();
-          return;
-        }
-        void refresh();
-      }, PENDING_REFRESH_INTERVAL_MS);
-    };
+    // Foreground only: createBurst pauses while hidden and refreshes once on return.
+    const burst = createBurst({
+      env: browserBurstEnv(),
+      refresh: () => void refresh(),
+      onEnd: () => notifyBotBurstEnd(),
+    });
+    burstRef.current = burst;
+    const start = () => burst.start();
     window.addEventListener(PENDING_REFRESH_EVENT, start);
     return () => {
       window.removeEventListener(PENDING_REFRESH_EVENT, start);
-      stopBurst();
+      burst.stop();
+      burstRef.current = null;
     };
-  }, [refresh, stopBurst]);
+  }, [refresh]);
 
   useEffect(() => {
     if (!snapshot) return;
