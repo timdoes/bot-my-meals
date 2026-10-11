@@ -411,7 +411,7 @@ describe("favorites surfaces", () => {
     expect(repo).toContain("supabaseUpsertFavorite");
     expect(repo).toContain("supabaseRemoveSavedMeal");
     expect(repo).toContain("supabaseSetFavoriteTiming");
-    expect(provider).toContain('table: "saved_meals"');
+    expect(provider).toContain("startRealtime"); // tables: src/lib/realtime-live.test.ts
     expect(provider).toContain("sendMealFavorite");
     expect(provider).toContain("setFavoriteTiming");
     expect(provider).toContain("lastCookedAtForSave");
