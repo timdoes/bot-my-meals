@@ -1,12 +1,16 @@
 import type { WakeClientResult } from "@/lib/bot-wake-client";
 import { BOT_WAKE_DEBOUNCE_MS } from "@/lib/bot-wake";
+import { BURST_FAST_MS, BURST_TOTAL_MS } from "@/lib/wake-refresh-schedule";
 
 /** Matches the wake POST debounce so a second tap is not a second wake. */
 export const WAKE_COOLDOWN_MS = BOT_WAKE_DEBOUNCE_MS;
 
-/** Light refetch while a wake or Save still has bot work in flight. */
-export const PENDING_REFRESH_INTERVAL_MS = 6_000;
-export const PENDING_REFRESH_WINDOW_MS = 75_000;
+/**
+ * Light refetch while a wake or Save still has bot work in flight: every 5 s for 2 minutes,
+ * then every 15 s until 5 minutes in (src/lib/wake-refresh-schedule.ts). Foreground only.
+ */
+export const PENDING_REFRESH_INTERVAL_MS = BURST_FAST_MS;
+export const PENDING_REFRESH_WINDOW_MS = BURST_TOTAL_MS;
 
 export const WAKE_WAKING_LABEL = "Waking\u2026";
 export const WAKE_CHECKING_LABEL = "Checking\u2026";

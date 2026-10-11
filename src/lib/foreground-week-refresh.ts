@@ -4,6 +4,9 @@ import type { WeekScope } from "@/lib/types";
 /** Refetch cadence while the viewed week is on screen and the document is visible. */
 export const FOREGROUND_WEEK_REFRESH_MS = 30_000;
 
+/** Coming back to the app rereads the week once; repeats inside this gap are ignored. */
+export const RESUME_REFRESH_MIN_GAP_MS = 2_000;
+
 /** Foreground time on one waiting stretch before the mark stops moving. */
 export const WEEK_PROCESSING_CAP_MS = 5 * 60 * 1000;
 
@@ -228,11 +231,14 @@ export function createViewedWeekRefetch<T>(input: {
 
 /**
  * Page timer only. Hidden documents and leaving the week clear it.
- * Coming back starts a fresh interval and does not fire missed ticks.
+ * Coming back (visibility, window focus or pageshow) rereads the week once right away
+ * and starts a fresh interval. Never fires while hidden and never wakes the bot.
  */
 export function bindForegroundWeekRefresh(input: {
   refresh: () => void;
   document: VisibilityDocument;
+  /** Optional window-like target for focus and pageshow. */
+  win?: Pick<Window, "addEventListener" | "removeEventListener">;
   setIntervalFn?: (callback: () => void, ms: number) => IntervalHandle;
   clearIntervalFn?: (handle: IntervalHandle) => void;
 }): () => void {
@@ -265,16 +271,30 @@ export function bindForegroundWeekRefresh(input: {
     handle = setIntervalFn(tick, FOREGROUND_WEEK_REFRESH_MS);
   };
 
-  const onVisibility = () => {
+  let lastResumeAt = 0;
+  const onResume = () => {
+    if (!attached || input.document.hidden) {
+      stop();
+      return;
+    }
     start();
+    const now = Date.now();
+    // visibilitychange, focus and pageshow often arrive together: one read is enough.
+    if (now - lastResumeAt < RESUME_REFRESH_MIN_GAP_MS) return;
+    lastResumeAt = now;
+    input.refresh();
   };
 
-  input.document.addEventListener("visibilitychange", onVisibility);
+  input.document.addEventListener("visibilitychange", onResume);
+  input.win?.addEventListener("focus", onResume);
+  input.win?.addEventListener("pageshow", onResume);
   start();
 
   return () => {
     attached = false;
-    input.document.removeEventListener("visibilitychange", onVisibility);
+    input.document.removeEventListener("visibilitychange", onResume);
+    input.win?.removeEventListener("focus", onResume);
+    input.win?.removeEventListener("pageshow", onResume);
     stop();
   };
 }

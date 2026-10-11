@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BOT_WAKE_SOFT_FAIL } from "@/lib/bot-wake";
 import { fetchBotWakeConfigured, requestBotWake, type WakeClientResult } from "@/lib/bot-wake-client";
 import { WAKE_COOLDOWN_MS, wakeSettledPhase, type WakePhase } from "@/lib/wake-feedback";
+import { nextBotWorking } from "@/lib/wake-refresh-schedule";
 
 export const BOT_WAKE_CONFIGURED_EVENT = "bot-wake-configured";
 export const PENDING_REFRESH_EVENT = "bot-pending-refresh";
 export const BOT_WAKE_NOTIFIED_EVENT = "bot-wake-notified";
+export const BOT_BURST_END_EVENT = "bot-burst-end";
 
 /**
  * Null until GET /api/bot/wake answers. Unknown is not configured.
@@ -46,6 +48,37 @@ export function requestPendingRefresh(): void {
 export function markBotWakeNotified(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(BOT_WAKE_NOTIFIED_EVENT));
+}
+
+export function notifyBotBurstEnd(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(BOT_BURST_END_EVENT));
+}
+
+/**
+ * True from the moment a wake is accepted until the viewed week's content changes or the
+ * refresh burst ends. Display only: it never sends anything.
+ */
+export function useBotWorking(signature: string): boolean {
+  const [state, setState] = useState({ working: false, since: signature });
+  const signatureRef = useRef(signature);
+  useEffect(() => {
+    signatureRef.current = signature;
+  }, [signature]);
+
+  useEffect(() => {
+    const onNotified = () => setState((prev) => nextBotWorking(prev, { type: "wake", signature: signatureRef.current }));
+    const onEnd = () => setState((prev) => nextBotWorking(prev, { type: "end" }));
+    window.addEventListener(BOT_WAKE_NOTIFIED_EVENT, onNotified);
+    window.addEventListener(BOT_BURST_END_EVENT, onEnd);
+    return () => {
+      window.removeEventListener(BOT_WAKE_NOTIFIED_EVENT, onNotified);
+      window.removeEventListener(BOT_BURST_END_EVENT, onEnd);
+    };
+  }, []);
+
+  // Derived, not an effect: a changed week signature ends the working state.
+  return nextBotWorking(state, { type: "signature", signature }).working;
 }
 
 /** True after a wake POST succeeded in this mount, including a Save that flipped needs_work. */
