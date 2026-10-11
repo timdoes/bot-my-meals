@@ -15,6 +15,7 @@ import {
   requestPendingRefresh,
 } from "@/components/use-bot-wake";
 import { browserBurstEnv, createBurst } from "@/lib/wake-refresh-schedule";
+import { startRealtime, type RealtimeClientLike } from "@/lib/realtime-live";
 import { storeSlugForAdd } from "@/lib/grocers";
 import { createId } from "@/lib/ids";
 import { todayInTimeZone } from "@/lib/meal-history";
@@ -527,19 +528,16 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
         cancelled = true;
       };
     }
-    const channel = client
-      .channel("supper-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => void refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "meals" }, () => void refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "weeks" }, () => void refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "shopping_items" }, () => void refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "ballot_requests" }, () => void refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "saved_meals" }, () => void refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "meal_dislikes" }, () => void refresh())
-      .subscribe();
+    // Signed in as the member (token set before subscribing and on every auth change),
+    // refresh on each change and once when the connection comes back.
+    const stopRealtime = startRealtime({
+      client: client as unknown as RealtimeClientLike,
+      onChange: () => void refresh(),
+      onRestored: () => void refresh(),
+    });
     return () => {
       cancelled = true;
-      void client.removeChannel(channel);
+      stopRealtime();
     };
   }, [refresh]);
 
