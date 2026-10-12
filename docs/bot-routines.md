@@ -30,3 +30,7 @@ With the URL set, **Check now** says “Wakes your Bot My Meals bot now.” **Ge
    - `fill_pending` — that week is locked and a dinner is still missing a recipe, or that week’s shopping list is empty when a dinner needs groceries. Write those. Each week has its own list. Do not invent a list when nothing needs buying, and do not merge this week with next week.
 
 Never invent grocery prices. Never claim Smith’s cart adds.
+
+## Food rules (read before every ballot, meal, or recipe write)
+
+Allergies and foods to skip are read live; they are never in the wake payload and rule edits never wake the bot. See [food-rules.md](food-rules.md). Before writing a ballot, meal, or recipe, call RPC `food_rules_for_bot` with the same member token as `/api/bot/status`, passing `p_household_id` and the week you are filling as `p_week_id`. For each dinner use only that night's `rules`. Allergy means never (title, pitch, ingredients, and `match_terms`). If a write fails with `food_rule_conflict`, rewrite the dinner without that food and retry (at most 3 times).
