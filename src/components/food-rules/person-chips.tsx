@@ -48,6 +48,7 @@ export function PersonChips({
   houseLabel = WHOLE_HOUSE_LABEL,
   addNameLabel = ADD_A_NAME_CHIP,
   showHouseChip = true,
+  label = WHO_LABEL,
 }: {
   memberships: readonly Membership[];
   eaters: readonly HouseholdEater[];
@@ -58,6 +59,7 @@ export function PersonChips({
   houseLabel?: string;
   addNameLabel?: string;
   showHouseChip?: boolean;
+  label?: string;
 }) {
   const chipClass = (active: boolean) =>
     cn(
@@ -67,8 +69,8 @@ export function PersonChips({
 
   return (
     <div data-slot="person-chips" className="space-y-2">
-      <p className="type-meta text-muted-foreground">{WHO_LABEL}</p>
-      <div role="radiogroup" aria-label={WHO_LABEL} className="flex flex-wrap gap-2">
+      <p className="type-meta text-muted-foreground">{label}</p>
+      <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
         {showHouseChip ? (
           <button
             type="button"

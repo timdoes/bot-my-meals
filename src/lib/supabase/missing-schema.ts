@@ -42,6 +42,7 @@ export function optionalFoodRulesRows<T>(
 }
 
 let foodRulesSchemaReady = false;
+let setupStepNineRemapReady = false;
 
 export function isFoodRulesSchemaReady(): boolean {
   return foodRulesSchemaReady;
@@ -49,4 +50,51 @@ export function isFoodRulesSchemaReady(): boolean {
 
 export function noteFoodRulesSchemaReady(ready: boolean): void {
   foodRulesSchemaReady = ready;
+}
+
+/**
+ * Snapshot flag for 8-step house setup.
+ * Live only when food-rules tables exist AND the owner has applied
+ * `20261011224500_setup_step_nine_remap` (5–8 → 6–9, done = 9).
+ * Default off: a Worker deploy before remap keeps today's 7-step numbering
+ * (8 = done, not Create meals).
+ */
+export const HOUSE_SETUP_EIGHT_STEP_FLAG = "houseSetupEightStep";
+
+export function isSetupStepNineRemapReady(): boolean {
+  return setupStepNineRemapReady;
+}
+
+export function noteSetupStepNineRemapReady(ready: boolean): void {
+  setupStepNineRemapReady = ready;
+}
+
+/** True only after a snapshot proved tables exist and the setup_step remap ran. */
+export function isHouseSetupEightStepLive(): boolean {
+  return foodRulesSchemaReady && setupStepNineRemapReady;
+}
+
+/**
+ * Infer remap from the one household row a snapshot can see.
+ * `private.migration_markers` is not readable by signed-in users.
+ *
+ * A stored `8` is today's done value. It must never unlock 8-step
+ * numbering (8 would become Create meals and a finished house would
+ * see the wizard again). Any other finite step — 1–7 mid-setup or
+ * the remapped done value 9 — plus food-rules tables is enough for
+ * this house to use the new catalog. Tests toggle the flags directly.
+ */
+export function inferSetupStepNineRemapReady(rawSetupStep: unknown): boolean {
+  const n = typeof rawSetupStep === "number" ? rawSetupStep : Number(rawSetupStep);
+  if (!Number.isFinite(n)) return false;
+  return n !== 8;
+}
+
+export function syncHouseSetupEightStepGate(input: {
+  schemaReady: boolean;
+  remapReady: boolean;
+}): boolean {
+  noteFoodRulesSchemaReady(input.schemaReady);
+  noteSetupStepNineRemapReady(input.remapReady);
+  return isHouseSetupEightStepLive();
 }

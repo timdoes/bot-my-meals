@@ -27,23 +27,30 @@ export function FoodPicker({
   onChange,
   disabled = false,
   id = "food-rule-food",
+  label = FOOD_FIELD_LABEL,
+  placeholder = FOOD_FIELD_PLACEHOLDER,
+  selectedCodes,
 }: {
   value: string;
   allergenCode: AllergenCode | null;
   onChange: (next: { foodLabel: string; allergenCode: AllergenCode | null }) => void;
   disabled?: boolean;
   id?: string;
+  label?: string;
+  placeholder?: string;
+  selectedCodes?: readonly AllergenCode[];
 }) {
   const selected = allergenCode ?? allergenCodeForLabel(value);
 
   return (
     <div data-slot="food-picker" className="space-y-2">
       <Label htmlFor={id} className="type-meta text-muted-foreground">
-        {FOOD_FIELD_LABEL}
+        {label}
       </Label>
-      <div role="radiogroup" aria-label={FOOD_FIELD_LABEL} className="flex flex-wrap gap-2">
+      <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
         {ALLERGEN_CODES.map((code) => {
-          const active = selected === code;
+          const listed = selectedCodes?.includes(code) ?? false;
+          const active = listed || selected === code;
           return (
             <button
               key={code}
@@ -55,7 +62,7 @@ export function FoodPicker({
               disabled={disabled}
               onClick={() => {
                 if (active) {
-                  onChange({ foodLabel: "", allergenCode: null });
+                  onChange({ foodLabel: "", allergenCode: listed ? code : null });
                   return;
                 }
                 onChange({ foodLabel: allergenLabel(code), allergenCode: code });
@@ -76,7 +83,7 @@ export function FoodPicker({
         id={id}
         value={value}
         disabled={disabled}
-        placeholder={FOOD_FIELD_PLACEHOLDER}
+        placeholder={placeholder}
         maxLength={60}
         onChange={(event) => {
           const foodLabel = event.target.value;

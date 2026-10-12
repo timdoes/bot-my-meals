@@ -332,6 +332,12 @@ describe("Install docs — email + password + Wake on app event", () => {
     expect(readme).toMatch(/Wake on app event/);
     expect(readme).toMatch(/### 9\. Wake on app event \(required before first ballot\)/);
     expect(readme).toMatch(/### 10\. Add the other adult/);
+    expect(readme).toMatch(/Allergies and foods to skip/);
+    expect(readme).toMatch(/Setup · step N of 8/);
+    expect(readme).toMatch(/Setup · step N of 7/);
+    expect(paste).toMatch(/Allergies and foods to skip/);
+    expect(paste).toMatch(/Setup · step N of 8/);
+    expect(routines).toMatch(/step 8 of 8/);
     expect(readme).toMatch(/Do \*\*not\*\* tap \*\*Create this week's meals\*\* yet/);
     const setupSection = readme.slice(readme.indexOf("## Setup"));
     expect(setupSection.indexOf("### 9. Wake on app event")).toBeLessThan(

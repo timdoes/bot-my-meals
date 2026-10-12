@@ -2,16 +2,31 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { WeeklyBudgetField } from "@/components/weekly-budget-field";
+import { SetupFoodStep } from "@/components/setup-food-step";
+import {
+  HOUSE_SETUP_EIGHT_STEP_FLAG,
+  syncHouseSetupEightStepGate,
+} from "@/lib/supabase/missing-schema";
 import {
   CREATE_MEALS_CTA,
   DIY_GROK_PASTE_CTA,
   FINISH_SETUP_CTA,
   HOUSE_SETUP_DONE_STEP,
+  HOUSE_SETUP_EIGHT_DONE_STEP,
+  HOUSE_SETUP_EIGHT_STEP_IDS,
+  HOUSE_SETUP_FOOD_ALLERGIES,
+  HOUSE_SETUP_FOOD_DISLIKES,
+  HOUSE_SETUP_FOOD_EVERYONE,
+  HOUSE_SETUP_FOOD_NONE,
+  HOUSE_SETUP_FOOD_SAFETY,
+  HOUSE_SETUP_FOOD_WHO_LABEL,
   HOUSE_SETUP_STEPS,
+  HOUSE_SETUP_STEPS_EIGHT,
   WAITING_FOR_BOT,
   ALL_NIGHTS_ON,
+  alreadyCreatedMealsFromSnapshot,
   applyHouseholdSizeToHeadcounts,
   applyNightOnsToHeadcounts,
   clampHouseSetupStep,
@@ -21,6 +36,7 @@ import {
   headcountsFromPlan,
   houseSetupProgressLabel,
   houseSetupStepMeta,
+  houseSetupSteps,
   isHouseSetupComplete,
   nextHouseSetupStep,
   nightsOnFromHeadcounts,
@@ -34,6 +50,10 @@ import {
 } from "./house-setup";
 
 const srcRoot = path.resolve(import.meta.dirname, "..");
+
+afterEach(() => {
+  syncHouseSetupEightStepGate({ schemaReady: false, remapReady: false });
+});
 
 describe("wizard v2 house setup", () => {
   it("locks the UX order: invite, size, nights, plates, stores, budget, create meals", () => {
@@ -87,6 +107,121 @@ describe("wizard v2 house setup", () => {
     expect(houseSetupStepMeta(5).id).toBe("stores");
   });
 
+  it("keeps 7-step numbering when the eight-step snapshot flag is off", () => {
+    syncHouseSetupEightStepGate({ schemaReady: true, remapReady: false });
+    expect(HOUSE_SETUP_EIGHT_STEP_FLAG).toBe("houseSetupEightStep");
+    expect(houseSetupSteps().map((step) => step.id)).toEqual([...HOUSE_SETUP_STEPS.map((step) => step.id)]);
+    expect(houseSetupProgressLabel(3)).toBe("Setup · step 3 of 7");
+    expect(houseSetupStepMeta(5).id).toBe("stores");
+    expect(clampHouseSetupStep(8)).toBe(8);
+    expect(clampHouseSetupStep(9)).toBe(9);
+    expect(isHouseSetupComplete(8)).toBe(true);
+    expect(isHouseSetupComplete(9)).toBe(true);
+    expect(shouldShowHouseSetup("owner", 8)).toBe(false);
+    expect(nextHouseSetupStep(7)).toBe(8);
+  });
+
+  it("uses 8-step numbering only when tables exist and remap is noted", () => {
+    syncHouseSetupEightStepGate({ schemaReady: true, remapReady: true });
+    expect(HOUSE_SETUP_EIGHT_STEP_IDS).toEqual([
+      "invite",
+      "size",
+      "nights",
+      "plates",
+      "food",
+      "stores",
+      "budget",
+      "create-meals",
+    ]);
+    expect(houseSetupSteps().map((step) => step.id)).toEqual([...HOUSE_SETUP_EIGHT_STEP_IDS]);
+    expect(HOUSE_SETUP_STEPS_EIGHT[4]).toMatchObject({
+      id: "food",
+      step: 5,
+      title: "Allergies and foods to skip",
+    });
+    expect(houseSetupProgressLabel(5)).toBe("Setup · step 5 of 8");
+    expect(houseSetupStepMeta(5).id).toBe("food");
+    expect(houseSetupStepMeta(6).id).toBe("stores");
+    expect(houseSetupStepMeta(8).id).toBe("create-meals");
+    expect(clampHouseSetupStep(9)).toBe(HOUSE_SETUP_EIGHT_DONE_STEP);
+    expect(clampHouseSetupStep(8)).toBe(8);
+    expect(isHouseSetupComplete(9)).toBe(true);
+    expect(isHouseSetupComplete(8)).toBe(false);
+    expect(isHouseSetupComplete(8, { alreadyCreatedMeals: true })).toBe(true);
+    expect(shouldShowHouseSetup("owner", 8)).toBe(true);
+    expect(shouldShowHouseSetup("owner", 8, { alreadyCreatedMeals: true })).toBe(false);
+    expect(shouldShowHouseSetup("owner", 9)).toBe(false);
+    expect(nextHouseSetupStep(8)).toBe(9);
+    expect(nextHouseSetupStep(7)).toBe(8);
+    expect(alreadyCreatedMealsFromSnapshot({ meals: [{ id: "m1" }], ballotRequest: null })).toBe(true);
+    expect(alreadyCreatedMealsFromSnapshot({ meals: [], ballotRequest: null })).toBe(false);
+  });
+});
+
+describe("setup food step", () => {
+  it("renders the approved setup copy and shared food-rules pickers", () => {
+    const html = renderToStaticMarkup(
+      createElement(SetupFoodStep, {
+        helper: "Optional. Your Bot plans every dinner around these. Change them any time in House → Food rules.",
+        memberships: [
+          {
+            id: "mem-sam",
+            householdId: "house-a",
+            userId: "user-sam",
+            role: "owner",
+            displayName: "Sam",
+            email: "sam@example.com",
+          },
+        ],
+        eaters: [
+          {
+            id: "e-alex",
+            householdId: "house-a",
+            displayName: "Alex",
+            createdAt: "2026-10-12T00:00:00.000Z",
+          },
+        ],
+        rules: [
+          {
+            id: "rule-1",
+            householdId: "house-a",
+            subjectMembershipId: "mem-sam",
+            subjectEaterId: null,
+            foodLabel: "Peanuts",
+            foodKey: "peanuts",
+            allergenCode: "peanuts",
+            severity: "allergy",
+            details: "",
+            createdAt: "",
+            updatedAt: "",
+          },
+        ],
+        canAct: true,
+        noneChecked: false,
+        onNoneChecked: () => undefined,
+        onAddRule: () => undefined,
+        onUpdateRule: () => undefined,
+        onRemoveRule: () => undefined,
+        onAddName: () => undefined,
+      }),
+    );
+    expect(html).toContain(HOUSE_SETUP_FOOD_SAFETY);
+    expect(html).toContain(HOUSE_SETUP_FOOD_WHO_LABEL);
+    expect(html).toContain(HOUSE_SETUP_FOOD_EVERYONE);
+    expect(html).toContain("Sam");
+    expect(html).toContain("Alex");
+    expect(html).toContain(HOUSE_SETUP_FOOD_ALLERGIES);
+    expect(html).toContain(HOUSE_SETUP_FOOD_DISLIKES);
+    expect(html).toContain(HOUSE_SETUP_FOOD_NONE);
+    expect(html).toContain("Peanuts · Sam");
+    expect(html).toContain('data-slot="setup-food-step"');
+    expect(html).toContain('data-slot="food-picker"');
+    expect(html).toContain('data-slot="person-chips"');
+    expect(html).not.toMatch(/\btap\b|\bclick\b|\biPhone\b|\bgrandma\b/i);
+  });
+});
+
+describe("wizard v2 house setup helpers", () => {
   it("defaults active nights to household size and off nights to 0 plates", () => {
     expect(headcountsFromPlan(4, 5)).toEqual([4, 4, 4, 4, 4, 0, 0]);
     expect(headcountsFromPlan(2, 7)).toEqual([2, 2, 2, 2, 2, 2, 2]);
@@ -202,7 +337,11 @@ describe("house setup surfaces", () => {
     );
 
     expect(week).toContain("shouldShowHouseSetup");
+    expect(week).toContain("alreadyCreatedMealsFromSnapshot");
     expect(week).toContain("SetupWizard");
+    const statusRoute = readFileSync(path.join(srcRoot, "app/api/bot/status/route.ts"), "utf8");
+    expect(statusRoute).not.toMatch(/\b8\b/);
+    expect(statusRoute).toContain("supabaseBotCheckStatus");
     expect(wizard).toContain("InviteShare");
     expect(wizard).toContain("PeoplePerNight");
     expect(wizard).toContain("HouseStores");
@@ -217,6 +356,16 @@ describe("house setup surfaces", () => {
     expect(wizard).toContain("DIY_GROK_PASTE_CTA");
     expect(wizard).toContain("household-size");
     expect(wizard).toContain("NightToggles");
+    expect(wizard).toContain("SetupFoodStep");
+    expect(wizard).toContain("markFoodRulesReviewed");
+    expect(wizard).toContain("HOUSE_SETUP_FOOD_SKIP");
+    expect(wizard).toContain('case "food"');
+    const foodStep = readFileSync(path.join(srcRoot, "components/setup-food-step.tsx"), "utf8");
+    expect(foodStep).toContain("FoodPicker");
+    expect(foodStep).toContain("PersonChips");
+    expect(foodStep).toContain("FoodRuleSheet");
+    expect(foodStep).toContain("ADD_NAME_LABEL");
+    expect(foodStep).toContain('from "@/components/food-rules"');
     expect(wizard).toContain("hideNav");
     expect(wizard).not.toContain("nights-planned");
     expect(wizard).not.toContain("[1, 2, 3, 4, 5, 6, 7]");

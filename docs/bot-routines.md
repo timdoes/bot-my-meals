@@ -2,7 +2,7 @@
 
 Shared Grok Bots wake when this household’s app POSTs. Week lock, plan changes, and Check now are the events. The bot writes ballot, recipes, and the shopping list back to the site.
 
-**Wake your Bot is required before Create this week's meals.** On that setup step, paste the Webhook URL. **Create this week's meals** stays off until the save sticks (`configured` true). There is no Skip. After save: **Saved. Create this week’s meals will wake your bot.** House empty copy is **Required.** Paste the Webhook URL before you create this week’s meals.
+**Wake your Bot is required before Create this week's meals.** On that setup step, paste the Webhook URL. **Create this week's meals** stays off until the save sticks (`configured` true). There is no Skip. After save: **Saved. Create this week’s meals will wake your bot.** House empty copy is **Required.** Paste the Webhook URL before you create this week’s meals. After food-rules remap, that step is **Setup · step 8 of 8**. A database that has not remapped keeps the old 7-step numbering (Create meals is still step 7, done is 8). See [food-rules.md](food-rules.md#eight-step-setup-deploy-order).
 
 ## Wake on app event
 

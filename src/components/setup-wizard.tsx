@@ -12,6 +12,7 @@ import { InviteShare } from "@/components/invite-share";
 import { NightToggles } from "@/components/night-toggles";
 import { PeoplePerNight } from "@/components/people-per-night";
 import { useSupper } from "@/components/supper-provider";
+import { SetupFoodStep } from "@/components/setup-food-step";
 import { WeeklyBudgetField } from "@/components/weekly-budget-field";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ import {
   ALL_NIGHTS_ON,
   CREATE_MEALS_CTA,
   DIY_GROK_PASTE_CTA,
+  HOUSE_SETUP_FOOD_SKIP,
   applyNightOnsToHeadcounts,
   clampHouseholdSize,
   formatWeeklyBudgetDollars,
@@ -46,6 +48,11 @@ export function SetupWizard() {
     removeStore,
     createJoinToken,
     requestWeekBallot,
+    addEater,
+    addFoodRule,
+    updateFoodRule,
+    removeFoodRule,
+    markFoodRulesReviewed,
   } = useSupper();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -54,6 +61,7 @@ export function SetupWizard() {
   const [sizeDraft, setSizeDraft] = useState<number | null>(null);
   const [nightsOnDraft, setNightsOnDraft] = useState<boolean[] | null>(null);
   const [askCopied, setAskCopied] = useState(false);
+  const [foodNone, setFoodNone] = useState(false);
   const triedJoinToken = useRef(false);
   const wakeConfigured = useBotWakeConfigured();
   const createReady = wakeConfigured === true;
@@ -133,6 +141,20 @@ export function SetupWizard() {
       nightsPlanned: nightsPlannedFromOns(ons),
       nightHeadcounts: applyNightOnsToHeadcounts(household.nightHeadcounts, size, ons),
     });
+  };
+
+  const saveFoodAndContinue = async () => {
+    const foodContinue = foodNone || (snapshot?.foodRules.length ?? 0) > 0;
+    setBusy(true);
+    setError(null);
+    try {
+      if (foodContinue) await markFoodRulesReviewed();
+      await updateHousehold({ setupStep: nextHouseSetupStep(step) });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save this step.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const createMeals = async () => {
@@ -316,6 +338,36 @@ export function SetupWizard() {
         </>
       );
       break;
+    case "food": {
+      const foodContinue = foodNone || (snapshot.foodRules.length > 0);
+      footer = (
+        <>
+          <Button
+            type="button"
+            size="fat"
+            variant="primary"
+            className="w-full"
+            disabled={busy}
+            aria-label={busy ? "Saving" : foodContinue ? "Continue" : HOUSE_SETUP_FOOD_SKIP}
+            aria-busy={busy}
+            onClick={() => void saveFoodAndContinue()}
+          >
+            <SetupSubmitLabel busy={busy} label={foodContinue ? "Continue" : HOUSE_SETUP_FOOD_SKIP} />
+          </Button>
+          <Button
+            type="button"
+            size="fat"
+            variant="outline"
+            className="w-full"
+            disabled={busy}
+            onClick={() => void goBack()}
+          >
+            Back
+          </Button>
+        </>
+      );
+      break;
+    }
     case "invite":
     case "stores":
       footer = (
@@ -401,6 +453,23 @@ export function SetupWizard() {
           helper={meta.helper}
           compactOffNights
           onChange={(patch) => void updateHousehold(patch)}
+        />
+      );
+      break;
+    case "food":
+      body = (
+        <SetupFoodStep
+          helper={meta.helper}
+          memberships={snapshot.memberships}
+          eaters={snapshot.eaters}
+          rules={snapshot.foodRules}
+          canAct={owner}
+          noneChecked={foodNone}
+          onNoneChecked={setFoodNone}
+          onAddRule={(draft) => addFoodRule(draft)}
+          onUpdateRule={(ruleId, draft) => updateFoodRule(ruleId, draft)}
+          onRemoveRule={(ruleId) => removeFoodRule(ruleId)}
+          onAddName={(name) => addEater(name)}
         />
       );
       break;

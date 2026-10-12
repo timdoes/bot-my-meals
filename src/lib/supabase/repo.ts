@@ -72,8 +72,9 @@ import { redactUntilLocked } from "@/lib/visibility";
 import { scaleIngredientQuantity, shoppingListsToRebuild, withRebuiltShoppingLists } from "@/lib/shopping";
 import { parseEditableFrom, parseShoppingPrompt } from "@/lib/week-chrome";
 import {
-  noteFoodRulesSchemaReady,
+  inferSetupStepNineRemapReady,
   optionalFoodRulesRows,
+  syncHouseSetupEightStepGate,
 } from "@/lib/supabase/missing-schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -306,9 +307,15 @@ export async function fetchSupabaseSnapshot(
   const nightLists = optionalFoodRulesRows(nightListsRes, parseWeekNightLists);
   const nightAttendees = optionalFoodRulesRows(nightAttendeesRes, parseWeekNightAttendees);
   const foodHolds = optionalFoodRulesRows(foodHoldsRes, parseRecipeFoodHolds);
-  noteFoodRulesSchemaReady(
-    eaters.ready && foodRules.ready && nightLists.ready && nightAttendees.ready && foodHolds.ready,
-  );
+  const schemaReady =
+    eaters.ready && foodRules.ready && nightLists.ready && nightAttendees.ready && foodHolds.ready;
+  const rawSetupStep = Number(householdRow.setup_step);
+  // Snapshot flag HOUSE_SETUP_EIGHT_STEP_FLAG / isHouseSetupEightStepLive().
+  // Both must hold: food-rules tables exist, and remap is inferred (not 8).
+  syncHouseSetupEightStepGate({
+    schemaReady,
+    remapReady: schemaReady && inferSetupStepNineRemapReady(rawSetupStep),
+  });
   const botCheck = normalizeBotCheckSetting(
     householdRow.bot_check_mode,
     householdRow.bot_check_interval_hours,

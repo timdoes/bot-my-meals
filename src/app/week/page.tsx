@@ -27,7 +27,7 @@ import { useBotWorking } from "@/components/use-bot-wake";
 import { useForegroundWeekRefresh } from "@/components/use-foreground-week-refresh";
 import { useViewedWeek } from "@/components/use-viewed-week";
 import { WeekProcessingMark } from "@/components/week-processing-mark";
-import { isHouseSetupComplete, shouldShowHouseSetup } from "@/lib/house-setup";
+import { alreadyCreatedMealsFromSnapshot, isHouseSetupComplete, shouldShowHouseSetup } from "@/lib/house-setup";
 import { isAdmin } from "@/lib/users";
 import { Button } from "@/components/ui/button";
 import {
@@ -102,7 +102,12 @@ function WeekBody() {
   const setupRequested = searchParams.get("setup") === "1";
 
   if (!snapshot) return <Onboarding />;
-  if (setupRequested && shouldShowHouseSetup(session?.role, snapshot.household.setupStep)) {
+  if (
+    setupRequested &&
+    shouldShowHouseSetup(session?.role, snapshot.household.setupStep, {
+      alreadyCreatedMeals: alreadyCreatedMealsFromSnapshot(snapshot),
+    })
+  ) {
     return <SetupWizard />;
   }
   return <WeekBallot />;
@@ -176,7 +181,10 @@ function WeekBallot() {
     (direction: -1 | 1) => {
       const result = stepNavigator(stops, index, direction);
       const canPlan =
-        isAdmin(session?.role) && isHouseSetupComplete(snapshot?.household.setupStep ?? 0);
+        isAdmin(session?.role) &&
+        isHouseSetupComplete(snapshot?.household.setupStep ?? 0, {
+          alreadyCreatedMeals: alreadyCreatedMealsFromSnapshot(snapshot),
+        });
       if (
         futureSwipeCreatesPlanning({
           direction,
@@ -760,7 +768,9 @@ function EmptyWeek({ onCreateMeals }: { onCreateMeals: () => Promise<string> }) 
   const { scope, role } = useViewedWeek();
   const wakeConfigured = useBotWakeConfigured();
   const [creating, setCreating] = useState(false);
-  const setupIncomplete = !isHouseSetupComplete(snapshot?.household.setupStep ?? 8);
+  const setupIncomplete = !isHouseSetupComplete(snapshot?.household.setupStep ?? 8, {
+    alreadyCreatedMeals: alreadyCreatedMealsFromSnapshot(snapshot),
+  });
   const botCheck = snapshot ? botCheckForHousehold(snapshot) : null;
   const copy = emptyWeekPresentation({
     setupIncomplete,

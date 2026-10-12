@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   HOUSEHOLD_NOT_VISIBLE,
@@ -7,7 +7,12 @@ import {
   supabaseCreateHousehold,
   supabaseMarkFoodRulesReviewed,
 } from "./repo";
-import { FOOD_RULES_SNAPSHOT_TABLES, isFoodRulesSchemaReady } from "./missing-schema";
+import {
+  FOOD_RULES_SNAPSHOT_TABLES,
+  isFoodRulesSchemaReady,
+  isHouseSetupEightStepLive,
+  syncHouseSetupEightStepGate,
+} from "./missing-schema";
 import type { Session } from "@/lib/types";
 
 const user = {
@@ -190,7 +195,11 @@ const snapshotSession: Session = {
   role: "owner",
 };
 
-function snapshotClient(options: { foodRulesError: QueryError | null; foodRulesData?: unknown[] }) {
+function snapshotClient(options: {
+  foodRulesError: QueryError | null;
+  foodRulesData?: unknown[];
+  setupStep?: number;
+}) {
   const fromCalls: string[] = [];
   const rpcCalls: string[] = [];
   const missing = options.foodRulesError;
@@ -203,7 +212,10 @@ function snapshotClient(options: { foodRulesError: QueryError | null; foodRulesD
       }
       switch (table) {
         case "households":
-          return thenable({ data: householdRow, error: null });
+          return thenable({
+            data: { ...householdRow, setup_step: options.setupStep ?? householdRow.setup_step },
+            error: null,
+          });
         case "weeks":
           return thenable({ data: [weekRow], error: null });
         case "memberships":
@@ -231,6 +243,10 @@ function snapshotClient(options: { foodRulesError: QueryError | null; foodRulesD
   };
   return { client: client as unknown as SupabaseClient, fromCalls, rpcCalls };
 }
+
+afterEach(() => {
+  syncHouseSetupEightStepGate({ schemaReady: false, remapReady: false });
+});
 
 describe("fetchSupabaseSnapshot food-rules live-safety", () => {
   it("treats missing food-rules tables as empty and leaves existing snapshot fields unchanged", async () => {
@@ -279,6 +295,21 @@ describe("fetchSupabaseSnapshot food-rules live-safety", () => {
     const snapshot = await fetchSupabaseSnapshot(present.client, snapshotSession);
     expect(snapshot?.eaters).toEqual([]);
     expect(isFoodRulesSchemaReady()).toBe(true);
+    expect(isHouseSetupEightStepLive()).toBe(false);
+  });
+
+  it("does not turn on 8-step numbering for a stored setup_step of 8", async () => {
+    const present = snapshotClient({ foodRulesError: null, foodRulesData: [] });
+    await fetchSupabaseSnapshot(present.client, snapshotSession);
+    expect(isFoodRulesSchemaReady()).toBe(true);
+    expect(isHouseSetupEightStepLive()).toBe(false);
+  });
+
+  it("turns on 8-step numbering when tables exist and setup_step is not the old done value", async () => {
+    const present = snapshotClient({ foodRulesError: null, foodRulesData: [], setupStep: 1 });
+    await fetchSupabaseSnapshot(present.client, snapshotSession);
+    expect(isFoodRulesSchemaReady()).toBe(true);
+    expect(isHouseSetupEightStepLive()).toBe(true);
   });
 });
 
