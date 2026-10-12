@@ -225,9 +225,9 @@ export function BallotCard({
     muted ? "text-secondary-foreground/70" : "text-muted-foreground",
   );
 
-  const sendSwap = (force = false) => {
+  const sendSwap = () => {
     if (!onSwap) return;
-    if (!force && !headsUp.trySend()) return;
+    if (!headsUp.trySend()) return;
     const pending = onSwap(reason.trim());
     setSheet(null);
     headsUp.requestSomethingElse();
@@ -491,8 +491,11 @@ export function BallotCard({
                   variant="primary"
                   className="flex-1"
                   onClick={() => {
+                    if (!onSwap) return;
                     headsUp.requestAnyway();
-                    sendSwap(true);
+                    const pending = onSwap(reason.trim());
+                    setSheet(null);
+                    void Promise.resolve(pending).catch(() => undefined);
                   }}
                 >
                   {FOOD_RULE_HEADS_UP_ANYWAY}

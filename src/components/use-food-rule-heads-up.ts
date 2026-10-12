@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSupper } from "@/components/supper-provider";
 import { useViewedWeek } from "@/components/use-viewed-week";
 import {
@@ -29,13 +29,12 @@ export function useFoodRuleHeadsUp(input: { text: string; dayName: string }) {
   const supper = useOptionalSupper();
   const preferWeekId = usePreferredWeekId();
   const snapshot = supper?.snapshot ?? null;
-  const [pending, setPending] = useState(false);
-  const [anyway, setAnyway] = useState(false);
-
-  useEffect(() => {
-    setPending(false);
-    setAnyway(false);
-  }, [input.text, input.dayName]);
+  const token = `${input.dayName}\n${input.text}`;
+  const [phase, setPhase] = useState<{ token: string; mode: "idle" | "pending" | "anyway" }>({
+    token,
+    mode: "idle",
+  });
+  const mode = phase.token === token ? phase.mode : "idle";
 
   const hit = useMemo(() => {
     if (!snapshot) return null;
@@ -45,27 +44,25 @@ export function useFoodRuleHeadsUp(input: { text: string; dayName: string }) {
   }, [snapshot, preferWeekId, input.dayName, input.text]);
 
   const trySend = useCallback(() => {
-    if (hit && !anyway) {
-      setPending(true);
+    if (hit && mode !== "anyway") {
+      setPhase({ token, mode: "pending" });
       return false;
     }
-    setPending(false);
+    setPhase({ token, mode: "idle" });
     return true;
-  }, [hit, anyway]);
+  }, [hit, mode, token]);
 
   const requestAnyway = useCallback(() => {
-    setAnyway(true);
-    setPending(false);
-  }, []);
+    setPhase({ token, mode: "anyway" });
+  }, [token]);
 
   const requestSomethingElse = useCallback(() => {
-    setPending(false);
-    setAnyway(false);
-  }, []);
+    setPhase({ token, mode: "idle" });
+  }, [token]);
 
   return {
-    warning: pending && hit ? foodRuleHeadsUpLine(hit) : null,
-    pending,
+    warning: mode === "pending" && hit ? foodRuleHeadsUpLine(hit) : null,
+    pending: mode === "pending",
     trySend,
     requestAnyway,
     requestSomethingElse,

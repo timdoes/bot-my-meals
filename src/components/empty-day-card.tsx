@@ -136,9 +136,9 @@ export function EmptyDayCard({
     setOpen(true);
   };
 
-  const requestDinner = (force = false) => {
+  const requestDinner = () => {
     if (!onAdd) return;
-    if (!force && !headsUp.trySend()) return;
+    if (!headsUp.trySend()) return;
     const pending = onAdd(draft.trim(), dinnerRequestPeople(people));
     setDraft("");
     setPeople(dinnerRequestPeople(servings));
@@ -264,8 +264,13 @@ export function EmptyDayCard({
                   variant="primary"
                   className="flex-1 shadow-float"
                   onClick={() => {
+                    if (!onAdd) return;
                     headsUp.requestAnyway();
-                    requestDinner(true);
+                    const pending = onAdd(draft.trim(), dinnerRequestPeople(people));
+                    setDraft("");
+                    setPeople(dinnerRequestPeople(servings));
+                    setOpen(false);
+                    void Promise.resolve(pending).catch(() => undefined);
                   }}
                 >
                   {FOOD_RULE_HEADS_UP_ANYWAY}
