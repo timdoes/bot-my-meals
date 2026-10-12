@@ -15,7 +15,8 @@ import {
   requestPendingRefresh,
 } from "@/components/use-bot-wake";
 import { browserBurstEnv, createBurst } from "@/lib/wake-refresh-schedule";
-import { startRealtime, type RealtimeClientLike } from "@/lib/realtime-live";
+import { liveRealtimeTables, startRealtime, type RealtimeClientLike } from "@/lib/realtime-live";
+import { isFoodRulesSchemaReady } from "@/lib/supabase/missing-schema";
 import { storeSlugForAdd } from "@/lib/grocers";
 import { createId } from "@/lib/ids";
 import { todayInTimeZone } from "@/lib/meal-history";
@@ -87,13 +88,40 @@ import {
   supabaseRequestWeekBallot,
   supabaseSaveWeekPeople,
   supabaseSavePlanningPeople,
+  supabaseSaveWeekPeopleV2,
+  supabaseSavePlanningPeopleV2,
   supabaseSetMemberRole,
   supabaseSetVote,
   supabaseToggleItem,
   supabaseSetShoppingPrompt,
   supabaseUnlockWeek,
   supabaseUpdateHousehold,
+  supabaseAddEater,
+  supabaseRenameEater,
+  supabaseRemoveEater,
+  supabaseAddFoodRule,
+  supabaseUpdateFoodRule,
+  supabaseRemoveFoodRule,
+  supabaseMarkFoodRulesReviewed,
+  supabaseSetNightGuests,
+  supabaseAckFoodHold,
 } from "@/lib/supabase/repo";
+import {
+  applyAckFoodHold,
+  applyAddEater,
+  applyAddFoodRule,
+  applyMarkFoodRulesReviewed,
+  applyRemoveEater,
+  applyRemoveFoodRule,
+  applyRenameEater,
+  applySaveWeekPeopleV2,
+  applySetNightGuests,
+  applyUpdateFoodRule,
+  optimisticEater,
+  optimisticFoodRule,
+  type FoodRuleDraft,
+  type NightPeopleInput,
+} from "@/lib/food-rules";
 import type { JoinPeek } from "@/lib/join";
 import type {
   HouseholdSettingsPatch,
@@ -215,6 +243,26 @@ type SupperContextValue = {
   removeSavedMeal: (recipeKey: string) => Promise<void>;
   sendMealDislike: (mealId: string, draft: DislikeDraft) => Promise<DislikeAction>;
   allowMealAgain: (recipeKey: string) => Promise<void>;
+  addEater: (displayName: string) => Promise<void>;
+  renameEater: (eaterId: string, displayName: string) => Promise<void>;
+  removeEater: (eaterId: string) => Promise<void>;
+  addFoodRule: (draft: FoodRuleDraft) => Promise<void>;
+  updateFoodRule: (ruleId: string, draft: FoodRuleDraft) => Promise<void>;
+  removeFoodRule: (ruleId: string) => Promise<void>;
+  markFoodRulesReviewed: () => Promise<void>;
+  saveWeekPeopleV2: (
+    weekId: string,
+    counts: number[],
+    instructions: string | null,
+    attendees: NightPeopleInput[] | null,
+  ) => Promise<void>;
+  savePlanningPeopleV2: (
+    counts: number[],
+    instructions: string,
+    attendees: NightPeopleInput[] | null,
+  ) => Promise<string>;
+  setNightGuests: (weekId: string, dayIndex: number, guests: number) => Promise<void>;
+  ackFoodHold: (holdId: string) => Promise<void>;
 };
 
 const SupperContext = createContext<SupperContextValue | null>(null);
@@ -279,6 +327,17 @@ function createSetupContext(): SupperContextValue {
     removeSavedMeal: async () => setupUnavailable(),
     sendMealDislike: async () => setupUnavailable(),
     allowMealAgain: async () => setupUnavailable(),
+    addEater: async () => setupUnavailable(),
+    renameEater: async () => setupUnavailable(),
+    removeEater: async () => setupUnavailable(),
+    addFoodRule: async () => setupUnavailable(),
+    updateFoodRule: async () => setupUnavailable(),
+    removeFoodRule: async () => setupUnavailable(),
+    markFoodRulesReviewed: async () => setupUnavailable(),
+    saveWeekPeopleV2: async () => setupUnavailable(),
+    savePlanningPeopleV2: async () => setupUnavailable(),
+    setNightGuests: async () => setupUnavailable(),
+    ackFoodHold: async () => setupUnavailable(),
   };
 }
 
@@ -313,6 +372,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
   }, [viewedRole]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [foodRulesLive, setFoodRulesLive] = useState(false);
   const baseRef = useRef<HouseholdSnapshot | null>(null);
   const displayRef = useRef<HouseholdSnapshot | null>(null);
   const patchesRef = useRef<PendingOptimistic<HouseholdSnapshot>[]>([]);
@@ -365,6 +425,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
       if (gen !== refreshGen.current) return;
       setSession(nextSession);
       publish(nextSnapshot);
+      setFoodRulesLive(isFoodRulesSchemaReady());
     } catch (err) {
       if (gen !== refreshGen.current) return;
       setSession({
@@ -425,6 +486,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
         pollApplyRef.current = true;
         setSession(loaded.session);
         publish(loaded.snapshot);
+        setFoodRulesLive(isFoodRulesSchemaReady());
       };
       await pollGateRef.current?.(weekId);
     },
@@ -547,12 +609,13 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
       client: client as unknown as RealtimeClientLike,
       onChange: () => void refresh(),
       onRestored: () => void refresh(),
+      tables: liveRealtimeTables(foodRulesLive),
     });
     return () => {
       cancelled = true;
       stopRealtime();
     };
-  }, [refresh]);
+  }, [refresh, foodRulesLive]);
 
   const needsWorkRef = useRef<boolean | null>(null);
   const burstRef = useRef<ReturnType<typeof createBurst> | null>(null);
@@ -1146,6 +1209,189 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
             const client = createSupabaseBrowserClient();
             if (!client) throw new Error("Not signed in");
             await supabaseAllowMealAgain(client, current, recipeKey, existing.note);
+          },
+        );
+      },
+      addEater: (displayName) => {
+        const current = session;
+        const householdId = current?.householdId;
+        if (!current || !householdId) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        const eater = optimisticEater(householdId, displayName);
+        return runOptimistic(`eater:${eater.id}`, (snap) => applyAddEater(snap, eater), async () => {
+          const client = createSupabaseBrowserClient();
+          if (!client) throw new Error("Not signed in");
+          await supabaseAddEater(client, current, displayName);
+        });
+      },
+      renameEater: (eaterId, displayName) => {
+        const current = session;
+        if (!current) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        return runOptimistic(
+          `eater:${eaterId}`,
+          (snap) => applyRenameEater(snap, eaterId, displayName),
+          async () => {
+            const client = createSupabaseBrowserClient();
+            if (!client) throw new Error("Not signed in");
+            await supabaseRenameEater(client, current, eaterId, displayName);
+          },
+        );
+      },
+      removeEater: (eaterId) => {
+        const current = session;
+        if (!current) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        return runOptimistic(`eater-remove:${eaterId}`, (snap) => applyRemoveEater(snap, eaterId), async () => {
+          const client = createSupabaseBrowserClient();
+          if (!client) throw new Error("Not signed in");
+          await supabaseRemoveEater(client, current, eaterId);
+        });
+      },
+      addFoodRule: (draft) => {
+        const current = session;
+        const householdId = current?.householdId;
+        if (!current || !householdId) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        const rule = optimisticFoodRule(householdId, draft);
+        return runOptimistic(`rule:${rule.id}`, (snap) => applyAddFoodRule(snap, rule), async () => {
+          const client = createSupabaseBrowserClient();
+          if (!client) throw new Error("Not signed in");
+          await supabaseAddFoodRule(client, current, draft);
+        });
+      },
+      updateFoodRule: (ruleId, draft) => {
+        const current = session;
+        if (!current) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        const label = draft.foodLabel;
+        return runOptimistic(
+          `rule:${ruleId}`,
+          (snap) =>
+            applyUpdateFoodRule(snap, ruleId, {
+              foodLabel: label,
+              allergenCode: draft.allergenCode ?? null,
+              severity: draft.severity,
+              details: draft.details ?? "",
+              subjectMembershipId: draft.subjectMembershipId ?? null,
+              subjectEaterId: draft.subjectEaterId ?? null,
+            }),
+          async () => {
+            const client = createSupabaseBrowserClient();
+            if (!client) throw new Error("Not signed in");
+            await supabaseUpdateFoodRule(client, current, ruleId, draft);
+          },
+        );
+      },
+      removeFoodRule: (ruleId) => {
+        const current = session;
+        if (!current) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        return runOptimistic(`rule-remove:${ruleId}`, (snap) => applyRemoveFoodRule(snap, ruleId), async () => {
+          const client = createSupabaseBrowserClient();
+          if (!client) throw new Error("Not signed in");
+          await supabaseRemoveFoodRule(client, current, ruleId);
+        });
+      },
+      markFoodRulesReviewed: () => {
+        const current = session;
+        if (!current) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        const at = new Date().toISOString();
+        return runOptimistic("food-rules-reviewed", (snap) => applyMarkFoodRulesReviewed(snap, at), async () => {
+          const client = createSupabaseBrowserClient();
+          if (!client) throw new Error("Not signed in");
+          await supabaseMarkFoodRulesReviewed(client, current);
+        });
+      },
+      saveWeekPeopleV2: (weekId, counts, instructions, attendees) => {
+        const current = session;
+        if (!current) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        return runOptimistic(
+          `week-people-v2:${weekId}`,
+          (snap) => applySaveWeekPeopleV2(snap, weekId, counts, instructions, attendees),
+          async () => {
+            const client = createSupabaseBrowserClient();
+            if (!client) throw new Error("Not signed in");
+            await supabaseSaveWeekPeopleV2(client, current, weekId, counts, instructions, attendees);
+          },
+        );
+      },
+      savePlanningPeopleV2: (counts, instructions, attendees) => {
+        const current = session;
+        const weekId = displayRef.current?.planning?.week.id;
+        if (!current || !weekId) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        return runOptimistic(
+          "planning-people-v2",
+          (snap) => applySaveWeekPeopleV2(snap, weekId, counts, instructions, attendees),
+          async () => {
+            const client = createSupabaseBrowserClient();
+            if (!client) throw new Error("Not signed in");
+            return supabaseSavePlanningPeopleV2(client, current, counts, instructions, attendees);
+          },
+        );
+      },
+      setNightGuests: (weekId, dayIndex, guests) => {
+        const current = session;
+        if (!current) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        return runOptimistic(
+          `night-guests:${weekId}:${dayIndex}`,
+          (snap) => applySetNightGuests(snap, weekId, dayIndex, guests),
+          async () => {
+            const client = createSupabaseBrowserClient();
+            if (!client) throw new Error("Not signed in");
+            await supabaseSetNightGuests(client, current, weekId, dayIndex, guests);
+          },
+        );
+      },
+      ackFoodHold: (holdId) => {
+        const current = session;
+        if (!current) {
+          return run(async () => {
+            throw new Error("Not signed in");
+          });
+        }
+        const at = new Date().toISOString();
+        return runOptimistic(
+          `hold:${holdId}`,
+          (snap) => applyAckFoodHold(snap, holdId, { acknowledgedBy: current.userId, acknowledgedAt: at }),
+          async () => {
+            const client = createSupabaseBrowserClient();
+            if (!client) throw new Error("Not signed in");
+            await supabaseAckFoodHold(client, current, holdId);
           },
         );
       },

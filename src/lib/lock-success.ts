@@ -33,3 +33,10 @@ export function lockSuccessRecipesCta(title?: string | null): string {
 export function lockSuccessRecipesKicker(weekday?: string | null): string {
   return weekday ? `${LOCK_SUCCESS_RECIPES_KICKER} · ${weekday}` : LOCK_SUCCESS_RECIPES_KICKER;
 }
+
+/** `lock_week` raised `food_rule_needs_change`. Same words as the meal-card line. */
+export const LOCK_FOOD_RULE_ERROR = "Needs a change before this night is approved";
+
+/** `reorder_week_meals` raised `food_rule_conflict`. */
+export const REORDER_FOOD_RULE_ERROR =
+  "Couldn\u2019t move that meal \u2014 it conflicts with a food rule.";

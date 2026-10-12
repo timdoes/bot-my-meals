@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useOptionalSupper } from "@/components/use-food-rule-heads-up";
+import { FOOD_RULE_CONFLICTS, savedMealFoodRuleConflict } from "@/lib/food-rule-check";
 import {
   FAVORITE_ACTION_LATER,
   FAVORITE_ACTION_NEXT,
@@ -35,6 +37,7 @@ export function FavoritesList({
   onTiming: (recipeKey: string, timing: FavoriteTiming) => Promise<void>;
   onRemove: (recipeKey: string) => Promise<void>;
 }) {
+  const snapshot = useOptionalSupper()?.snapshot ?? null;
   const visible = sortSavedMeals(meals);
   if (visible.length === 0) {
     return (
@@ -64,6 +67,7 @@ export function FavoritesList({
             timeZone={timeZone}
             planningStartsOn={planningStartsOn}
             canAct={canAct}
+            conflicts={Boolean(snapshot && savedMealFoodRuleConflict(snapshot, meal.title))}
             detailHref={detailHrefByKey.get(meal.recipeKey)}
             onTiming={onTiming}
             onRemove={onRemove}
@@ -79,6 +83,7 @@ function FavoriteRow({
   timeZone,
   planningStartsOn,
   canAct,
+  conflicts,
   detailHref,
   onTiming,
   onRemove,
@@ -87,6 +92,7 @@ function FavoriteRow({
   timeZone: string;
   planningStartsOn: string;
   canAct: boolean;
+  conflicts?: boolean;
   detailHref?: string;
   onTiming: (recipeKey: string, timing: FavoriteTiming) => Promise<void>;
   onRemove: (recipeKey: string) => Promise<void>;
@@ -103,6 +109,11 @@ function FavoriteRow({
   return (
     <li data-slot="favorite-row" className="rounded-[14px] bg-card px-5 py-4 shadow-card">
       {title}
+      {conflicts ? (
+        <p data-slot="food-rule-conflicts" className="type-meta mt-1 text-destructive">
+          {FOOD_RULE_CONFLICTS}
+        </p>
+      ) : null}
       <p data-slot="favorite-timing" className="type-meta mt-1 text-muted-foreground">
         {favoriteTimingLabel(meal, planningStartsOn)}
       </p>

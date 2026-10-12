@@ -43,6 +43,7 @@ function household(): Household {
     postalCode: null,
     botCheckMode: "adaptive",
     botCheckIntervalHours: null,
+    foodRulesReviewedAt: null,
   };
 }
 

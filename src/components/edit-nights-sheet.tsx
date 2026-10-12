@@ -10,6 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useOptionalSupper } from "@/components/whos-eating-sheet";
 import {
   EDIT_NIGHTS_CANCEL_LABEL,
   EDIT_NIGHTS_LABEL,
@@ -21,8 +22,11 @@ import {
   turnOffDinnerConfirm,
   withFrozenNights,
 } from "@/lib/edit-nights";
+import type { NightPeopleInput } from "@/lib/food-rules";
 import { clampSpecialInstructions } from "@/lib/planning-people";
+import { isFoodRulesSchemaReady } from "@/lib/supabase/missing-schema";
 import type { Household, Meal, Membership, Vote, WeekRole } from "@/lib/types";
+import { sameNightCounts, showWhosEatingFeature } from "@/lib/whos-eating";
 
 export function EditNightsSheet({
   open,
@@ -53,19 +57,49 @@ export function EditNightsSheet({
   onSave: (counts: number[], instructions: string | null) => Promise<void>;
   onSaved?: (message: string | null) => void;
 }) {
+  const supper = useOptionalSupper();
+  const weekId =
+    role === "planning" ? supper?.snapshot?.planning?.week.id : supper?.snapshot?.week.id;
+  const featureOn = showWhosEatingFeature({
+    schemaReady: isFoodRulesSchemaReady(),
+    eaters: supper?.snapshot?.eaters ?? [],
+    memberships: supper?.snapshot?.memberships ?? memberships,
+  });
   const showNotes = showWeekSpecialInstructions({ role, stored: storedInstructions });
-  const pending = useRef<{ counts: number[]; instructions: string | null } | null>(null);
+  const pending = useRef<{
+    counts: number[];
+    instructions: string | null;
+    attendees: NightPeopleInput[] | null;
+  } | null>(null);
   const [confirming, setConfirming] = useState<string[]>([]);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [savingOff, setSavingOff] = useState(false);
 
-  const commit = async (counts: number[], instructions: string | null) => {
+  const persist = async (
+    counts: number[],
+    instructions: string | null,
+    attendees: NightPeopleInput[] | null,
+  ) => {
+    const platesChanged = !sameNightCounts(initialCounts, counts);
+    if (featureOn && supper && weekId && attendees) {
+      await supper.saveWeekPeopleV2(weekId, counts, instructions, attendees);
+      if (platesChanged) await onSave(counts, instructions);
+      return;
+    }
+    await onSave(counts, instructions);
+  };
+
+  const commit = async (
+    counts: number[],
+    instructions: string | null,
+    attendees: NightPeopleInput[] | null,
+  ) => {
     const changes = planWeekNightChanges({
       previous: initialCounts,
       next: counts,
       hasMeals: meals.length > 0,
     });
-    await onSave(counts, instructions);
+    await persist(counts, instructions, attendees);
     onSaved?.(savedNewNightsToast(changes, meals.length > 0));
     setConfirming([]);
     pending.current = null;
@@ -101,8 +135,10 @@ export function EditNightsSheet({
           showInstructions={showNotes}
           lockedWeekdays={frozenWeekdays}
           cancelLabel={EDIT_NIGHTS_CANCEL_LABEL}
+          weekId={weekId ?? undefined}
+          showCoverage={false}
           onBack={close}
-          onSave={async (counts, instructions) => {
+          onSave={async (counts, instructions, attendees) => {
             const next = withFrozenNights(initialCounts, counts, frozenWeekdays);
             const notes = showNotes ? clampSpecialInstructions(instructions) : null;
             const offs = dinnersTurningOff({
@@ -113,12 +149,12 @@ export function EditNightsSheet({
               memberships,
             });
             if (offs.length > 0) {
-              pending.current = { counts: next, instructions: notes };
+              pending.current = { counts: next, instructions: notes, attendees: attendees ?? null };
               setConfirming(offs);
               return;
             }
             setSheetError(null);
-            await commit(next, notes);
+            await commit(next, notes, attendees ?? null);
           }}
         />
         {confirming.length > 0 ? (
@@ -164,7 +200,7 @@ export function EditNightsSheet({
                   if (!next) return;
                   setSavingOff(true);
                   setSheetError(null);
-                  void commit(next.counts, next.instructions)
+                  void commit(next.counts, next.instructions, next.attendees)
                     .catch((err: unknown) => {
                       setSheetError(
                         err instanceof Error && err.message ? err.message : EDIT_NIGHTS_SAVE_ERROR,

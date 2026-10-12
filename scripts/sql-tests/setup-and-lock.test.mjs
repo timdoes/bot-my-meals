@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const migDir = path.join(here, "../../supabase/migrations");
 const REMAP = "20261011224500_setup_step_nine_remap.sql";
+const EIGHT_STEP_READY = "20261012030000_setup_eight_step_ready.sql";
 
 const STUBS = `
 do $$ begin
@@ -84,6 +85,64 @@ describe("setup_step: expand then remap", () => {
   it("the marker table is not readable by signed-in users", async () => {
     const db = await freshDb();
     await assert.rejects(asUser(db, id(5), () => db.query(`select * from private.migration_markers`)), /permission denied/);
+    await db.close();
+  });
+});
+
+describe("setup_eight_step_ready", () => {
+  it("is false before remap, true after, and never errors without a markers row", async () => {
+    const db = await freshDb({ skipRemap: true });
+    const before = await asUser(db, id(5), () =>
+      rows(db, `select public.setup_eight_step_ready() as ready`),
+    );
+    assert.equal(before[0].ready, false);
+
+    await db.exec(fs.readFileSync(path.join(migDir, REMAP), "utf8"));
+    const after = await asUser(db, id(5), () =>
+      rows(db, `select public.setup_eight_step_ready() as ready`),
+    );
+    assert.equal(after[0].ready, true);
+
+    await db.exec(`delete from private.migration_markers where key = 'setup_step_nine_remap'`);
+    const empty = await asUser(db, id(5), () =>
+      rows(db, `select public.setup_eight_step_ready() as ready`),
+    );
+    assert.equal(empty[0].ready, false);
+
+    await db.exec(`drop table if exists private.migration_markers`);
+    const noTable = await asUser(db, id(5), () =>
+      rows(db, `select public.setup_eight_step_ready() as ready`),
+    );
+    assert.equal(noTable[0].ready, false);
+    await db.close();
+  });
+
+  it("anon_exec=0; authenticated and service_role can execute", async () => {
+    const db = await freshDb();
+    const [{ anon_exec }] = await rows(
+      db,
+      `select has_function_privilege('anon','public.setup_eight_step_ready()','EXECUTE')::int as anon_exec`,
+    );
+    assert.equal(anon_exec, 0);
+    const [{ auth_exec }] = await rows(
+      db,
+      `select has_function_privilege('authenticated','public.setup_eight_step_ready()','EXECUTE')::int as auth_exec`,
+    );
+    assert.equal(auth_exec, 1);
+    const [{ service_exec }] = await rows(
+      db,
+      `select has_function_privilege('service_role','public.setup_eight_step_ready()','EXECUTE')::int as service_exec`,
+    );
+    assert.equal(service_exec, 1);
+    await db.close();
+  });
+
+  it("re-applying the ready file is a no-op", async () => {
+    const db = await freshDb();
+    const sql = fs.readFileSync(path.join(migDir, EIGHT_STEP_READY), "utf8");
+    await db.exec(sql);
+    const [{ ready }] = await rows(db, `select public.setup_eight_step_ready() as ready`);
+    assert.equal(ready, true);
     await db.close();
   });
 });

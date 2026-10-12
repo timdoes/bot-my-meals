@@ -207,15 +207,16 @@ When Wake is configured, Waiting / Check now is wake / **Your bot was notified**
 
 #### Then walk house setup through Create this week's meals
 
-After Wake is saved, walk through house setup (no Seed/sample week). Progress is **Setup · step N of 7**.
+After Wake is saved, walk through house setup (no Seed/sample week). Progress is **Setup · step N of 8** after food-rules tables exist and `setup_eight_step_ready()` is true (`20261012030000_setup_eight_step_ready` applied before remap, then `20261011224500_setup_step_nine_remap`). A database without those migrations keeps **Setup · step N of 7** (8 = done). See [docs/food-rules.md](docs/food-rules.md#eight-step-setup-deploy-order).
 
 1. **Invite people** — share `https://<our-host>/join/<token>` via share sheet (invite links only). Partner opens the link, then creates an account with their own email and password (or signs in). There is no shared household password.
 2. **How many people?** — household size stepper.
 3. **Which nights?** — Sun–Sat toggles, all on by default. Easy off per day.
 4. **Optional:** adjust plates on On nights (guests / couple nights).
-5. **Stores** — enter zip/postal, multi-select regional grocers, or type in a store. No default stores. Labels only — never invent grocery prices; cart adds only where the store actually supports them.
-6. **Optional** weekly meal budget (or skip).
-7. **Wake your Bot** is required before **Create this week's meals**. Paste the Webhook URL on this step. The button stays off until it is saved. There is no Skip. After save: **Saved. Create this week’s meals will wake your bot.** Tap **Create this week's meals** — app writes a ballot request and shows **Waiting for your Bot…** until the ballot appears. **Copy paste for your Grok Bot** is DIY fallback only (collapsed).
+5. **Allergies and foods to skip** — optional. Who chips, the nine allergen picks, foods to never suggest, or **No allergies or foods to skip**. **Skip for now** stores nothing. Change later in House → Food rules.
+6. **Stores** — enter zip/postal, multi-select regional grocers, or type in a store. No default stores. Labels only — never invent grocery prices; cart adds only where the store actually supports them.
+7. **Optional** weekly meal budget (or skip).
+8. **Wake your Bot** is required before **Create this week's meals**. Paste the Webhook URL on this step. The button stays off until it is saved. There is no Skip. After save: **Saved. Create this week’s meals will wake your bot.** Tap **Create this week's meals** — app writes a ballot request and shows **Waiting for your Bot…** until the ballot appears. **Copy paste for your Grok Bot** is DIY fallback only (collapsed).
 
 Empty This week: **Finish house setup** (if incomplete), **Create this week's meals** / **Waiting for your Bot…** (if setup done), or the dual-approve ballot when it lands. When **House → Wake your Bot** / `BOT_WAKE` is configured (`configured` true), Waiting / Check now is wake / instant / **Your bot was notified** only.
 
@@ -315,14 +316,15 @@ Keeping up with Tim: keep up to date with the GitHub repo https://github.com/tim
 
 Sign-in: Create account or Sign in with email and password in the app. You stay in the app. Do not finish sign-in by tapping a link in Mail.
 
-After Create household, create Wake on app event and paste Webhook URL into House → Wake your Bot (required before Create this week's meals / the first ballot). Then walk through house setup (no Seed/sample week):
+After Create household, create Wake on app event and paste Webhook URL into House → Wake your Bot (required before Create this week's meals / the first ballot). Then walk through house setup (no Seed/sample week). Progress is Setup · step N of 8 after food-rules remap; a database without those migrations stays Setup · step N of 7:
 1) Invite people — share https://<our-host>/join/<token> via share sheet (invite links only). Partner opens the link, then creates their own account with their email and password, or signs in. There is no shared household password.
 2) How many people? — household size stepper.
 3) Which nights? — Sun–Sat toggles, all on by default. Easy off per day.
 4) Optional: adjust plates on On nights (guests / couple nights).
-5) Stores — enter zip/postal, multi-select regional grocers, or type in a store. No default stores. Labels only — never invent grocery prices; cart adds only where the store actually supports them.
-6) Optional weekly meal budget (or skip).
-7) Wake your Bot is required before Create this week's meals. Paste the Webhook URL on this step. Create this week's meals stays off until it is saved. There is no Skip. After save: Saved. Create this week’s meals will wake your bot. Tap Create this week's meals — app writes a ballot request and shows Waiting for your Bot… until the ballot appears. Copy paste for your Grok Bot is DIY fallback only (collapsed).
+5) Allergies and foods to skip — optional. Who chips, the nine allergen picks, foods to never suggest, or No allergies or foods to skip. Skip for now stores nothing. Change later in House → Food rules.
+6) Stores — enter zip/postal, multi-select regional grocers, or type in a store. No default stores. Labels only — never invent grocery prices; cart adds only where the store actually supports them.
+7) Optional weekly meal budget (or skip).
+8) Wake your Bot is required before Create this week's meals. Paste the Webhook URL on this step. Create this week's meals stays off until it is saved. There is no Skip. After save: Saved. Create this week’s meals will wake your bot. Tap Create this week's meals — app writes a ballot request and shows Waiting for your Bot… until the ballot appears. Copy paste for your Grok Bot is DIY fallback only (collapsed).
 Empty This week: Finish house setup (if incomplete), Create this week's meals / Waiting for your Bot… (if setup done), or the dual-approve ballot when it lands. When House → Wake your Bot / BOT_WAKE is configured (configured true), Waiting / Check now is wake / instant / Your bot was notified only. Without wake configured, setup is incomplete — Check now still means message the Bot, but Install must still create and save the webhook. Do not create Adaptive / @every 1h / @every 6h bot-check routines.
 
 After the first ballot is live, the house may also plan next week while cooking this week. Day-1 Install is still one cooking week — do not create a planning week during setup.
@@ -392,7 +394,7 @@ Optional on GitHub: **Settings → Branches** → protect `main` and require the
 
 ## Schema
 
-`Household` (including `setup_step` 1–7 wizard / 8 done, `household_size`, `nights_planned`, `postal_code`, optional `weekly_budget_cents`, `bot_check_mode` leftover / not Install teaching), `Membership` (owner / voter / eater), `User` (`auth.users` + `profiles`), `Week`, `Meal`, `Vote`, `Recipe`, `ShoppingList`, `ShoppingItem` (store tag, quantity, optional `price_cents` + `price_source` + `priced_at`). Pending people live in `household_invites` until they sign in. Textable partner links live in `household_join_tokens` (`/join/<token>`). Meal Ops inbox is `ballot_requests` (pending → fulfilled when meals are inserted). `saved_recipe_keys` are explicit Saved meal requests for that week (cool-down bypass). `saved_pool_keys` is the random-suggest snapshot (21 days after `last_locked_at`, no outstanding request). Household favorites live in `saved_meals` (`recipe_key`, `saved_at`, `last_locked_at`, optional `requested_for_week`). Never again and dislike notes live in `meal_dislikes`. Like notes live in `meal_likes`. Read path: [`docs/saved-meals.md`](docs/saved-meals.md) and [`docs/meal-reactions.md`](docs/meal-reactions.md). Quiet bot wakes use `GET /api/bot/status`.
+`Household` (including `setup_step` 1–8 wizard / 9 done after food-rules remap, or 1–7 wizard / 8 done on a database that has not remapped, `household_size`, `nights_planned`, `postal_code`, optional `weekly_budget_cents`, `bot_check_mode` leftover / not Install teaching), `Membership` (owner / voter / eater), `User` (`auth.users` + `profiles`), `Week`, `Meal`, `Vote`, `Recipe`, `ShoppingList`, `ShoppingItem` (store tag, quantity, optional `price_cents` + `price_source` + `priced_at`). Pending people live in `household_invites` until they sign in. Textable partner links live in `household_join_tokens` (`/join/<token>`). Meal Ops inbox is `ballot_requests` (pending → fulfilled when meals are inserted). `saved_recipe_keys` are explicit Saved meal requests for that week (cool-down bypass). `saved_pool_keys` is the random-suggest snapshot (21 days after `last_locked_at`, no outstanding request). Household favorites live in `saved_meals` (`recipe_key`, `saved_at`, `last_locked_at`, optional `requested_for_week`). Never again and dislike notes live in `meal_dislikes`. Like notes live in `meal_likes`. Read path: [`docs/saved-meals.md`](docs/saved-meals.md) and [`docs/meal-reactions.md`](docs/meal-reactions.md). Quiet bot wakes use `GET /api/bot/status`.
 
 Eaters can belong to the household later without voting. Only owner and voter roles count toward lock. Households are rows in this schema, not separate Workers.
 

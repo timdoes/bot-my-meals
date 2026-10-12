@@ -139,7 +139,9 @@ describe("setup surfaces", () => {
     expect(readme).toMatch(/Waiting for your Bot…/);
     expect(readme).toMatch(/Finish house setup/);
     expect(readme).toMatch(/walk through house setup \(no Seed\/sample week\)/);
+    expect(readme).toMatch(/Setup · step N of 8/);
     expect(readme).toMatch(/Setup · step N of 7/);
+    expect(readme).toMatch(/Allergies and foods to skip/);
     expect(readme).toMatch(/20260917160000_wizard_v2_ballot_request\.sql/);
     expect(readme).toMatch(/all nine/);
     expect(readme).toMatch(/20260927040000_bot_check_cadence\.sql/);

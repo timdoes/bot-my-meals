@@ -8,6 +8,7 @@ import {
 } from "./headcount";
 import { createId, inviteCode } from "./ids";
 import { normalizeEmail } from "./users";
+import { emptyFoodRulesState } from "./food-rules";
 import type {
   Household,
   HouseholdSnapshot,
@@ -272,6 +273,7 @@ export function emptyHousehold(name: string, owner?: UserProfile): HouseholdSnap
     postalCode: null,
     botCheckMode: "adaptive",
     botCheckIntervalHours: null,
+    foodRulesReviewedAt: null,
   };
 
   const memberships: Membership[] = owner
@@ -311,6 +313,7 @@ export function emptyHousehold(name: string, owner?: UserProfile): HouseholdSnap
     mealHistory: [],
     savedMeals: [],
     mealDislikes: [],
+    ...emptyFoodRulesState(),
   };
 }
 

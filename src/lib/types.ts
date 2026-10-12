@@ -30,6 +30,23 @@ export type BotCheckMode = (typeof BOT_CHECK_MODES)[number];
 export const BOT_CHECK_INTERVAL_HOURS = [1, 3, 6] as const;
 export type BotCheckIntervalHours = (typeof BOT_CHECK_INTERVAL_HOURS)[number];
 
+/** US major-nine allergen codes. Vocabulary lives in `allergens.ts` and the SQL seed. */
+export const ALLERGEN_CODES = [
+  "milk",
+  "eggs",
+  "fish",
+  "shellfish",
+  "tree_nuts",
+  "peanuts",
+  "wheat",
+  "soy",
+  "sesame",
+] as const;
+export type AllergenCode = (typeof ALLERGEN_CODES)[number];
+
+export const FOOD_RULE_SEVERITIES = ["allergy", "intolerance", "dislike"] as const;
+export type FoodRuleSeverity = (typeof FOOD_RULE_SEVERITIES)[number];
+
 export type UserProfile = {
   id: string;
   email: string;
@@ -75,6 +92,8 @@ export type Household = {
   botCheckMode: BotCheckMode;
   /** 1, 3, or 6 when fixed. Null when adaptive. */
   botCheckIntervalHours: BotCheckIntervalHours | null;
+  /** Null = never asked. Set with zero rules = no allergies or foods to skip. */
+  foodRulesReviewedAt: string | null;
 };
 
 export type BallotRequest = {
@@ -196,6 +215,60 @@ export type MealDislike = {
   updatedAt: string;
 };
 
+/** Named person with no sign-in. Product copy: "People at the table", not "Eater". */
+export type HouseholdEater = {
+  id: string;
+  householdId: string;
+  displayName: string;
+  createdAt: string;
+};
+
+/** Per-person or whole-house allergy, intolerance, or food to skip. */
+export type FoodRule = {
+  id: string;
+  householdId: string;
+  subjectMembershipId: string | null;
+  subjectEaterId: string | null;
+  foodLabel: string;
+  foodKey: string;
+  allergenCode: AllergenCode | null;
+  severity: FoodRuleSeverity;
+  details: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** A row means that night has a named list. No row = Everyone. */
+export type WeekNightList = {
+  householdId: string;
+  weekId: string;
+  dayIndex: number;
+  guests: number;
+  updatedAt: string;
+};
+
+/** One person on a named-list night. Exactly one of membershipId / eaterId is set. */
+export type WeekNightAttendee = {
+  id: string;
+  householdId: string;
+  weekId: string;
+  dayIndex: number;
+  membershipId: string | null;
+  eaterId: string | null;
+};
+
+/** Allergy match on a written recipe. Held until acknowledged. */
+export type RecipeFoodHold = {
+  id: string;
+  householdId: string;
+  recipeId: string;
+  ruleId: string;
+  matchedTerm: string;
+  createdAt: string;
+  acknowledgedBy: string | null;
+  acknowledgedAt: string | null;
+};
+
 export type ShoppingItem = {
   id: string;
   householdId: string;
@@ -294,6 +367,11 @@ export type HouseholdSnapshot = {
   mealHistory: MealHistoryWeek[];
   savedMeals: SavedMeal[];
   mealDislikes: MealDislike[];
+  eaters: HouseholdEater[];
+  foodRules: FoodRule[];
+  nightLists: WeekNightList[];
+  nightAttendees: WeekNightAttendee[];
+  foodHolds: RecipeFoodHold[];
 };
 
 export type ReplacementIdea = {

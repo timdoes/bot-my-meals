@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AuthGate } from "@/components/auth-gate";
+import { isFoodRulesAvailable } from "@/components/food-rules";
 import { NeverAgainList } from "@/components/never-again-list";
 import { useSupper } from "@/components/supper-provider";
 import { NEVER_AGAIN_LIST_LABEL } from "@/lib/meal-dislikes";
@@ -17,8 +20,22 @@ export default function NeverAgainPage() {
 
 function NeverAgainBody() {
   const { snapshot, session, allowMealAgain } = useSupper();
+  const router = useRouter();
+  const available = isFoodRulesAvailable();
+
+  useEffect(() => {
+    if (snapshot && available) router.replace("/settings/food-rules#meals");
+  }, [available, router, snapshot]);
 
   if (!snapshot) {
+    return (
+      <AppShell title={NEVER_AGAIN_LIST_LABEL} backHref="/settings" backLabel="House">
+        <p className="type-body text-muted-foreground">Create or join a household first.</p>
+      </AppShell>
+    );
+  }
+
+  if (available) {
     return (
       <AppShell title={NEVER_AGAIN_LIST_LABEL} backHref="/settings" backLabel="House">
         <p className="type-body text-muted-foreground">Create or join a household first.</p>
