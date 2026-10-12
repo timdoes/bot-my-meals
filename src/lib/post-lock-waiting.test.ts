@@ -239,7 +239,7 @@ describe("post-lock waiting copy", () => {
     const week = readFileSync(path.join(root, "app/week/page.tsx"), "utf8");
     const meal = readFileSync(path.join(root, "app/week/[mealId]/page.tsx"), "utf8");
     const list = readFileSync(path.join(root, "app/list/page.tsx"), "utf8");
-    const recipes = readFileSync(path.join(root, "app/recipes/page.tsx"), "utf8");
+    const recipes = readFileSync(path.join(root, "app/week/recipes/page.tsx"), "utf8");
     const block = readFileSync(path.join(root, "components/recipe-view.tsx"), "utf8");
 
     const chrome = readFileSync(path.join(root, "components/week-chrome.tsx"), "utf8");
@@ -255,19 +255,17 @@ describe("post-lock waiting copy", () => {
     expect(week).toContain("PostLockWaitingSheet");
     expect(week).toContain("lockedDinnerTap");
     expect(meal).toContain("RecipePendingNotice");
-    expect(meal).toContain('backHref="/week"');
-    expect(meal).toContain("weekHomeTitle(weekRole)");
+    expect(meal).toContain("backHref={`/week${query}`}");
+    expect(meal).toContain("backLabel={RECIPE_BACK_LABEL}");
     expect(meal).not.toContain("Back to This week");
     expect(meal).not.toContain('backLabel="This week"');
-    expect(recipes).toContain("weekHomeTitle(role)");
-    expect(recipes).not.toContain("Back to This week");
-    expect(recipes).not.toContain('backLabel="This week"');
     expect(meal).toContain("<RecipeBlock recipe={recipe} servings={meal.servings} />");
     expect(meal).not.toContain("No recipe was saved for this night");
     expect(list).toContain("pendingFill && (!list || list.items.length === 0)");
     expect(list).toContain("LIST_NOTHING_TO_BUY");
-    expect(recipes).toContain("PostLockWaitingCard");
-    expect(recipes).toContain('data-slot="recipe-night"');
     expect(block).toContain("No recipe was saved for this night");
+    // Recipes tab is gone: the full-week page waits on the same pending flag.
+    expect(recipes).toContain("isPendingBotFill");
+    expect(recipes).toContain('data-slot="all-recipes"');
   });
 });

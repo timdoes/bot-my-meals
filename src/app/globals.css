@@ -279,3 +279,23 @@ html[data-reorder-hold="true"] * {
     filter: brightness(0.94);
   }
 }
+
+/* List Share → Print: only the printer-friendly list, black on white, no app chrome. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-slot="list-print"],
+  [data-slot="list-print"] * {
+    visibility: visible;
+  }
+  [data-slot="list-print"] {
+    display: block !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 0.5in;
+    color: #000;
+    background: #fff;
+  }
+}

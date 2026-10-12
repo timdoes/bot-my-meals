@@ -271,11 +271,12 @@ describe("theme D Clear Sky brand tokens", () => {
   it("uses the shared This week header on signed-in product screens", () => {
     const screens = [
       "app/week/page.tsx",
-      "app/recipes/page.tsx",
+      "app/week/recipes/page.tsx",
       "app/list/page.tsx",
       "app/settings/page.tsx",
-      "app/settings/history/page.tsx",
-      "app/settings/history/[startsOn]/page.tsx",
+      "app/house/page.tsx",
+      "app/house/past-weeks/page.tsx",
+      "app/house/past-weeks/[startsOn]/page.tsx",
       "app/week/[mealId]/page.tsx",
       "components/setup-wizard.tsx",
       "components/onboarding.tsx",

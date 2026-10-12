@@ -336,11 +336,11 @@ describe("favorites surfaces", () => {
     const week = readFileSync(path.join(srcRoot, "app/week/page.tsx"), "utf8");
     const card = readFileSync(path.join(srcRoot, "components/ballot-card.tsx"), "utf8");
     const night = readFileSync(path.join(srcRoot, "components/night-card.tsx"), "utf8");
-    const settings = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
-    const listPage = readFileSync(path.join(srcRoot, "app/settings/saved/page.tsx"), "utf8");
+    const settings = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
+    const listPage = readFileSync(path.join(srcRoot, "app/house/favorites/page.tsx"), "utf8");
     const list = readFileSync(path.join(srcRoot, "components/saved-meals.tsx"), "utf8");
     const history = readFileSync(path.join(srcRoot, "components/past-weeks.tsx"), "utf8");
-    const shell = readFileSync(path.join(srcRoot, "components/app-shell.tsx"), "utf8");
+    const shell = readFileSync(path.join(srcRoot, "lib/nav-tabs.ts"), "utf8");
     const shopping = readFileSync(path.join(srcRoot, "app/list/page.tsx"), "utf8");
 
     expect(detail).toContain("FavoriteMealControl");
@@ -357,10 +357,10 @@ describe("favorites surfaces", () => {
     expect(shell.match(/href: "\//g)).toHaveLength(4);
 
     expect(settings).toContain('data-slot="favorites-row"');
-    expect(settings).toContain('href="/settings/saved"');
+    expect(settings).toContain('href="/house/favorites"');
     expect(settings).toContain("FAVORITES_LABEL");
     expect(settings).toContain('data-slot="past-weeks-row"');
-    expect(listPage).toContain('backHref="/settings"');
+    expect(listPage).toContain('backHref="/house"');
     expect(listPage).toContain('backLabel="House"');
     expect(listPage).toContain("setFavoriteTiming");
     expect(listPage).not.toContain("requestSavedMeal");

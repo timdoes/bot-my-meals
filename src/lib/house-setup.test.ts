@@ -300,7 +300,7 @@ describe("house setup surfaces", () => {
   it("flattens setup plates to On-night steppers and kills Adjust chrome", () => {
     const plates = readFileSync(path.join(srcRoot, "components/people-per-night.tsx"), "utf8");
     const wizard = readFileSync(path.join(srcRoot, "components/setup-wizard.tsx"), "utf8");
-    const settings = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
+    const settings = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
     const managePeople = readFileSync(path.join(srcRoot, "components/manage-people.tsx"), "utf8");
 
     expect(wizard).toContain('title="Plates per night"');
@@ -475,7 +475,7 @@ describe("US weekly budget prefix", () => {
 
   it("locks setup step 6 and House settings to the prefixed field", () => {
     const wizard = readFileSync(path.join(srcRoot, "components/setup-wizard.tsx"), "utf8");
-    const settings = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
+    const settings = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
     const field = readFileSync(path.join(srcRoot, "components/weekly-budget-field.tsx"), "utf8");
     const budgetBodies = [...wizard.matchAll(/case "budget":([\s\S]*?)break;/g)].map((match) => match[1]);
     const fieldBody = budgetBodies.find((body) => body.includes("Weekly meal budget"));

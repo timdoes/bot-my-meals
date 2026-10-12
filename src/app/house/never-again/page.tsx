@@ -24,12 +24,12 @@ function NeverAgainBody() {
   const available = isFoodRulesAvailable();
 
   useEffect(() => {
-    if (snapshot && available) router.replace("/settings/food-rules#meals");
+    if (snapshot && available) router.replace("/house/food-rules#meals");
   }, [available, router, snapshot]);
 
   if (!snapshot) {
     return (
-      <AppShell title={NEVER_AGAIN_LIST_LABEL} backHref="/settings" backLabel="House">
+      <AppShell title={NEVER_AGAIN_LIST_LABEL} backHref="/house" backLabel="House">
         <p className="type-body text-muted-foreground">Create or join a household first.</p>
       </AppShell>
     );
@@ -37,14 +37,14 @@ function NeverAgainBody() {
 
   if (available) {
     return (
-      <AppShell title={NEVER_AGAIN_LIST_LABEL} backHref="/settings" backLabel="House">
+      <AppShell title={NEVER_AGAIN_LIST_LABEL} backHref="/house" backLabel="House">
         <p className="type-body text-muted-foreground">Create or join a household first.</p>
       </AppShell>
     );
   }
 
   return (
-    <AppShell title={NEVER_AGAIN_LIST_LABEL} backHref="/settings" backLabel="House">
+    <AppShell title={NEVER_AGAIN_LIST_LABEL} backHref="/house" backLabel="House">
       <NeverAgainList
         rows={snapshot.mealDislikes}
         canAct={canActOnBallot(session?.role)}

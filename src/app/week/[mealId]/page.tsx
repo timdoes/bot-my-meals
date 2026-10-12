@@ -1,6 +1,8 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGate } from "@/components/auth-gate";
 import { BallotToast } from "@/components/ballot-toast";
@@ -13,13 +15,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { EMPTY_DAY_TITLE } from "@/lib/ballot";
-import { formatNightDate, weekdayLabelFromNight } from "@/lib/dates";
 import { servingsLabel } from "@/lib/headcount";
 import { REPLACEMENT_IDEAS } from "@/lib/ideas";
 import { todayInTimeZone } from "@/lib/meal-history";
 import { canActOnBallot, isNightOff, latestVoteForMeal, voteFor, votingMembers } from "@/lib/lock";
 import { dislikeToast, mealDislikeForKey } from "@/lib/meal-dislikes";
-import { planningTargetStarts, scopeForMeal, weekHomeTitle } from "@/lib/open-weeks";
+import { planningTargetStarts, scopeForMeal } from "@/lib/open-weeks";
+import {
+  NEXT_NIGHT_LABEL,
+  PREVIOUS_NIGHT_LABEL,
+  RECIPE_BACK_LABEL,
+  adjacentNights,
+  recipeEyebrow,
+  recipeNextLine,
+} from "@/lib/recipe-nav";
+import { weekQuery } from "@/lib/week-navigator";
 import { nightShowsRecipePending } from "@/lib/post-lock-waiting";
 import {
   favoriteTimingFor,
@@ -89,7 +99,7 @@ function MealDetail({ mealId }: { mealId: string }) {
 
   if (!snapshot || !scope || !meal) {
     return (
-      <AppShell title="Night" backHref="/week" backLabel={weekHomeTitle(weekRole)}>
+      <AppShell title="Night" backHref="/week" backLabel={RECIPE_BACK_LABEL}>
         <p className="type-body text-muted-foreground">That night is not on this week.</p>
       </AppShell>
     );
@@ -99,7 +109,6 @@ function MealDetail({ mealId }: { mealId: string }) {
     (item) => item.dayIndex < meal.dayIndex && !item.isLeftovers,
   );
 
-  const weekday = weekdayLabelFromNight(meal.nightDate);
   const skipped = isNightOff(meal.id, scope.votes, snapshot.memberships);
   const recipe = scope.recipes.find((item) => item.mealId === meal.id);
   const pendingRecipe = nightShowsRecipePending({
@@ -148,6 +157,17 @@ function MealDetail({ mealId }: { mealId: string }) {
     </div>
   ) : null;
 
+  const todayIso = todayInTimeZone(new Date(), snapshot.household.timezone);
+  const query = weekQuery(weekRole === "planning" ? { kind: "planning" } : { kind: "cooking" });
+  const { previous, next } = adjacentNights(scope.meals, scope.votes, meal.id, snapshot.memberships);
+  const nextLine = recipeNextLine(next);
+  const nightArrows = (
+    <div data-slot="recipe-night-arrows" className="flex items-center gap-1">
+      <NightArrow direction="previous" href={previous ? `/week/${previous.id}${query}` : null} />
+      <NightArrow direction="next" href={next ? `/week/${next.id}${query}` : null} />
+    </div>
+  );
+
   const choose = (choice: VoteChoice) => {
     void setVote(meal.id, choice, note).catch(() => undefined);
   };
@@ -162,10 +182,16 @@ function MealDetail({ mealId }: { mealId: string }) {
   return (
     <AppShell
       title={skipped && readOnly ? EMPTY_DAY_TITLE : meal.title}
-      eyebrow={`${weekday} · ${formatNightDate(meal.nightDate)}`}
-      backHref="/week"
-      backLabel={weekHomeTitle(weekRole)}
+      eyebrow={recipeEyebrow(meal.nightDate, todayIso)}
+      backHref={`/week${query}`}
+      backLabel={RECIPE_BACK_LABEL}
+      titleAction={nightArrows}
     >
+      {nextLine ? (
+        <p data-slot="recipe-next-line" className="type-meta mb-3 text-muted-foreground">
+          {nextLine}
+        </p>
+      ) : null}
       {weekLocked ? (
         skipped ? (
           <p className="type-body rounded-[14px] bg-secondary p-4 shadow-card">
@@ -322,6 +348,31 @@ function MealDetail({ mealId }: { mealId: string }) {
       )}
       <BallotToast message={toast} onDismiss={() => setToast(undefined)} />
     </AppShell>
+  );
+}
+
+function NightArrow({ direction, href }: { direction: "previous" | "next"; href: string | null }) {
+  const Icon = direction === "previous" ? ChevronLeft : ChevronRight;
+  const label = direction === "previous" ? PREVIOUS_NIGHT_LABEL : NEXT_NIGHT_LABEL;
+  const className =
+    "grid size-12 place-items-center rounded-[var(--radius-button)] border border-border bg-card text-foreground";
+  if (!href) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-label={label}
+        data-slot={`recipe-${direction}-night`}
+        className={cn(className, "opacity-40")}
+      >
+        <Icon aria-hidden className="size-5" />
+      </button>
+    );
+  }
+  return (
+    <Link href={href} aria-label={label} data-slot={`recipe-${direction}-night`} className={className} replace>
+      <Icon aria-hidden className="size-5" />
+    </Link>
   );
 }
 

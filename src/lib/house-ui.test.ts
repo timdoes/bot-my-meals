@@ -57,12 +57,15 @@ describe("House Clear Sky kit", () => {
     expect(source).not.toContain("placeholder=");
   });
 
-  it("keeps House primary actions fat and shows the install banner", () => {
-    const source = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
-    expect(source).toContain("InstallPrompt");
+  it("keeps House primary actions fat; install and appearance live on Settings", () => {
+    const source = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
+    const settings = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
+    expect(source).not.toContain("InstallPrompt");
+    expect(settings).toContain("AddToHomeRow");
     expect(source).toContain('size="fat"');
     expect(source).toContain("HouseCard");
-    expect(source).toContain("AppearancePicker");
+    expect(source).not.toContain("AppearancePicker");
+    expect(settings).toContain("AppearancePicker");
     expect(source).toContain("InviteShare");
     expect(source).toContain("HouseStores");
     expect(source).toContain("postalCode");
@@ -80,7 +83,7 @@ describe("Clear Sky House craft", () => {
     const steppers = readFileSync(path.join(srcRoot, "components/people-per-night.tsx"), "utf8");
     const members = readFileSync(path.join(srcRoot, "components/manage-people.tsx"), "utf8");
     const card = readFileSync(path.join(srcRoot, "components/house-card.tsx"), "utf8");
-    const house = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
+    const house = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
 
     expect(card).toContain('data-slot="house-card"');
     expect(card).toContain("bg-card");
@@ -97,7 +100,7 @@ describe("Clear Sky House craft", () => {
     expect(members).toContain('data-slot="member-row"');
     expect(members).toContain('size="fat"');
     expect(members).toContain("rounded-[var(--radius-button)]");
-    expect(house).toContain("InstallPrompt");
+    expect(house).not.toContain("InstallPrompt");
     expect(house).toContain('size="fat"');
     expect(steppers).not.toContain("#b35025");
     expect(steppers).not.toContain("Fraunces");

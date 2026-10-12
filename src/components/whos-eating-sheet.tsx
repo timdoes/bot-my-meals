@@ -348,7 +348,7 @@ export function FoodRulesCoverageRow({
         className="mb-3 flex min-h-11 items-center justify-between gap-3 rounded-[14px] bg-[#fff7ed] px-3 py-2"
       >
         <p className="type-body text-[#9a3412]">{`Planning around ${ruleCount} food ${ruleCount === 1 ? "rule" : "rules"}`}</p>
-        <Link href="/settings/food-rules" className="type-body font-semibold text-primary">
+        <Link href="/house/food-rules" className="type-body font-semibold text-primary">
           View
         </Link>
       </div>
@@ -361,7 +361,7 @@ export function FoodRulesCoverageRow({
       className="mb-3 flex min-h-11 items-center justify-between gap-3 rounded-[14px] bg-[#fff7ed] px-3 py-2"
     >
       <p className="type-body text-[#9a3412]">No food rules set up</p>
-      <Link href="/settings/food-rules" className="type-body font-semibold text-primary">
+      <Link href="/house/food-rules" className="type-body font-semibold text-primary">
         Add
       </Link>
     </div>
@@ -579,7 +579,7 @@ export function WhosEatingSheet({
               </p>
             );
           })}
-          <Link href="/settings/food-rules" className="type-meta font-semibold text-primary">
+          <Link href="/house/food-rules" className="type-meta font-semibold text-primary">
             Food rules
           </Link>
         </div>

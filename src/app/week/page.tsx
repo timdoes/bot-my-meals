@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useCallback, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -26,6 +26,7 @@ import { useSupper } from "@/components/supper-provider";
 import { useBotWorking } from "@/components/use-bot-wake";
 import { useForegroundWeekRefresh } from "@/components/use-foreground-week-refresh";
 import { useViewedWeek } from "@/components/use-viewed-week";
+import { useWeekUrlSync } from "@/components/use-week-url-sync";
 import { WeekProcessingMark } from "@/components/week-processing-mark";
 import { alreadyCreatedMealsFromSnapshot, isHouseSetupComplete, shouldShowHouseSetup } from "@/lib/house-setup";
 import { isAdmin } from "@/lib/users";
@@ -69,7 +70,9 @@ import {
   navigatorTitle,
   selectionFromStop,
   stepNavigator,
+  weekQuery,
 } from "@/lib/week-navigator";
+import { ALL_RECIPES_LABEL } from "@/lib/recipe-nav";
 import { isPendingBotFill, lockedDinnerTap, POST_LOCK_GET_RECIPES_NEXT_HINT, POST_LOCK_GET_RECIPES_NEXT_WAKE_HINT } from "@/lib/post-lock-waiting";
 import { focusNightCard, nightCardAnchorId } from "@/lib/week-strip";
 import { reorderFoodRuleConflict } from "@/lib/food-rule-check";
@@ -119,7 +122,6 @@ function WeekBallot() {
   const { session, snapshot, setVote, requestWeekBallot, planNextWeek, savePlanningPeople, saveWeekPeople, reorderMeals } =
     useSupper();
   const { role, scope, past, hasPlanning, stops, index, setViewedWeek } = useViewedWeek();
-  const searchParams = useSearchParams();
   const [toast, setToast] = useState<string | undefined>();
   const [reorderBusy, setReorderBusy] = useState<ReadonlySet<string>>(new Set());
   const [reorderStatus, setReorderStatus] = useState("");
@@ -133,28 +135,7 @@ function WeekBallot() {
     setSelectedNightId(mealId);
     focusNightCard(mealId, (id) => document.getElementById(id));
   }, []);
-  const searchKey = searchParams.toString();
-  const previousSearch = useRef<string | null>(null);
-  useEffect(() => {
-    if (!snapshot) return;
-    const pastQuery = searchParams.get("past");
-    const weekQuery = searchParams.get("week");
-    const previous = previousSearch.current;
-    previousSearch.current = searchKey;
-    if (pastQuery && snapshot.mealHistory.some((week) => week.startsOn === pastQuery)) {
-      setViewedWeek({ kind: "past", startsOn: pastQuery });
-      return;
-    }
-    if (weekQuery === "next" && snapshot.planning) {
-      setViewedWeek({ kind: "planning" });
-      return;
-    }
-    if (weekQuery === "this") {
-      setViewedWeek({ kind: "cooking" });
-      return;
-    }
-    if (previous && previous.length > 0) setViewedWeek({ kind: "cooking" });
-  }, [searchKey, searchParams, snapshot, setViewedWeek]);
+  useWeekUrlSync("/week");
 
   const startPlanning = useCallback(
     (announce: boolean) => {
@@ -433,7 +414,7 @@ function WeekBallot() {
           <div data-slot="week-bottom-stack" className="space-y-2">
             {showPastWeeks ? (
               <Link
-                href="/settings/history"
+                href="/house/past-weeks"
                 data-slot="past-weeks-link"
                 className={pastWeeksStackLinkClass}
               >
@@ -578,6 +559,16 @@ function WeekBallot() {
               </div>
             );
           })}
+          {locked && !pendingFill && scope ? (
+            <Link
+              href={`/week/recipes${weekQuery(role === "planning" ? { kind: "planning" } : { kind: "cooking" })}`}
+              data-slot="all-recipes-link"
+              className="type-body flex min-h-11 items-center justify-center gap-1 pt-2 font-semibold text-primary"
+            >
+              {ALL_RECIPES_LABEL}
+              <ChevronRight className="size-4 shrink-0" aria-hidden />
+            </Link>
+          ) : null}
         </div>
       )}
       {scope && !viewingPast ? (
@@ -710,6 +701,7 @@ function renderNightCard({
             onRemove={canVote ? () => onAct(meal.id, "remove") : undefined}
             reorder={reorder}
             openHref={openHref}
+            opensRecipe={["recipe", "review"].includes(lockedDinnerTap({ locked, pending, presentation, past }))}
           />
         </LockedNightFrame>
       );

@@ -405,7 +405,7 @@ describe("meal reorder copy and wiring", () => {
     const navigator = readFileSync(path.join(srcRoot, "components/week-navigator.tsx"), "utf8");
     const detail = readFileSync(path.join(srcRoot, "app/week/[mealId]/page.tsx"), "utf8");
     const history = readFileSync(path.join(srcRoot, "components/past-weeks.tsx"), "utf8");
-    const house = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
+    const house = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
     const week = readFileSync(path.join(srcRoot, "app/week/page.tsx"), "utf8");
 
     const css = readFileSync(path.join(srcRoot, "app/globals.css"), "utf8");

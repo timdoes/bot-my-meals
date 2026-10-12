@@ -16,7 +16,7 @@ export default function PastWeekPage({ params }: { params: Promise<{ startsOn: s
 
   return (
     <AuthGate>
-      <AppShell title={PAST_WEEKS_LABEL} backHref="/settings/history" backLabel={PAST_WEEKS_LABEL}>
+      <AppShell title={PAST_WEEKS_LABEL} backHref="/house/past-weeks" backLabel={PAST_WEEKS_LABEL}>
         <p className="type-meta text-muted-foreground">{PAST_TITLES_ONLY}</p>
       </AppShell>
     </AuthGate>

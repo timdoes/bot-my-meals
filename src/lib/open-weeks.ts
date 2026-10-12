@@ -115,17 +115,9 @@ export function weekHomeTitle(role: WeekRole): string {
   }
 }
 
-export function shoppingListTitle(role: WeekRole): string {
-  switch (role) {
-    case "cooking":
-      return "Shopping · This week";
-    case "planning":
-      return "Shopping · Next week";
-    default: {
-      const _exhaustive: never = role;
-      return _exhaustive;
-    }
-  }
+/** Title stays "Shopping list"; the week lives in the eyebrow and strip (NAV-TABS lock §4). */
+export function shoppingListTitle(): string {
+  return "Shopping list";
 }
 
 /**

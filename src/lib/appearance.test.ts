@@ -35,7 +35,7 @@ describe("appearance preference", () => {
     expect(APPEARANCE_BOOTSTRAP_SCRIPT).toContain("prefers-color-scheme: dark");
   });
 
-  it("offers Device, Light, and Dark on House for the signed-in person", () => {
+  it("offers Device, Light, and Dark on Settings for the signed-in person", () => {
     const house = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
     const picker = readFileSync(path.join(srcRoot, "components/appearance-picker.tsx"), "utf8");
     const login = readFileSync(path.join(srcRoot, "components/login-home.tsx"), "utf8");

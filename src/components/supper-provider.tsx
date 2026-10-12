@@ -3,6 +3,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { BallotToast } from "@/components/ballot-toast";
+import {
+  WEEK_SESSION_KEY,
+  awayLongEnoughToReset,
+  parseWeekSession,
+  serializeWeekSession,
+} from "@/lib/week-session";
 import { botCheckForHousehold } from "@/lib/bot-check";
 import { patchPlanningPeople } from "@/lib/planning-people";
 import { FINISH_WAKE_BEFORE_CREATE, shouldWakeNeedsWork } from "@/lib/bot-wake";
@@ -199,6 +205,8 @@ type SupperContextValue = {
   viewedWeek: ViewedWeekSelection;
   setViewedRole: (role: WeekRole) => void;
   setViewedWeek: (selection: ViewedWeekSelection) => void;
+  /** Back to the smart default week (fresh launch, 4 hours away, re-select Meals on Meals). */
+  resetViewedWeek: () => void;
   error: string | null;
   refresh: () => Promise<void>;
   refetchViewedWeek: (weekId: string) => Promise<void>;
@@ -287,6 +295,7 @@ function createSetupContext(): SupperContextValue {
     viewedWeek: { kind: "cooking" },
     setViewedRole: () => undefined,
     setViewedWeek: () => undefined,
+    resetViewedWeek: () => undefined,
     error: null,
     refresh: async () => {},
     refetchViewedWeek: async () => {},
@@ -355,7 +364,15 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [snapshot, setSnapshot] = useState<HouseholdSnapshot | null>(null);
   // null until the user (or a URL param) picks a week this app open. Then the default rule applies.
-  const [chosenWeek, setChosenWeek] = useState<ViewedWeekSelection | null>(null);
+  // Restored from this session (PWA resume without a URL param); stale after 4 hours away.
+  const [chosenWeek, setChosenWeek] = useState<ViewedWeekSelection | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return parseWeekSession(window.sessionStorage.getItem(WEEK_SESSION_KEY), Date.now());
+    } catch {
+      return null;
+    }
+  });
   const defaultRole = snapshot
     ? defaultViewedWeek({
         meals: snapshot.meals,
@@ -498,7 +515,36 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
   const setViewedWeek = useCallback((selection: ViewedWeekSelection) => {
     viewedRoleRef.current = selection.kind === "planning" ? "planning" : "cooking";
     setChosenWeek(selection);
+    try {
+      window.sessionStorage.setItem(WEEK_SESSION_KEY, serializeWeekSession(selection, Date.now()));
+    } catch {
+      // Private mode or storage full: the URL still carries the week.
+    }
   }, []);
+
+  const resetViewedWeek = useCallback(() => {
+    setChosenWeek(null);
+    try {
+      window.sessionStorage.removeItem(WEEK_SESSION_KEY);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Back to the smart default after 4 hours away.
+  useEffect(() => {
+    let hiddenAt: number | null = null;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+      if (awayLongEnoughToReset(hiddenAt, Date.now())) resetViewedWeek();
+      hiddenAt = null;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [resetViewedWeek]);
 
   const setViewedRole = useCallback(
     (role: WeekRole) => {
@@ -682,6 +728,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
       viewedWeek,
       setViewedRole,
       setViewedWeek,
+      resetViewedWeek,
       error,
       refresh,
       refetchViewedWeek,
@@ -1398,7 +1445,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
     }),
     // refresh/run close over the latest session and snapshot on each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, session, snapshot, viewedRole, viewedWeek, setViewedRole, setViewedWeek, error],
+    [ready, session, snapshot, viewedRole, viewedWeek, setViewedRole, setViewedWeek, resetViewedWeek, error],
   );
 
   return (

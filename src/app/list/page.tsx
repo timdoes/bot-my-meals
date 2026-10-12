@@ -1,25 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useCallback, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { BallotToast } from "@/components/ballot-toast";
+import { ListShareButton, ListShareSheet } from "@/components/list-share";
+import { ListWeekStrip } from "@/components/list-week-strip";
+import { PastWeekDetail } from "@/components/past-weeks";
+import { useForegroundWeekRefresh } from "@/components/use-foreground-week-refresh";
+import { useWeekUrlSync } from "@/components/use-week-url-sync";
 import { AuthGate } from "@/components/auth-gate";
 import { ListRow } from "@/components/list-row";
 import { LockFirstEmpty } from "@/components/lock-first-empty";
 import { PostLockWaitingCard } from "@/components/post-lock-waiting";
-import { StatusStrip } from "@/components/status-strip";
 import { useSupper } from "@/components/supper-provider";
 import { useViewedWeek } from "@/components/use-viewed-week";
 import { Button } from "@/components/ui/button";
 import { useOptimisticValue } from "@/components/use-optimistic-value";
-import { formatWeekEyebrow } from "@/lib/dates";
-import { PAST_TITLES_ONLY } from "@/lib/week-navigator";
+import { formatWeekEyebrow, formatWeekRange } from "@/lib/dates";
+import { botCheckForSnapshot } from "@/lib/bot-check";
+import { viewedWeekDataSignature } from "@/lib/foreground-week-refresh";
+import { LIST_PAST_COPY, listBannerLine, listEyebrow, pastListEyebrow, type ShareGroup } from "@/lib/list-share";
 import { shoppingListTitle, weekHomeTitle } from "@/lib/open-weeks";
+import { steppableNights } from "@/lib/recipe-nav";
 import { isNightOff } from "@/lib/lock";
 import {
   DISMISS_SHOPPING_LABEL,
   DONE_SHOPPING_LABEL,
-  LIST_LOCKED_SECONDARY,
   LIST_NO_HOUSEHOLD,
   LIST_NOTHING_TO_BUY,
   LIST_PRE_LOCK_DESCRIPTION,
@@ -37,7 +44,9 @@ import { groupStickyStoreLists, listItemDisplay } from "@/lib/shopping";
 export default function ListPage() {
   return (
     <AuthGate>
-      <ListBody />
+      <Suspense>
+        <ListBody />
+      </Suspense>
     </AuthGate>
   );
 }
@@ -46,6 +55,30 @@ function ListBody() {
   const { snapshot, toggleItem, closeShoppingPrompt } = useSupper();
   const { role, scope, past } = useViewedWeek();
   const [pendingClose, setPendingClose] = useState<"done" | "dismissed" | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [toast, setToast] = useState<string | undefined>();
+  const dismissToast = useCallback(() => setToast(undefined), []);
+  useWeekUrlSync("/list");
+  // Foreground refresh follows the viewed (non-past) week on List too. No wake, no processing mark here.
+  const foregroundSignature = scope && !past ? viewedWeekDataSignature(scope) : "";
+  useForegroundWeekRefresh({
+    weekId: snapshot && scope && !past ? scope.week.id : null,
+    waiting:
+      snapshot && scope && !past
+        ? botCheckForSnapshot({
+            household: snapshot.household,
+            meals: scope.meals,
+            votes: scope.votes,
+            memberships: snapshot.memberships,
+            ballotRequest: scope.ballotRequest,
+            week: scope.week,
+            recipes: scope.recipes,
+            shoppingList: scope.shoppingList,
+          }).needs_work
+        : false,
+    signature: foregroundSignature,
+  });
+  const strip: ReactNode = <ListWeekStrip />;
   if (!snapshot) {
     return (
       <AppShell title="Shopping list">
@@ -56,15 +89,11 @@ function ListBody() {
 
   if (past) {
     return (
-      <AppShell
-        title="Shopping list"
-        eyebrow={formatWeekEyebrow(past.startsOn)}
-        backHref="/week"
-        backLabel={formatWeekEyebrow(past.startsOn)}
-      >
-        <p data-slot="past-week-list" className="type-body text-muted-foreground">
-          {PAST_TITLES_ONLY}
+      <AppShell title="Shopping list" eyebrow={pastListEyebrow(formatWeekRange(past.startsOn))} eyebrowMuted chrome={strip}>
+        <p data-slot="past-week-list" className="type-body mb-4 text-muted-foreground">
+          {LIST_PAST_COPY}
         </p>
+        <PastWeekDetail week={past} />
       </AppShell>
     );
   }
@@ -78,8 +107,8 @@ function ListBody() {
   }
 
   const locked = scope.week.status === "locked";
-  const listTitle = shoppingListTitle(role);
-  const backLabel = weekHomeTitle(role);
+  const listTitle = shoppingListTitle();
+  const eyebrow = listEyebrow(weekHomeTitle(role), formatWeekEyebrow(scope.week.startsOn, locked));
   const pendingFill = isPendingBotFill({
     weekStatus: scope.week.status,
     meals: scope.meals,
@@ -95,7 +124,7 @@ function ListBody() {
 
   if (!locked) {
     return (
-      <AppShell title={listTitle} eyebrow={formatWeekEyebrow(scope.week.startsOn)} backHref="/week" backLabel={backLabel}>
+      <AppShell title={listTitle} eyebrow={eyebrow} chrome={strip}>
         <LockFirstEmpty
           title={LOCK_FIRST_TITLE}
           description={LIST_PRE_LOCK_DESCRIPTION}
@@ -109,7 +138,7 @@ function ListBody() {
   const list = scope.shoppingList;
   if (pendingFill && (!list || list.items.length === 0)) {
     return (
-      <AppShell title={listTitle} eyebrow={formatWeekEyebrow(scope.week.startsOn, true)} backHref="/week" backLabel={backLabel}>
+      <AppShell title={listTitle} eyebrow={eyebrow} chrome={strip}>
         <PostLockWaitingCard weekRole={role} startsOn={scope.week.startsOn} />
       </AppShell>
     );
@@ -117,7 +146,7 @@ function ListBody() {
 
   if (!list || list.items.length === 0) {
     return (
-      <AppShell title={listTitle} eyebrow={formatWeekEyebrow(scope.week.startsOn, true)} backHref="/week" backLabel={backLabel}>
+      <AppShell title={listTitle} eyebrow={eyebrow} chrome={strip}>
         <div className="rounded-[14px] border border-dashed border-border bg-card p-5 shadow-card">
           <h2 className="type-section">Nothing to buy</h2>
           <p className="type-body mt-2 text-muted-foreground">{LIST_NOTHING_TO_BUY}</p>
@@ -128,15 +157,26 @@ function ListBody() {
 
   const groups = groupStickyStoreLists(list.items, snapshot.stores);
   const showAllergenLine = weekShowsAllergenCheckLine(snapshot, scope.week.id);
+  const shareGroups: ShareGroup[] = groups.map((group) => ({
+    store: group.label,
+    items: group.items.map((item) => ({ ...listItemDisplay(item), checked: item.checked })),
+  }));
+  const checkedCount = list.items.filter((item) => item.checked).length;
+  const dinners = steppableNights(scope.meals, scope.votes, snapshot.memberships).length;
 
   return (
     <AppShell
       title={listTitle}
-      eyebrow={formatWeekEyebrow(scope.week.startsOn, true)}
-      backHref="/week"
-      backLabel={backLabel}
-      status={<StatusStrip state="locked" people={[]} secondary={LIST_LOCKED_SECONDARY} />}
+      eyebrow={eyebrow}
+      chrome={strip}
+      titleAction={<ListShareButton onOpen={() => setShareOpen(true)} />}
     >
+      <p
+        data-slot="list-banner"
+        className="type-meta mb-4 rounded-[12px] bg-primary/10 px-4 py-2.5 text-primary"
+      >
+        {listBannerLine(checkedCount, list.items.length, dinners)}
+      </p>
       {showAllergenLine ? (
         <p data-slot="food-rule-check-line" className="type-meta mb-4 text-muted-foreground">
           {FOOD_RULE_CHECK_LINE}
@@ -212,6 +252,15 @@ function ListBody() {
           </Button>
         </div>
       ) : null}
+      <ListShareSheet
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        range={formatWeekRange(scope.week.startsOn)}
+        startsOn={scope.week.startsOn}
+        groups={shareGroups}
+        onToast={setToast}
+      />
+      <BallotToast message={toast} onDismiss={dismissToast} />
     </AppShell>
   );
 }

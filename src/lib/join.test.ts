@@ -99,7 +99,7 @@ describe("join landing and House invite surfaces", () => {
     const page = readFileSync(path.join(srcRoot, "app/join/[token]/page.tsx"), "utf8");
     const landing = readFileSync(path.join(srcRoot, "components/join-landing.tsx"), "utf8");
     const share = readFileSync(path.join(srcRoot, "components/invite-share.tsx"), "utf8");
-    const house = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
+    const house = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
     const provider = readFileSync(path.join(srcRoot, "components/supper-provider.tsx"), "utf8");
 
     expect(page).toContain("JoinLanding");

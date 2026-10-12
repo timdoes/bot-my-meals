@@ -1,5 +1,5 @@
-const CACHE = "supper-shell-v2";
-const SHELL = ["/", "/week", "/list", "/settings", "/login", "/setup", "/manifest.webmanifest"];
+const CACHE = "supper-shell-v3";
+const SHELL = ["/", "/week", "/list", "/house", "/settings", "/login", "/setup", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

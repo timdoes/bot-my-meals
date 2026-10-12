@@ -172,7 +172,7 @@ describe("planning people wiring", () => {
   it("shares the create path and keeps the gate off the house defaults editor", () => {
     const week = readFileSync(path.join(root, "app/week/page.tsx"), "utf8");
     const gate = readFileSync(path.join(root, "components/planning-people-gate.tsx"), "utf8");
-    const settings = readFileSync(path.join(root, "app/settings/page.tsx"), "utf8");
+    const settings = readFileSync(path.join(root, "app/house/page.tsx"), "utf8");
     const provider = readFileSync(path.join(root, "components/supper-provider.tsx"), "utf8");
     const sql = readFileSync(
       path.join(repoRoot, "supabase/migrations/20260928233000_planning_people_gate.sql"),
@@ -190,7 +190,8 @@ describe("planning people wiring", () => {
     expect(gate).not.toContain("updateHousehold");
     expect(settings).toContain("updateHousehold");
     expect(settings).toContain("<PeoplePerNight");
-    expect(settings).toContain('scope?.week.status === "locked"');
+    // Unlock leaves House (Meals only).
+    expect(settings).not.toContain("UnlockWeekControl");
     expect(settings).not.toContain("compactOffNights");
     expect(provider).toContain("savePlanningPeople");
     expect(provider).toContain("patchPlanningPeople");

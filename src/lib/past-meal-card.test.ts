@@ -99,7 +99,9 @@ describe("past, today, and future meal cards", () => {
     expect(past).not.toContain("dinner-people-stepper");
     expect(past).not.toContain("Fewer people");
     expect(past).not.toContain("week-locked-chip");
-    expect(past).not.toContain("<svg");
+    // Only the subtle › chevron (card opens the meal); no action icons.
+    expect(past.match(/<svg/g)?.length ?? 0).toBe(1);
+    expect(past).toContain('data-slot="meal-card-chevron"');
 
     const dayAt = past.indexOf('data-slot="meal-day-label"');
     const chipAt = past.indexOf('data-slot="made-chip"');

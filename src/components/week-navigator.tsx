@@ -20,6 +20,7 @@ export function WeekNavigator({
   mutedDates = [],
   onSelect,
   onStep,
+  interactive = true,
 }: {
   startsOn: string;
   nights: readonly WeekStripNight[];
@@ -30,6 +31,8 @@ export function WeekNavigator({
   onSelect: (mealId: string) => void;
   /** -1 is older, +1 is newer. False means the continuum edge (soft stop). */
   onStep: (direction: -1 | 1) => boolean;
+  /** False on List: same strip, cells are not buttons. */
+  interactive?: boolean;
 }) {
   const origin = useRef<{ x: number; y: number } | null>(null);
   const swallowClick = useRef(false);
@@ -120,6 +123,7 @@ export function WeekNavigator({
             todayIso={todayIso}
             locked={locked}
             mutedDates={mutedDates}
+            interactive={interactive}
             onSelect={(mealId) => {
               if (swallowClick.current) {
                 swallowClick.current = false;
@@ -165,7 +169,7 @@ function EdgeButton({
       data-slot={side === "previous" ? "week-nav-previous" : "week-nav-next"}
       aria-label={label}
       className={cn(
-        "absolute top-1 z-30 grid size-11 place-items-center text-foreground",
+        "absolute top-0.5 z-30 grid h-12 w-11 place-items-center text-foreground",
         side === "previous" ? "left-0 -translate-x-3" : "right-0 translate-x-3",
       )}
       onPointerDown={(event) => event.stopPropagation()}

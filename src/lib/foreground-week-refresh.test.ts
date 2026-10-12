@@ -418,9 +418,9 @@ describe("week processing mark", () => {
     const chrome = readSrc("components/week-chrome.tsx");
     const css = readSrc("app/globals.css");
     const meal = readSrc("app/week/[mealId]/page.tsx");
-    const settings = readSrc("app/settings/page.tsx");
+    const settings = readSrc("app/house/page.tsx");
     const list = readSrc("app/list/page.tsx");
-    const recipes = readSrc("app/recipes/page.tsx");
+    const recipes = readSrc("app/week/recipes/page.tsx");
     const worker = readFileSync(path.join(repoRoot, "public/sw.js"), "utf8");
 
     expect(BOT_CHECK_NOW_LABEL).toBe("Check now");
