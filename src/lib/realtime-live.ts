@@ -17,6 +17,11 @@ export const REALTIME_TABLES = [
   "ballot_requests",
   "saved_meals",
   "meal_dislikes",
+  "household_eaters",
+  "food_rules",
+  "week_night_lists",
+  "week_night_attendees",
+  "recipe_food_holds",
 ] as const;
 
 export const REALTIME_RESUBSCRIBE_MS = 5_000;
