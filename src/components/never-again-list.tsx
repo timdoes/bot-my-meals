@@ -22,9 +22,13 @@ export function NeverAgainList({
   }
 
   return (
-    <ul data-slot="never-again-list" className="space-y-3">
+    <ul data-slot="never-again-list" className="overflow-hidden rounded-[14px] bg-card shadow-card">
       {visible.map((meal) => (
-        <li key={meal.recipeKey} data-slot="never-again-row" className="rounded-[14px] bg-card px-5 py-4 shadow-card">
+        <li
+          key={meal.recipeKey}
+          data-slot="never-again-row"
+          className="flex min-h-14 items-center justify-between gap-3 border-b border-border px-5 py-3 last:border-0"
+        >
           <p className="type-body font-semibold">{meal.title}</p>
           {canAct ? (
             <button
@@ -33,7 +37,7 @@ export function NeverAgainList({
               onClick={() => {
                 void onAllow(meal.recipeKey).catch(() => undefined);
               }}
-              className="tap-target mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-button)] border border-border bg-card px-3 text-sm font-semibold"
+              className="tap-target inline-flex min-h-11 shrink-0 items-center justify-center px-1 text-sm font-semibold text-primary"
             >
               {ALLOW_AGAIN_LABEL}
             </button>
