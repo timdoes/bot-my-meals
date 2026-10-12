@@ -1,17 +1,20 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { FOOD_RULE_NEEDS_CHANGE } from "./food-rules";
 import {
   LIST_LOCKED_SECONDARY,
   LIST_NO_HOUSEHOLD,
   LIST_NOTHING_TO_BUY,
   LIST_PRE_LOCK_DESCRIPTION,
   LOCK_FIRST_TITLE,
+  LOCK_FOOD_RULE_ERROR,
   LOCK_SUCCESS_LIST_CTA,
   LOCK_SUCCESS_RECIPES_CTA,
   RECIPES_EMPTY_WEEK,
   RECIPES_NO_HOUSEHOLD,
   RECIPES_PRE_LOCK_DESCRIPTION,
+  REORDER_FOOD_RULE_ERROR,
   lockSuccessRecipesCta,
   lockSuccessRecipesKicker,
 } from "./lock-success";
@@ -29,6 +32,11 @@ describe("lock-success copy", () => {
     expect(blob).not.toContain("cart");
     expect(blob).not.toContain("$");
     expect(LIST_LOCKED_SECONDARY).toContain("No prices");
+    expect(LOCK_FOOD_RULE_ERROR).toBe(FOOD_RULE_NEEDS_CHANGE);
+    expect(REORDER_FOOD_RULE_ERROR.toLowerCase()).toContain("conflicts with a food rule");
+    expect(`${LOCK_FOOD_RULE_ERROR} ${REORDER_FOOD_RULE_ERROR}`.toLowerCase()).not.toMatch(
+      /\btap\b|\bclick\b|\biphone\b|\bgrandma\b/,
+    );
   });
 
   it("replaces Approve/Skip lock-first empties with week-lock copy", () => {
@@ -118,7 +126,7 @@ describe("Clear Sky lock-success craft", () => {
     expect(lockBar).toContain('<Lock className="size-5" />');
     expect(lockBar).toContain('<Loader2 className="size-5 animate-spin" aria-hidden />');
     expect(lockBar).toContain("Locking…");
-    expect(lockBar).toContain("disabled={busy}");
+    expect(lockBar).toContain("disabled={busy || foodRuleBlock}");
     expect(lockBar).toMatch(/variant="primary"[\s\S]*?className="w-full gap-2 shadow-float"/);
     expect(lockBar).not.toMatch(/data-state="ready"[\s\S]*variant="outline"/);
   });

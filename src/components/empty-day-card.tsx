@@ -29,10 +29,27 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { useOptionalSupper } from "@/components/whos-eating-sheet";
+import { useViewedWeek } from "@/components/use-viewed-week";
 import { mealCardControlId } from "@/lib/dates";
 import { MAX_HEADCOUNT, MIN_HEADCOUNT, dinnerRequestPeople } from "@/lib/headcount";
+import { useFoodRuleHeadsUp } from "@/components/use-food-rule-heads-up";
+import {
+  FOOD_RULE_HEADS_UP_ANYWAY,
+  FOOD_RULE_HEADS_UP_ELSE,
+} from "@/lib/food-rule-check";
+import { isFoodRulesSchemaReady } from "@/lib/supabase/missing-schema";
 import { AWAITING_MEAL_LABEL } from "@/lib/wake-feedback";
+import { namedListForRequest, WHOS_EATING_STEPPER_FLOOR } from "@/lib/whos-eating";
 import { cn } from "@/lib/utils";
+
+function useOptionalViewedWeek(): ReturnType<typeof useViewedWeek> | null {
+  try {
+    return useViewedWeek();
+  } catch {
+    return null;
+  }
+}
 
 function renderEmptyDayBody({
   state,
@@ -124,6 +141,15 @@ export function EmptyDayCard({
   const [people, setPeople] = useState(() => dinnerRequestPeople(servings));
   const noteFieldId = mealCardControlId("add-note", dayLabel);
   const peopleFieldId = mealCardControlId("add-people", dayLabel);
+  const headsUp = useFoodRuleHeadsUp({ text: draft, dayName });
+  const supper = useOptionalSupper();
+  const viewed = useOptionalViewedWeek();
+  const named = namedListForRequest({
+    schemaReady: isFoodRulesSchemaReady(),
+    snapshot: supper?.snapshot ?? null,
+    weekId: viewed?.scope?.week.id ?? null,
+    dayName,
+  });
 
   const beginAdd = () => {
     setPeople(dinnerRequestPeople(servings));
@@ -132,10 +158,16 @@ export function EmptyDayCard({
 
   const requestDinner = () => {
     if (!onAdd) return;
+    if (!headsUp.trySend()) return;
+    if (named && supper) {
+      const guests = Math.max(0, dinnerRequestPeople(people) - named.peopleCount);
+      void supper.setNightGuests(named.weekId, named.dayIndex, guests);
+    }
     const pending = onAdd(draft.trim(), dinnerRequestPeople(people));
     setDraft("");
     setPeople(dinnerRequestPeople(servings));
     setOpen(false);
+    headsUp.requestSomethingElse();
     void Promise.resolve(pending).catch(() => undefined);
   };
 
@@ -185,40 +217,92 @@ export function EmptyDayCard({
               <Label htmlFor={peopleFieldId} className="type-meta text-muted-foreground">
                 {ADD_SHEET_PEOPLE_LABEL}
               </Label>
-              <div
-                data-slot="dinner-people-stepper"
-                className="flex items-center justify-between gap-3 rounded-[14px] bg-secondary px-3 py-2"
-              >
-                <button
-                  type="button"
-                  aria-label={`Fewer people on ${dayName}`}
-                  disabled={people <= MIN_HEADCOUNT}
-                  onClick={() => setPeople(dinnerRequestPeople(people - 1))}
-                  className="tap-target flex size-12 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-card disabled:opacity-40"
+              {named ? (
+                <div
+                  data-slot="dinner-people-stepper"
+                  data-mode="guests"
+                  className="space-y-2"
                 >
-                  <Minus className="size-5" />
-                </button>
-                <input
-                  id={peopleFieldId}
-                  type="number"
-                  inputMode="numeric"
-                  min={MIN_HEADCOUNT}
-                  max={MAX_HEADCOUNT}
-                  value={people}
-                  onChange={(event) => setPeople(dinnerRequestPeople(Number(event.target.value)))}
-                  aria-label={`People on ${dayName}`}
-                  className="h-12 w-14 rounded-[var(--radius-button)] border border-border bg-card text-center font-mono text-lg font-semibold tabular-nums"
-                />
-                <button
-                  type="button"
-                  aria-label={`More people on ${dayName}`}
-                  disabled={people >= MAX_HEADCOUNT}
-                  onClick={() => setPeople(dinnerRequestPeople(people + 1))}
-                  className="tap-target flex size-12 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-card disabled:opacity-40"
+                  <div className="flex items-center justify-between gap-3 rounded-[14px] bg-secondary px-3 py-2">
+                    <button
+                      type="button"
+                      aria-label={`Fewer guests on ${dayName}`}
+                      disabled={people <= named.peopleCount}
+                      onClick={() => setPeople(Math.max(named.peopleCount, people - 1))}
+                      className="tap-target flex size-12 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-card disabled:opacity-40"
+                    >
+                      <Minus className="size-5" />
+                    </button>
+                    <input
+                      id={peopleFieldId}
+                      type="number"
+                      inputMode="numeric"
+                      min={named.peopleCount}
+                      max={MAX_HEADCOUNT}
+                      value={people}
+                      onChange={(event) =>
+                        setPeople(
+                          Math.min(
+                            MAX_HEADCOUNT,
+                            Math.max(named.peopleCount, Number(event.target.value) || named.peopleCount),
+                          ),
+                        )
+                      }
+                      aria-label={`People on ${dayName}`}
+                      className="h-12 w-14 rounded-[var(--radius-button)] border border-border bg-card text-center font-mono text-lg font-semibold tabular-nums"
+                    />
+                    <button
+                      type="button"
+                      aria-label={`More guests on ${dayName}`}
+                      disabled={people >= MAX_HEADCOUNT}
+                      onClick={() => setPeople(Math.min(MAX_HEADCOUNT, people + 1))}
+                      className="tap-target flex size-12 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-card disabled:opacity-40"
+                    >
+                      <Plus className="size-5" />
+                    </button>
+                  </div>
+                  {people <= named.peopleCount ? (
+                    <p data-slot="whos-eating-stepper-floor" className="type-meta text-muted-foreground">
+                      {WHOS_EATING_STEPPER_FLOOR}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div
+                  data-slot="dinner-people-stepper"
+                  className="flex items-center justify-between gap-3 rounded-[14px] bg-secondary px-3 py-2"
                 >
-                  <Plus className="size-5" />
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    aria-label={`Fewer people on ${dayName}`}
+                    disabled={people <= MIN_HEADCOUNT}
+                    onClick={() => setPeople(dinnerRequestPeople(people - 1))}
+                    className="tap-target flex size-12 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-card disabled:opacity-40"
+                  >
+                    <Minus className="size-5" />
+                  </button>
+                  <input
+                    id={peopleFieldId}
+                    type="number"
+                    inputMode="numeric"
+                    min={MIN_HEADCOUNT}
+                    max={MAX_HEADCOUNT}
+                    value={people}
+                    onChange={(event) => setPeople(dinnerRequestPeople(Number(event.target.value)))}
+                    aria-label={`People on ${dayName}`}
+                    className="h-12 w-14 rounded-[var(--radius-button)] border border-border bg-card text-center font-mono text-lg font-semibold tabular-nums"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`More people on ${dayName}`}
+                    disabled={people >= MAX_HEADCOUNT}
+                    onClick={() => setPeople(dinnerRequestPeople(people + 1))}
+                    className="tap-target flex size-12 items-center justify-center rounded-[var(--radius-button)] bg-card text-foreground shadow-card disabled:opacity-40"
+                  >
+                    <Plus className="size-5" />
+                  </button>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor={noteFieldId} className="type-meta text-muted-foreground">
@@ -232,8 +316,44 @@ export function EmptyDayCard({
                 className="min-h-24 rounded-[var(--radius-button)] text-base"
               />
             </div>
+            {headsUp.warning ? (
+              <p data-slot="food-rule-heads-up" className="type-body text-destructive">
+                {headsUp.warning}
+              </p>
+            ) : null}
           </div>
           <SheetFooter className="flex-row gap-2">
+            {headsUp.pending ? (
+              <>
+                <Button
+                  type="button"
+                  size="fat"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => headsUp.requestSomethingElse()}
+                >
+                  {FOOD_RULE_HEADS_UP_ELSE}
+                </Button>
+                <Button
+                  type="button"
+                  size="fat"
+                  variant="primary"
+                  className="flex-1 shadow-float"
+                  onClick={() => {
+                    if (!onAdd) return;
+                    headsUp.requestAnyway();
+                    const pending = onAdd(draft.trim(), dinnerRequestPeople(people));
+                    setDraft("");
+                    setPeople(dinnerRequestPeople(servings));
+                    setOpen(false);
+                    void Promise.resolve(pending).catch(() => undefined);
+                  }}
+                >
+                  {FOOD_RULE_HEADS_UP_ANYWAY}
+                </Button>
+              </>
+            ) : (
+              <>
             <Button
               type="button"
               size="fat"
@@ -252,6 +372,8 @@ export function EmptyDayCard({
             >
               {ADD_SHEET_SEND}
             </Button>
+              </>
+            )}
           </SheetFooter>
         </SheetContent>
       </Sheet> : null}

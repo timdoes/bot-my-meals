@@ -473,7 +473,9 @@ export function botCheckForSnapshot(snapshot: {
   return deriveBotCheckStatus({
     mode: household.botCheckMode,
     intervalHours: household.botCheckIntervalHours,
-    setupComplete: isHouseSetupComplete(household.setupStep),
+    setupComplete: isHouseSetupComplete(household.setupStep, {
+      alreadyCreatedMeals: Boolean(ballot),
+    }),
     ballotStatus: ballot ? parseBallotRequestStatus(ballot.status) : null,
     ballotHouseholdSize: ballot?.householdSize ?? null,
     ballotNightHeadcounts: ballot?.nightHeadcounts ?? null,

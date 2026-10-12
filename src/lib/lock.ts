@@ -1,6 +1,28 @@
 import { weekdayLabelFromNight } from "./dates";
 import { memberInitials } from "./initials";
+import { LOCK_FOOD_RULE_ERROR, REORDER_FOOD_RULE_ERROR } from "./lock-success";
 import type { Meal, Membership, NightLifecycle, Role, Vote, VoteChoice } from "./types";
+
+const FOOD_RULE_NEEDS_CHANGE_PREFIX = "food_rule_needs_change";
+const FOOD_RULE_CONFLICT_PREFIX = "food_rule_conflict";
+
+export function mapLockWeekError(message: string): string {
+  return message.toLowerCase().includes(FOOD_RULE_NEEDS_CHANGE_PREFIX)
+    ? LOCK_FOOD_RULE_ERROR
+    : message;
+}
+
+export function mapMealReorderError(message: string): string {
+  return message.toLowerCase().includes(FOOD_RULE_CONFLICT_PREFIX)
+    ? REORDER_FOOD_RULE_ERROR
+    : message;
+}
+
+export function mapFoodRuleActionError(message: string): string {
+  const lock = mapLockWeekError(message);
+  if (lock !== message) return lock;
+  return mapMealReorderError(message);
+}
 
 export const LAST_WRITER_WINS_TOAST = "Updated for this night.";
 

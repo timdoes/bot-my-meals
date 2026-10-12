@@ -27,7 +27,7 @@ import { useBotWorking } from "@/components/use-bot-wake";
 import { useForegroundWeekRefresh } from "@/components/use-foreground-week-refresh";
 import { useViewedWeek } from "@/components/use-viewed-week";
 import { WeekProcessingMark } from "@/components/week-processing-mark";
-import { isHouseSetupComplete, shouldShowHouseSetup } from "@/lib/house-setup";
+import { alreadyCreatedMealsFromSnapshot, isHouseSetupComplete, shouldShowHouseSetup } from "@/lib/house-setup";
 import { isAdmin } from "@/lib/users";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,7 +72,8 @@ import {
 } from "@/lib/week-navigator";
 import { isPendingBotFill, lockedDinnerTap, POST_LOCK_GET_RECIPES_NEXT_HINT, POST_LOCK_GET_RECIPES_NEXT_WAKE_HINT } from "@/lib/post-lock-waiting";
 import { focusNightCard, nightCardAnchorId } from "@/lib/week-strip";
-import { canActOnBallot, checkWeekLock, latestVoteForMeal, nightLifecycle } from "@/lib/lock";
+import { reorderFoodRuleConflict } from "@/lib/food-rule-check";
+import { canActOnBallot, checkWeekLock, latestVoteForMeal, mapMealReorderError, nightLifecycle } from "@/lib/lock";
 import { recipeNightsForWeek } from "@/lib/recipes";
 import {
   dinnerNightActionsOpen,
@@ -102,7 +103,12 @@ function WeekBody() {
   const setupRequested = searchParams.get("setup") === "1";
 
   if (!snapshot) return <Onboarding />;
-  if (setupRequested && shouldShowHouseSetup(session?.role, snapshot.household.setupStep)) {
+  if (
+    setupRequested &&
+    shouldShowHouseSetup(session?.role, snapshot.household.setupStep, {
+      alreadyCreatedMeals: alreadyCreatedMealsFromSnapshot(snapshot),
+    })
+  ) {
     return <SetupWizard />;
   }
   return <WeekBallot />;
@@ -171,12 +177,16 @@ function WeekBallot() {
   );
 
   const editOpen = Boolean(scope && editWeekId === scope.week.id);
+  const alreadyCreatedMeals = alreadyCreatedMealsFromSnapshot(snapshot);
 
   const stepWeek = useCallback(
     (direction: -1 | 1) => {
       const result = stepNavigator(stops, index, direction);
       const canPlan =
-        isAdmin(session?.role) && isHouseSetupComplete(snapshot?.household.setupStep ?? 0);
+        isAdmin(session?.role) &&
+        isHouseSetupComplete(snapshot?.household.setupStep ?? 0, {
+          alreadyCreatedMeals,
+        });
       if (
         futureSwipeCreatesPlanning({
           direction,
@@ -197,7 +207,7 @@ function WeekBallot() {
       router.replace(navigatorHref(selection), { scroll: false });
       return true;
     },
-    [stops, index, setViewedWeek, router, hasPlanning, session?.role, snapshot?.household.setupStep, startPlanning],
+    [stops, index, setViewedWeek, router, hasPlanning, session?.role, snapshot?.household.setupStep, alreadyCreatedMeals, startPlanning],
   );
 
   const moveMeals = useCallback(
@@ -214,6 +224,13 @@ function WeekBallot() {
       const source = scope.meals.find((meal) => meal.id === sourceId);
       const target = scope.meals.find((meal) => meal.id === targetId);
       if (!source || !target) return;
+      const foodRuleHit = reorderFoodRuleConflict(snapshot, sourceId, targetId);
+      if (foodRuleHit) {
+        const message = mapMealReorderError(`food_rule_conflict: ${foodRuleHit.foodLabel}`);
+        setReorderStatus(message);
+        setToast(message);
+        return;
+      }
       setReorderBusy(new Set([sourceId, targetId]));
       setReorderStatus(
         mealReorderAnnouncement({
@@ -224,7 +241,9 @@ function WeekBallot() {
         }),
       );
       void reorderMeals(sourceId, targetId)
-        .catch(() => setReorderStatus(""))
+        .catch((err) => {
+          setReorderStatus(mapMealReorderError(err instanceof Error ? err.message : ""));
+        })
         .finally(() => setReorderBusy(new Set()));
     },
     [snapshot, scope, reorderMeals],
@@ -760,7 +779,9 @@ function EmptyWeek({ onCreateMeals }: { onCreateMeals: () => Promise<string> }) 
   const { scope, role } = useViewedWeek();
   const wakeConfigured = useBotWakeConfigured();
   const [creating, setCreating] = useState(false);
-  const setupIncomplete = !isHouseSetupComplete(snapshot?.household.setupStep ?? 8);
+  const setupIncomplete = !isHouseSetupComplete(snapshot?.household.setupStep ?? 8, {
+    alreadyCreatedMeals: alreadyCreatedMealsFromSnapshot(snapshot),
+  });
   const botCheck = snapshot ? botCheckForHousehold(snapshot) : null;
   const copy = emptyWeekPresentation({
     setupIncomplete,

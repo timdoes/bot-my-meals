@@ -26,8 +26,10 @@ import {
   shouldShowHouseSetup,
   weeklyBudgetCurrencyPrefix,
 } from "@/lib/house-setup";
+import { foodRulesHouseRowLine, isFoodRulesAvailable } from "@/components/food-rules";
 import { HOUSE_PEOPLE_DEFAULTS_NOTE } from "@/lib/edit-nights";
-import { NEVER_AGAIN_LIST_LABEL } from "@/lib/meal-dislikes";
+import { FOOD_RULES_TITLE } from "@/lib/food-rules";
+import { NEVER_AGAIN_LIST_LABEL, neverAgainMeals } from "@/lib/meal-dislikes";
 import { PAST_WEEKS_LABEL } from "@/lib/meal-history";
 import { FAVORITES_LABEL } from "@/lib/saved-meals";
 import { isAdmin, roleLabel } from "@/lib/users";
@@ -115,14 +117,34 @@ function SettingsBody() {
           <span className="type-section text-primary">{FAVORITES_LABEL}</span>
           <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
         </Link>
-        <Link
-          href="/settings/never-again"
-          data-slot="never-again-house-row"
-          className="flex min-h-12 items-center justify-between gap-3 rounded-[14px] bg-card px-5 py-3 shadow-card"
-        >
-          <span className="type-section text-primary">{NEVER_AGAIN_LIST_LABEL}</span>
-          <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-        </Link>
+        {isFoodRulesAvailable() ? (
+          <Link
+            href="/settings/food-rules"
+            data-slot="food-rules-house-row"
+            className="flex min-h-12 items-center justify-between gap-3 rounded-[14px] bg-card px-5 py-3 shadow-card"
+          >
+            <span className="min-w-0">
+              <span className="type-section block text-primary">{FOOD_RULES_TITLE}</span>
+              <span className="type-meta mt-0.5 block text-muted-foreground">
+                {foodRulesHouseRowLine(
+                  snapshot.foodRules,
+                  snapshot.household.foodRulesReviewedAt,
+                  neverAgainMeals(snapshot.mealDislikes).length,
+                )}
+              </span>
+            </span>
+            <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        ) : (
+          <Link
+            href="/settings/never-again"
+            data-slot="never-again-house-row"
+            className="flex min-h-12 items-center justify-between gap-3 rounded-[14px] bg-card px-5 py-3 shadow-card"
+          >
+            <span className="type-section text-primary">{NEVER_AGAIN_LIST_LABEL}</span>
+            <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        )}
         <Link
           href="/settings/history"
           data-slot="past-weeks-row"

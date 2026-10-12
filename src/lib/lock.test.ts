@@ -7,12 +7,16 @@ import {
   isNightOff,
   lastWriterWinsToast,
   latestVoteForMeal,
+  mapFoodRuleActionError,
+  mapLockWeekError,
+  mapMealReorderError,
   migrateVoteChoice,
   nightLifecycle,
   pendingAddLockReason,
   voterProgressSummary,
   weekVoterProgress,
 } from "./lock";
+import { LOCK_FOOD_RULE_ERROR, REORDER_FOOD_RULE_ERROR } from "./lock-success";
 import type { Meal, Membership, Vote } from "./types";
 
 const voters: Membership[] = [
@@ -165,6 +169,18 @@ describe("checkWeekLock", () => {
     const result = checkWeekLock([], [], voters);
     expect(result.ready).toBe(false);
     expect(result.reason).toBe("Add dinners before you can lock this week.");
+  });
+
+  it("maps food_rule_needs_change without changing other lock reasons", () => {
+    expect(mapLockWeekError("food_rule_needs_change: Peanuts on night 2")).toBe(LOCK_FOOD_RULE_ERROR);
+    expect(mapLockWeekError("Add dinners before you can lock this week.")).toBe(
+      "Add dinners before you can lock this week.",
+    );
+    expect(mapMealReorderError("food_rule_conflict: Peanuts")).toBe(REORDER_FOOD_RULE_ERROR);
+    expect(mapFoodRuleActionError("food_rule_needs_change: Peanuts")).toBe(LOCK_FOOD_RULE_ERROR);
+    const ready = checkWeekLock(meals, [], voters);
+    expect(ready.ready).toBe(true);
+    expect(ready.reason).toBe("Nights are set. No open swaps or pending meals.");
   });
 
   it("needs at least one voting member", () => {

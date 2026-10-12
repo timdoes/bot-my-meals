@@ -17,6 +17,24 @@ import type {
   Week,
   WeekScope,
 } from "@/lib/types";
+import {
+  FOOD_RULES_EATER_READONLY,
+  NIGHTS_EATER_READONLY,
+  assertFoodRulesWriter,
+  foodKeyFromLabel,
+  nightPeopleToJson,
+  normalizeEaterName,
+  normalizeFoodLabel,
+  parseFoodRules,
+  parseHouseholdEaters,
+  parseRecipeFoodHolds,
+  parseWeekNightAttendees,
+  parseWeekNightLists,
+  validateEaterName,
+  validateFoodRuleDraft,
+  type FoodRuleDraft,
+  type NightPeopleInput,
+} from "@/lib/food-rules";
 import type { MemberDraft } from "@/lib/users";
 import { voteNotePersists, voteSavesDinnerPeople } from "@/lib/ballot";
 import {
@@ -28,6 +46,7 @@ import {
   type BotCheckStatus,
 } from "@/lib/bot-check";
 import {
+  HOUSE_SETUP_DONE_STEP,
   clampHouseSetupStep,
   clampHouseholdSize,
   clampNightsPlanned,
@@ -52,6 +71,12 @@ import { parseSavedMeals } from "@/lib/saved-meals";
 import { redactUntilLocked } from "@/lib/visibility";
 import { scaleIngredientQuantity, shoppingListsToRebuild, withRebuiltShoppingLists } from "@/lib/shopping";
 import { parseEditableFrom, parseShoppingPrompt } from "@/lib/week-chrome";
+import {
+  SETUP_EIGHT_STEP_READY_RPC,
+  optionalFoodRulesRows,
+  parseSetupEightStepReady,
+  syncHouseSetupEightStepGate,
+} from "@/lib/supabase/missing-schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 function mapBallotRequest(
@@ -210,6 +235,12 @@ export async function fetchSupabaseSnapshot(
     historyRes,
     savedMealsRes,
     mealDislikesRes,
+    eatersRes,
+    foodRulesRes,
+    nightListsRes,
+    nightAttendeesRes,
+    foodHoldsRes,
+    eightStepReadyRes,
   ] = await Promise.all([
     client.from("households").select("*").eq("id", householdId).single(),
     client.from("memberships").select("*").eq("household_id", householdId),
@@ -251,11 +282,42 @@ export async function fetchSupabaseSnapshot(
       .select("*")
       .eq("household_id", householdId)
       .order("updated_at", { ascending: false }),
+    client
+      .from("household_eaters")
+      .select("*")
+      .eq("household_id", householdId)
+      .order("created_at", { ascending: true }),
+    client
+      .from("food_rules")
+      .select("*")
+      .eq("household_id", householdId)
+      .order("created_at", { ascending: false }),
+    client.from("week_night_lists").select("*").eq("household_id", householdId),
+    client.from("week_night_attendees").select("*").eq("household_id", householdId),
+    client
+      .from("recipe_food_holds")
+      .select("*")
+      .eq("household_id", householdId)
+      .order("created_at", { ascending: false }),
+    client.rpc(SETUP_EIGHT_STEP_READY_RPC),
   ]);
 
   const householdRow = required(householdRes.data, householdRes.error, "Household not found");
   if (weekRes.error) throw new Error(weekRes.error.message);
   if (listRes.error) throw new Error(listRes.error.message);
+  const eaters = optionalFoodRulesRows(eatersRes, parseHouseholdEaters);
+  const foodRules = optionalFoodRulesRows(foodRulesRes, parseFoodRules);
+  const nightLists = optionalFoodRulesRows(nightListsRes, parseWeekNightLists);
+  const nightAttendees = optionalFoodRulesRows(nightAttendeesRes, parseWeekNightAttendees);
+  const foodHolds = optionalFoodRulesRows(foodHoldsRes, parseRecipeFoodHolds);
+  const schemaReady =
+    eaters.ready && foodRules.ready && nightLists.ready && nightAttendees.ready && foodHolds.ready;
+  // Snapshot flag HOUSE_SETUP_EIGHT_STEP_FLAG / isHouseSetupEightStepLive().
+  // Missing setup_eight_step_ready (PGRST202/42883) or false keeps 7-step.
+  syncHouseSetupEightStepGate({
+    schemaReady,
+    remapReady: parseSetupEightStepReady(eightStepReadyRes),
+  });
   const botCheck = normalizeBotCheckSetting(
     householdRow.bot_check_mode,
     householdRow.bot_check_interval_hours,
@@ -379,7 +441,11 @@ export async function fetchSupabaseSnapshot(
         coupleSize: householdRow.couple_size,
       }),
       timezone: householdRow.timezone,
-      setupStep: clampHouseSetupStep(householdRow.setup_step ?? 8),
+      setupStep: clampHouseSetupStep(householdRow.setup_step ?? HOUSE_SETUP_DONE_STEP),
+      foodRulesReviewedAt:
+        typeof householdRow.food_rules_reviewed_at === "string"
+          ? householdRow.food_rules_reviewed_at
+          : null,
       weeklyBudgetCents:
         typeof householdRow.weekly_budget_cents === "number"
           ? householdRow.weekly_budget_cents
@@ -435,6 +501,11 @@ export async function fetchSupabaseSnapshot(
     mealHistory: parseMealHistory(historyRes.error ? null : historyRes.data),
     savedMeals: parseSavedMeals(savedMealsRes.error ? null : savedMealsRes.data),
     mealDislikes: parseMealDislikes(mealDislikesRes.error ? null : mealDislikesRes.data),
+    eaters: eaters.rows,
+    foodRules: foodRules.rows,
+    nightLists: nightLists.rows,
+    nightAttendees: nightAttendees.rows,
+    foodHolds: foodHolds.rows,
   };
 
   return redactUntilLocked(snapshot);
@@ -1300,7 +1371,7 @@ export async function supabaseBotCheckStatus(client: SupabaseClient): Promise<Bo
   const household = {
     botCheckMode: botCheck.mode,
     botCheckIntervalHours: botCheck.intervalHours,
-    setupStep: clampHouseSetupStep(householdRow.setup_step ?? 8),
+    setupStep: clampHouseSetupStep(householdRow.setup_step ?? HOUSE_SETUP_DONE_STEP),
     householdSize: clampHouseholdSize(householdRow.household_size ?? householdRow.family_size),
     nightHeadcounts: normalizeNightHeadcounts(householdRow.night_headcounts, {
       coupleNights: householdRow.couple_nights,
@@ -1438,4 +1509,192 @@ export async function supabaseBotCheckStatus(client: SupabaseClient): Promise<Bo
   }
 
   return { ok: true, body: preferBotCheckStatus(statuses) };
+}
+
+function requireHouseholdWriter(session: Session, message: string) {
+  if (!session.householdId) throw new Error("Not in a household");
+  assertFoodRulesWriter(session.role, message);
+}
+
+export async function supabaseAddEater(
+  client: SupabaseClient,
+  session: Session,
+  displayName: string,
+) {
+  requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
+  const name = normalizeEaterName(displayName);
+  const error = validateEaterName(name, []);
+  if (error) throw new Error(error);
+  const { error: insertError } = await client.from("household_eaters").insert({
+    household_id: session.householdId,
+    display_name: name,
+  });
+  if (insertError) throw new Error(insertError.message);
+}
+
+export async function supabaseRenameEater(
+  client: SupabaseClient,
+  session: Session,
+  eaterId: string,
+  displayName: string,
+) {
+  requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
+  const name = normalizeEaterName(displayName);
+  const error = validateEaterName(name, []);
+  if (error) throw new Error(error);
+  const { error: updateError } = await client
+    .from("household_eaters")
+    .update({ display_name: name })
+    .eq("id", eaterId)
+    .eq("household_id", session.householdId);
+  if (updateError) throw new Error(updateError.message);
+}
+
+export async function supabaseRemoveEater(
+  client: SupabaseClient,
+  session: Session,
+  eaterId: string,
+) {
+  requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
+  const { error } = await client
+    .from("household_eaters")
+    .delete()
+    .eq("id", eaterId)
+    .eq("household_id", session.householdId);
+  if (error) throw new Error(error.message);
+}
+
+export async function supabaseAddFoodRule(
+  client: SupabaseClient,
+  session: Session,
+  draft: FoodRuleDraft,
+) {
+  requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
+  const invalid = validateFoodRuleDraft(draft);
+  if (invalid) throw new Error(invalid);
+  const foodLabel = normalizeFoodLabel(draft.foodLabel);
+  const { error } = await client.from("food_rules").insert({
+    household_id: session.householdId,
+    subject_membership_id: draft.subjectMembershipId ?? null,
+    subject_eater_id: draft.subjectEaterId ?? null,
+    food_label: foodLabel,
+    food_key: foodKeyFromLabel(foodLabel),
+    allergen_code: draft.allergenCode ?? null,
+    severity: draft.severity,
+    details: (draft.details ?? "").trim(),
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function supabaseUpdateFoodRule(
+  client: SupabaseClient,
+  session: Session,
+  ruleId: string,
+  draft: FoodRuleDraft,
+) {
+  requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
+  const invalid = validateFoodRuleDraft(draft);
+  if (invalid) throw new Error(invalid);
+  const foodLabel = normalizeFoodLabel(draft.foodLabel);
+  const { error } = await client
+    .from("food_rules")
+    .update({
+      subject_membership_id: draft.subjectMembershipId ?? null,
+      subject_eater_id: draft.subjectEaterId ?? null,
+      food_label: foodLabel,
+      food_key: foodKeyFromLabel(foodLabel),
+      allergen_code: draft.allergenCode ?? null,
+      severity: draft.severity,
+      details: (draft.details ?? "").trim(),
+    })
+    .eq("id", ruleId)
+    .eq("household_id", session.householdId);
+  if (error) throw new Error(error.message);
+}
+
+export async function supabaseRemoveFoodRule(
+  client: SupabaseClient,
+  session: Session,
+  ruleId: string,
+) {
+  requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
+  const { error } = await client
+    .from("food_rules")
+    .delete()
+    .eq("id", ruleId)
+    .eq("household_id", session.householdId);
+  if (error) throw new Error(error.message);
+}
+
+/** Sets `food_rules_reviewed_at` via RPC so Admin and User can both persist it. */
+export async function supabaseMarkFoodRulesReviewed(client: SupabaseClient, session: Session) {
+  requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
+  const { error } = await client.rpc("set_food_rules_reviewed", {
+    p_household_id: session.householdId,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function supabaseSaveWeekPeopleV2(
+  client: SupabaseClient,
+  session: Session,
+  weekId: string,
+  counts: number[],
+  instructions: string | null,
+  attendees: readonly NightPeopleInput[] | null,
+) {
+  requireHouseholdWriter(session, NIGHTS_EATER_READONLY);
+  const { data, error } = await client.rpc("save_week_people_v2", {
+    target_week: weekId,
+    counts: normalizeNightHeadcounts(counts),
+    instructions,
+    p_attendees: attendees == null ? null : nightPeopleToJson(attendees),
+  });
+  if (error) throw new Error(error.message);
+  if (typeof data !== "string" || !data) throw new Error("Couldn\u2019t save nights. Try again.");
+  return data;
+}
+
+export async function supabaseSavePlanningPeopleV2(
+  client: SupabaseClient,
+  session: Session,
+  counts: number[],
+  instructions: string,
+  attendees: readonly NightPeopleInput[] | null,
+) {
+  requireHouseholdWriter(session, NIGHTS_EATER_READONLY);
+  const { data, error } = await client.rpc("save_planning_people_v2", {
+    counts: normalizeNightHeadcounts(counts),
+    instructions,
+    p_attendees: attendees == null ? null : nightPeopleToJson(attendees),
+  });
+  if (error) throw new Error(error.message);
+  if (typeof data !== "string" || !data) throw new Error("Could not save people per night.");
+  return data;
+}
+
+export async function supabaseSetNightGuests(
+  client: SupabaseClient,
+  session: Session,
+  weekId: string,
+  dayIndex: number,
+  guests: number,
+) {
+  requireHouseholdWriter(session, NIGHTS_EATER_READONLY);
+  const { error } = await client.rpc("set_night_guests", {
+    p_week: weekId,
+    p_day: dayIndex,
+    p_guests: guests,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function supabaseAckFoodHold(
+  client: SupabaseClient,
+  session: Session,
+  holdId: string,
+) {
+  requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
+  const { error } = await client.rpc("ack_recipe_food_hold", { p_hold: holdId });
+  if (error) throw new Error(error.message);
 }

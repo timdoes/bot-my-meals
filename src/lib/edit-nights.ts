@@ -10,6 +10,8 @@ export const EDIT_NIGHTS_SAVE_ERROR = "Couldn\u2019t save nights. Try again.";
 export const EDIT_NIGHTS_ADDED_TOAST = "Saved. Add meals for the new nights when you\u2019re ready.";
 export const HOUSE_PEOPLE_DEFAULTS_NOTE =
   "Used when you start a new week. To change nights on This week or Next week, open that week and tap Edit nights.";
+/** Attendee-only edits never wake. Plate changes still use the existing save path. */
+export const EDIT_NIGHTS_ATTENDEE_NO_WAKE = "attendee-only edit: no wake";
 
 export function turnOffDinnerConfirm(weekday: string): string {
   return `Turn off ${weekday}? Removes that dinner from this week.`;
