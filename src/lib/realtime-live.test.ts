@@ -74,7 +74,7 @@ function fake(opts: { session?: { access_token: string } | null } = {}) {
 }
 
 describe("realtime live", () => {
-  it("sets the member token BEFORE subscribing to all 7 tables", async () => {
+  it("sets the member token BEFORE subscribing to all live tables", async () => {
     const f = fake();
     const stop = startRealtime({ client: f.client, onChange: vi.fn(), onRestored: vi.fn(), env: f.env });
     await f.flush();
@@ -82,8 +82,23 @@ describe("realtime live", () => {
     expect(f.calls.indexOf("setAuth:tok-1")).toBeLessThan(f.calls.indexOf("subscribe"));
     expect(f.channels).toHaveLength(1);
     expect(f.channels[0]?.tables).toEqual([...REALTIME_TABLES]);
-    expect(REALTIME_TABLES).toHaveLength(7);
-    expect(f.channels[0]?.tables).toEqual(expect.arrayContaining(["ballot_requests", "saved_meals", "meal_dislikes", "weeks", "meals", "votes", "shopping_items"]));
+    expect(REALTIME_TABLES).toHaveLength(12);
+    expect(f.channels[0]?.tables).toEqual(
+      expect.arrayContaining([
+        "ballot_requests",
+        "saved_meals",
+        "meal_dislikes",
+        "weeks",
+        "meals",
+        "votes",
+        "shopping_items",
+        "household_eaters",
+        "food_rules",
+        "week_night_lists",
+        "week_night_attendees",
+        "recipe_food_holds",
+      ]),
+    );
     stop();
   });
 

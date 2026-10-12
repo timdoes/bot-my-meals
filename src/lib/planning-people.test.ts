@@ -27,6 +27,7 @@ function household(): Household {
     postalCode: null,
     botCheckMode: "adaptive",
     botCheckIntervalHours: null,
+    foodRulesReviewedAt: null,
   };
 }
 
@@ -75,6 +76,11 @@ function planningSnapshot(): HouseholdSnapshot {
     mealHistory: [],
     savedMeals: [],
     mealDislikes: [],
+    eaters: [],
+    foodRules: [],
+    nightLists: [],
+    nightAttendees: [],
+    foodHolds: [],
   };
 }
 
