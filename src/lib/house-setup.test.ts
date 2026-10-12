@@ -404,6 +404,9 @@ describe("house setup surfaces", () => {
     expect(types).toContain("postalCode");
     expect(types).toContain("BallotRequest");
     expect(repo).toContain("setup_step");
+    expect(repo).toContain("SETUP_EIGHT_STEP_READY_RPC");
+    expect(repo).toContain("parseSetupEightStepReady");
+    expect(repo).not.toContain("inferSetupStepNineRemapReady");
     expect(repo).toContain("weekly_budget_cents");
     expect(repo).toContain("household_size");
     expect(repo).toContain("nights_planned");

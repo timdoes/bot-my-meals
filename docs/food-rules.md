@@ -38,16 +38,17 @@ House setup becomes 8 steps (invite, size, nights, plates, **food**, stores, bud
 The snapshot flag `houseSetupEightStep` (`isHouseSetupEightStepLive()`) is on only when **both** are true:
 
 1. Food-rules tables exist (`isFoodRulesSchemaReady()` — the five tables in `FOOD_RULES_SNAPSHOT_TABLES` read without a missing-schema error).
-2. The owner has applied `20261011224500_setup_step_nine_remap` (the remap that moves stored 5–8 → 6–9). `private.migration_markers` is not readable by signed-in users. The snapshot loader calls `inferSetupStepNineRemapReady(setup_step)`: a stored **8** is still **done** and keeps 7-step numbering; any other finite step (1–7 or remapped 9) plus the tables turns the flag on. Tests toggle both flags.
+2. `public.setup_eight_step_ready()` returns true. That function (migration `20261012030000_setup_eight_step_ready`) is `SECURITY DEFINER` and reads the remap marker `private.migration_markers.key = 'setup_step_nine_remap'` written by `20261011224500_setup_step_nine_remap`. Signed-in users cannot read the marker table. A missing function (`PGRST202` / `42883`) or a false return keeps 7-step numbering. The app never infers remap from a stored `setup_step`.
 
-A database without the food-rules migrations, or with the tables but **without** remap, keeps today's 7-step flow exactly: last = 7, done = 8, label `Setup · step N of 7`.
+A database without the food-rules migrations, or with the tables but **without** remap, keeps today's 7-step flow exactly: last = 7, done = 8, label `Setup · step N of 7`. Mid-setup houses at old 5/6/7 stay on Stores / Budget / Create meals.
 
 **Required order on every database (DIY and btve):**
 
 1. Apply `20261011220000` … `20261011222000` (tables / RLS / bot read). Old app code stays correct.
 2. Apply `20261011223000_setup_step_nine_expand` (check 1–9, default 9, `request_week_ballot` writes 9). No row change. Old app treats 9 as done.
-3. Count in-progress houses (`setup_step` between 1 and 7) if you need a quiet window.
-4. Apply `20261011224500_setup_step_nine_remap` **immediately before** this 8-step app deploys on that database. Never deploy the 8-step Worker first: completed houses still at 8 would see Create meals.
-5. Deploy every app that shares the database in the same window.
+3. Apply **file 8** `20261012030000_setup_eight_step_ready` **before the remap**. The function exists and returns false until the marker row is written. A Worker that already shipped stays on 7-step.
+4. Count in-progress houses (`setup_step` between 1 and 7) if you need a quiet window.
+5. Apply `20261011224500_setup_step_nine_remap` **immediately before** this 8-step app deploys on that database. After this, `setup_eight_step_ready()` is true.
+6. Deploy every app that shares the database in the same window.
 
 Rollback of the Worker only (keep the remapped DB): old code treats 9 as done. Reverse remap is hand-written SQL (`setup_step - 1` where 6–9), not a migration file.

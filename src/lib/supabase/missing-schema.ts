@@ -7,7 +7,7 @@ export const FOOD_RULES_SNAPSHOT_TABLES = [
   "recipe_food_holds",
 ] as const;
 
-const MISSING_SCHEMA_CODES = new Set(["42P01", "PGRST205", "PGRST202"]);
+const MISSING_SCHEMA_CODES = new Set(["42P01", "PGRST205", "PGRST202", "42883"]);
 
 /**
  * PostgREST/Postgres "this table or function is not on this database yet".
@@ -54,10 +54,9 @@ export function noteFoodRulesSchemaReady(ready: boolean): void {
 
 /**
  * Snapshot flag for 8-step house setup.
- * Live only when food-rules tables exist AND the owner has applied
- * `20261011224500_setup_step_nine_remap` (5–8 → 6–9, done = 9).
- * Default off: a Worker deploy before remap keeps today's 7-step numbering
- * (8 = done, not Create meals).
+ * Live only when food-rules tables exist AND `setup_eight_step_ready()`
+ * is true (the remap marker from `20261011224500_setup_step_nine_remap`).
+ * Missing function or false keeps today's 7-step numbering (8 = done).
  */
 export const HOUSE_SETUP_EIGHT_STEP_FLAG = "houseSetupEightStep";
 
@@ -74,20 +73,15 @@ export function isHouseSetupEightStepLive(): boolean {
   return foodRulesSchemaReady && setupStepNineRemapReady;
 }
 
-/**
- * Infer remap from the one household row a snapshot can see.
- * `private.migration_markers` is not readable by signed-in users.
- *
- * A stored `8` is today's done value. It must never unlock 8-step
- * numbering (8 would become Create meals and a finished house would
- * see the wizard again). Any other finite step — 1–7 mid-setup or
- * the remapped done value 9 — plus food-rules tables is enough for
- * this house to use the new catalog. Tests toggle the flags directly.
- */
-export function inferSetupStepNineRemapReady(rawSetupStep: unknown): boolean {
-  const n = typeof rawSetupStep === "number" ? rawSetupStep : Number(rawSetupStep);
-  if (!Number.isFinite(n)) return false;
-  return n !== 8;
+/** RPC that reads the remap marker. Missing function (PGRST202/42883) keeps 7-step. */
+export const SETUP_EIGHT_STEP_READY_RPC = "setup_eight_step_ready";
+
+/** Missing function / false / error → 7-step. `true` only after remap is marked. */
+export function parseSetupEightStepReady(
+  result: { data?: unknown; error?: { code?: string | null; message?: string | null } | null } | null | undefined,
+): boolean {
+  if (!result || result.error) return false;
+  return result.data === true;
 }
 
 export function syncHouseSetupEightStepGate(input: {

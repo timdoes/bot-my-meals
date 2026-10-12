@@ -335,6 +335,8 @@ describe("Install docs — email + password + Wake on app event", () => {
     expect(readme).toMatch(/Allergies and foods to skip/);
     expect(readme).toMatch(/Setup · step N of 8/);
     expect(readme).toMatch(/Setup · step N of 7/);
+    expect(readme).toMatch(/setup_eight_step_ready/);
+    expect(readme).toMatch(/20261012030000_setup_eight_step_ready/);
     expect(paste).toMatch(/Allergies and foods to skip/);
     expect(paste).toMatch(/Setup · step N of 8/);
     expect(routines).toMatch(/step 8 of 8/);

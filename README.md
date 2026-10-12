@@ -207,7 +207,7 @@ When Wake is configured, Waiting / Check now is wake / **Your bot was notified**
 
 #### Then walk house setup through Create this week's meals
 
-After Wake is saved, walk through house setup (no Seed/sample week). Progress is **Setup · step N of 8** after food-rules tables exist and `20261011224500_setup_step_nine_remap` has been applied. A database without those migrations keeps **Setup · step N of 7** (8 = done). See [docs/food-rules.md](docs/food-rules.md#eight-step-setup-deploy-order).
+After Wake is saved, walk through house setup (no Seed/sample week). Progress is **Setup · step N of 8** after food-rules tables exist and `setup_eight_step_ready()` is true (`20261012030000_setup_eight_step_ready` applied before remap, then `20261011224500_setup_step_nine_remap`). A database without those migrations keeps **Setup · step N of 7** (8 = done). See [docs/food-rules.md](docs/food-rules.md#eight-step-setup-deploy-order).
 
 1. **Invite people** — share `https://<our-host>/join/<token>` via share sheet (invite links only). Partner opens the link, then creates an account with their own email and password (or signs in). There is no shared household password.
 2. **How many people?** — household size stepper.

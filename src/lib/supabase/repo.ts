@@ -72,8 +72,9 @@ import { redactUntilLocked } from "@/lib/visibility";
 import { scaleIngredientQuantity, shoppingListsToRebuild, withRebuiltShoppingLists } from "@/lib/shopping";
 import { parseEditableFrom, parseShoppingPrompt } from "@/lib/week-chrome";
 import {
-  inferSetupStepNineRemapReady,
+  SETUP_EIGHT_STEP_READY_RPC,
   optionalFoodRulesRows,
+  parseSetupEightStepReady,
   syncHouseSetupEightStepGate,
 } from "@/lib/supabase/missing-schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -239,6 +240,7 @@ export async function fetchSupabaseSnapshot(
     nightListsRes,
     nightAttendeesRes,
     foodHoldsRes,
+    eightStepReadyRes,
   ] = await Promise.all([
     client.from("households").select("*").eq("id", householdId).single(),
     client.from("memberships").select("*").eq("household_id", householdId),
@@ -297,6 +299,7 @@ export async function fetchSupabaseSnapshot(
       .select("*")
       .eq("household_id", householdId)
       .order("created_at", { ascending: false }),
+    client.rpc(SETUP_EIGHT_STEP_READY_RPC),
   ]);
 
   const householdRow = required(householdRes.data, householdRes.error, "Household not found");
@@ -309,12 +312,11 @@ export async function fetchSupabaseSnapshot(
   const foodHolds = optionalFoodRulesRows(foodHoldsRes, parseRecipeFoodHolds);
   const schemaReady =
     eaters.ready && foodRules.ready && nightLists.ready && nightAttendees.ready && foodHolds.ready;
-  const rawSetupStep = Number(householdRow.setup_step);
   // Snapshot flag HOUSE_SETUP_EIGHT_STEP_FLAG / isHouseSetupEightStepLive().
-  // Both must hold: food-rules tables exist, and remap is inferred (not 8).
+  // Missing setup_eight_step_ready (PGRST202/42883) or false keeps 7-step.
   syncHouseSetupEightStepGate({
     schemaReady,
-    remapReady: schemaReady && inferSetupStepNineRemapReady(rawSetupStep),
+    remapReady: parseSetupEightStepReady(eightStepReadyRes),
   });
   const botCheck = normalizeBotCheckSetting(
     householdRow.bot_check_mode,

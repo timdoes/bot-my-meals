@@ -9,6 +9,7 @@ import {
 } from "./repo";
 import {
   FOOD_RULES_SNAPSHOT_TABLES,
+  SETUP_EIGHT_STEP_READY_RPC,
   isFoodRulesSchemaReady,
   isHouseSetupEightStepLive,
   syncHouseSetupEightStepGate,
@@ -199,6 +200,7 @@ function snapshotClient(options: {
   foodRulesError: QueryError | null;
   foodRulesData?: unknown[];
   setupStep?: number;
+  eightStepReady?: { data?: unknown; error?: QueryError | null };
 }) {
   const fromCalls: string[] = [];
   const rpcCalls: string[] = [];
@@ -238,6 +240,12 @@ function snapshotClient(options: {
     },
     rpc: async (fn: string) => {
       rpcCalls.push(fn);
+      if (fn === SETUP_EIGHT_STEP_READY_RPC) {
+        const ready = options.eightStepReady;
+        if (ready?.error) return { data: ready.data ?? null, error: ready.error };
+        if (ready && "data" in ready) return { data: ready.data, error: null };
+        return { data: false, error: null };
+      }
       return { data: [], error: null };
     },
   };
@@ -274,7 +282,7 @@ describe("fetchSupabaseSnapshot food-rules live-safety", () => {
     for (const table of FOOD_RULES_SNAPSHOT_TABLES) {
       expect(missing.fromCalls.filter((name) => name === table)).toHaveLength(1);
     }
-    expect(missing.rpcCalls).toEqual(["meal_history"]);
+    expect(missing.rpcCalls).toEqual(["meal_history", SETUP_EIGHT_STEP_READY_RPC]);
   });
 
   it("also swallows 42P01 and PGRST202 without a second query", async () => {
@@ -298,15 +306,32 @@ describe("fetchSupabaseSnapshot food-rules live-safety", () => {
     expect(isHouseSetupEightStepLive()).toBe(false);
   });
 
-  it("does not turn on 8-step numbering for a stored setup_step of 8", async () => {
-    const present = snapshotClient({ foodRulesError: null, foodRulesData: [] });
-    await fetchSupabaseSnapshot(present.client, snapshotSession);
-    expect(isFoodRulesSchemaReady()).toBe(true);
-    expect(isHouseSetupEightStepLive()).toBe(false);
+  it("keeps 7-step numbering when tables exist but setup_eight_step_ready is missing or false", async () => {
+    for (const eightStepReady of [
+      { data: false, error: null },
+      { data: null, error: { code: "PGRST202", message: "Could not find the function" } },
+      { data: null, error: { code: "42883", message: "function public.setup_eight_step_ready() does not exist" } },
+    ] as const) {
+      syncHouseSetupEightStepGate({ schemaReady: false, remapReady: false });
+      const present = snapshotClient({
+        foodRulesError: null,
+        foodRulesData: [],
+        setupStep: 7,
+        eightStepReady,
+      });
+      await fetchSupabaseSnapshot(present.client, snapshotSession);
+      expect(isFoodRulesSchemaReady()).toBe(true);
+      expect(isHouseSetupEightStepLive()).toBe(false);
+    }
   });
 
-  it("turns on 8-step numbering when tables exist and setup_step is not the old done value", async () => {
-    const present = snapshotClient({ foodRulesError: null, foodRulesData: [], setupStep: 1 });
+  it("turns on 8-step numbering only when tables exist and setup_eight_step_ready is true", async () => {
+    const present = snapshotClient({
+      foodRulesError: null,
+      foodRulesData: [],
+      setupStep: 8,
+      eightStepReady: { data: true, error: null },
+    });
     await fetchSupabaseSnapshot(present.client, snapshotSession);
     expect(isFoodRulesSchemaReady()).toBe(true);
     expect(isHouseSetupEightStepLive()).toBe(true);
