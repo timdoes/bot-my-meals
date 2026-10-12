@@ -5,7 +5,7 @@ describe("normText", () => {
   it("lowercases, strips listed accents and punctuation, and pads", () => {
     expect(normText("Crème fraîche")).toBe(" creme fraiche ");
     expect(normText("béchamel")).toBe(" bechamel ");
-    expect(normText("za'atar")).toBe(" zaatar ");
+    expect(normText("za'atar")).toBe(" za atar ");
     expect(normText("half-and-half")).toBe(" half and half ");
     expect(normText("")).toBe("  ");
   });
