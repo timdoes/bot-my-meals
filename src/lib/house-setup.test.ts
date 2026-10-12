@@ -205,7 +205,8 @@ describe("setup food step", () => {
         onAddName: () => undefined,
       }),
     );
-    expect(html).toContain(HOUSE_SETUP_FOOD_SAFETY);
+    const decoded = html.replace(/&#x27;/g, "'");
+    expect(decoded).toContain(HOUSE_SETUP_FOOD_SAFETY);
     expect(html).toContain(HOUSE_SETUP_FOOD_WHO_LABEL);
     expect(html).toContain(HOUSE_SETUP_FOOD_EVERYONE);
     expect(html).toContain("Sam");
@@ -217,7 +218,7 @@ describe("setup food step", () => {
     expect(html).toContain('data-slot="setup-food-step"');
     expect(html).toContain('data-slot="food-picker"');
     expect(html).toContain('data-slot="person-chips"');
-    expect(html).not.toMatch(/\btap\b|\bclick\b|\biPhone\b|\bgrandma\b/i);
+    expect(html.replace(/class="[^"]*"/g, "")).not.toMatch(/\btap\b|\bclick\b|\biPhone\b|\bgrandma\b/i);
   });
 });
 

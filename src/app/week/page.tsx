@@ -176,6 +176,7 @@ function WeekBallot() {
   );
 
   const editOpen = Boolean(scope && editWeekId === scope.week.id);
+  const alreadyCreatedMeals = alreadyCreatedMealsFromSnapshot(snapshot);
 
   const stepWeek = useCallback(
     (direction: -1 | 1) => {
@@ -183,7 +184,7 @@ function WeekBallot() {
       const canPlan =
         isAdmin(session?.role) &&
         isHouseSetupComplete(snapshot?.household.setupStep ?? 0, {
-          alreadyCreatedMeals: alreadyCreatedMealsFromSnapshot(snapshot),
+          alreadyCreatedMeals,
         });
       if (
         futureSwipeCreatesPlanning({
@@ -205,7 +206,7 @@ function WeekBallot() {
       router.replace(navigatorHref(selection), { scroll: false });
       return true;
     },
-    [stops, index, setViewedWeek, router, hasPlanning, session?.role, snapshot?.household.setupStep, startPlanning],
+    [stops, index, setViewedWeek, router, hasPlanning, session?.role, snapshot?.household.setupStep, alreadyCreatedMeals, startPlanning],
   );
 
   const moveMeals = useCallback(
