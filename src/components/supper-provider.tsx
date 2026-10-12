@@ -58,7 +58,7 @@ import {
 } from "@/lib/saved-meals";
 import { swapMealContent } from "@/lib/meal-reorder";
 import { withRebuiltShoppingLists } from "@/lib/shopping";
-import { scopeForMeal, scopeForRole } from "@/lib/open-weeks";
+import { defaultViewedWeek, scopeForMeal, scopeForRole } from "@/lib/open-weeks";
 import type { ViewedWeekSelection } from "@/lib/week-navigator";
 import { PASSWORD_MIN_LENGTH, passwordResetRedirectUrl } from "@/lib/login";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -295,9 +295,22 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [snapshot, setSnapshot] = useState<HouseholdSnapshot | null>(null);
-  const [viewedWeek, setViewedWeekState] = useState<ViewedWeekSelection>({ kind: "cooking" });
+  // null until the user (or a URL param) picks a week this app open. Then the default rule applies.
+  const [chosenWeek, setChosenWeek] = useState<ViewedWeekSelection | null>(null);
+  const defaultRole = snapshot
+    ? defaultViewedWeek({
+        meals: snapshot.meals,
+        votes: snapshot.votes,
+        hasPlanning: Boolean(snapshot.planning),
+        today: todayInTimeZone(new Date(), snapshot.household.timezone),
+      })
+    : "cooking";
+  const viewedWeek: ViewedWeekSelection = chosenWeek ?? { kind: defaultRole };
   const viewedRoleRef = useRef<WeekRole>("cooking");
   const viewedRole: WeekRole = viewedWeek.kind === "planning" ? "planning" : "cooking";
+  useEffect(() => {
+    viewedRoleRef.current = viewedRole;
+  }, [viewedRole]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const baseRef = useRef<HouseholdSnapshot | null>(null);
@@ -422,7 +435,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
 
   const setViewedWeek = useCallback((selection: ViewedWeekSelection) => {
     viewedRoleRef.current = selection.kind === "planning" ? "planning" : "cooking";
-    setViewedWeekState(selection);
+    setChosenWeek(selection);
   }, []);
 
   const setViewedRole = useCallback(

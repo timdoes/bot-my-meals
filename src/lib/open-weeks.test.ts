@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { PostLockWaitingCard } from "@/components/post-lock-waiting";
 import { addDays, formatWeekRange } from "./dates";
 import {
+  defaultViewedWeek,
   planningTargetStarts,
   shoppingListTitle,
   splitOpenWeeks,
@@ -110,5 +111,38 @@ describe("open weeks", () => {
     expect(html).toContain("Next week · Oct 4 – Oct 10");
     expect(html).toContain("shopping list for next week");
     expect(html).not.toContain("for this week");
+  });
+});
+
+describe("defaultViewedWeek", () => {
+  const night = (nightDate: string, title = "Tacos") =>
+    ({ id: `m-${nightDate}`, nightDate, dayIndex: Number(nightDate.slice(-2)), title }) as never;
+  const full = [night("2026-10-04"), night("2026-10-05"), night("2026-10-06"), night("2026-10-07"), night("2026-10-08"), night("2026-10-09"), night("2026-10-10")];
+  const pick = (meals: unknown[], today: string, hasPlanning = true, votes: unknown[] = []) =>
+    defaultViewedWeek({ meals: meals as never, votes: votes as never, hasPlanning, today });
+
+  it("stays on cooking while the last night is today or later (Saturday 11 PM)", () => {
+    expect(pick(full, "2026-10-10")).toBe("cooking");
+    expect(pick(full, "2026-10-05")).toBe("cooking");
+  });
+  it("opens on planning once every night is past", () => {
+    expect(pick(full, "2026-10-11")).toBe("planning");
+  });
+  it("opens early on planning when a short plan's last night has passed", () => {
+    const short = full.slice(0, 4);
+    expect(pick(short, "2026-10-07")).toBe("cooking");
+    expect(pick(short, "2026-10-08")).toBe("planning");
+  });
+  it("stays on cooking with no planning week", () => {
+    expect(pick(full, "2026-10-11", false)).toBe("cooking");
+  });
+  it("stays on cooking when there is no plan", () => {
+    expect(pick([], "2026-10-11")).toBe("cooking");
+    expect(pick([night("2026-10-04", " ")], "2026-10-11")).toBe("cooking");
+  });
+  it("ignores removed nights", () => {
+    const votes = [{ id: "v1", householdId: "h", mealId: "m-2026-10-10", membershipId: "a", choice: "remove", note: "", updatedAt: "2026-10-05T00:00:00Z" }];
+    expect(pick(full, "2026-10-10", true, [])).toBe("cooking");
+    expect(pick(full, "2026-10-10", true, votes)).toBe("planning");
   });
 });

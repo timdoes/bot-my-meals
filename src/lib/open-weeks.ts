@@ -1,6 +1,9 @@
 import { addDays, formatWeekRange, weekdayIndexFromDate } from "./dates";
 import { saturdayOfWeek } from "./meal-history";
-import type { HouseholdSnapshot, WeekRole, WeekScope, WeekStatus } from "./types";
+import { recipeNightsForWeek } from "./recipes";
+import { isNightOff } from "./lock";
+import { upcomingDinner } from "./week-chrome";
+import type { HouseholdSnapshot, Meal, Vote, WeekRole, WeekScope, WeekStatus } from "./types";
 
 export const THIS_WEEK_LABEL = "This week";
 export const NEXT_WEEK_LABEL = "Next week";
@@ -145,4 +148,23 @@ export function waitingWeekCue(
       return _exhaustive;
     }
   }
+}
+
+/**
+ * Which week the app opens on when nobody has chosen one (no URL param, no tap this session).
+ * Planning opens only when cooking has a plan whose every night is already past in house time
+ * and a planning week exists. No plan, no planning row, or any night today or later: cooking.
+ */
+export function defaultViewedWeek(input: {
+  meals: readonly Meal[];
+  votes: readonly Vote[];
+  hasPlanning: boolean;
+  today: string;
+}): "cooking" | "planning" {
+  if (!input.hasPlanning) return "cooking";
+  const planned = recipeNightsForWeek([...input.meals]).filter(
+    (meal) => meal.title.trim() && !isNightOff(meal.id, [...input.votes]),
+  );
+  if (planned.length === 0) return "cooking";
+  return upcomingDinner([...input.meals], [...input.votes], input.today) ? "cooking" : "planning";
 }
