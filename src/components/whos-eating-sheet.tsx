@@ -7,6 +7,14 @@ import { AddNameInline } from "@/components/food-rules";
 import { useSupper } from "@/components/supper-provider";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -185,6 +193,102 @@ function Chip({
   );
 }
 
+function takeOffConfirmBodyText(
+  name: string,
+  weekday: string,
+  allergyFoods: readonly string[],
+  mealHitFood: string | null,
+): string {
+  if (mealHitFood) {
+    return takeOffMealHitBody(name, weekday, allergyFoods[0] ?? mealHitFood, mealHitFood);
+  }
+  return takeOffBody(name, weekday, allergyFoods);
+}
+
+/** Copy + buttons for the take-off confirm (SSR / tests). Dialog chrome is TakeOffConfirmDialog. */
+export function TakeOffConfirmBody({
+  name,
+  weekday,
+  allergyFoods,
+  mealHitFood,
+  onKeep,
+  onTakeOff,
+}: {
+  name: string;
+  weekday: string;
+  allergyFoods: readonly string[];
+  mealHitFood: string | null;
+  onKeep: () => void;
+  onTakeOff: () => void;
+}) {
+  return (
+    <div data-slot="whos-eating-take-off">
+      <h2 className="type-section">{takeOffTitle(name, weekday)}</h2>
+      <p className="type-body mt-2 text-foreground">
+        {takeOffConfirmBodyText(name, weekday, allergyFoods, mealHitFood)}
+      </p>
+      <p className="type-meta mt-2 text-muted-foreground">{WHOS_EATING_CROSS_CONTACT}</p>
+      <div className="mt-4 flex gap-2">
+        <Button type="button" size="fat" variant="outline" className="flex-1" onClick={onKeep}>
+          {WHOS_EATING_KEEP}
+        </Button>
+        <Button type="button" size="fat" variant="destructive" className="flex-1" onClick={onTakeOff}>
+          {WHOS_EATING_TAKE_OFF}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Centered confirm: one allergic person at a time. Escape / overlay dismiss = Keep. */
+export function TakeOffConfirmDialog({
+  open,
+  name,
+  weekday,
+  allergyFoods,
+  mealHitFood,
+  onKeep,
+  onTakeOff,
+}: {
+  open: boolean;
+  name: string;
+  weekday: string;
+  allergyFoods: readonly string[];
+  mealHitFood: string | null;
+  onKeep: () => void;
+  onTakeOff: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(next) => (!next ? onKeep() : undefined)}>
+      <DialogContent
+        data-slot="whos-eating-take-off"
+        showCloseButton={false}
+        className="z-[60] rounded-[20px] p-5"
+      >
+        <DialogHeader>
+          <DialogTitle className="type-section">{takeOffTitle(name, weekday)}</DialogTitle>
+          <DialogDescription asChild>
+            <div className="space-y-2 text-foreground">
+              <p className="type-body">
+                {takeOffConfirmBodyText(name, weekday, allergyFoods, mealHitFood)}
+              </p>
+              <p className="type-meta text-muted-foreground">{WHOS_EATING_CROSS_CONTACT}</p>
+            </div>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex-row justify-stretch gap-2 border-0 bg-transparent p-0">
+          <Button type="button" size="fat" variant="outline" className="flex-1" onClick={onKeep}>
+            {WHOS_EATING_KEEP}
+          </Button>
+          <Button type="button" size="fat" variant="destructive" className="flex-1" onClick={onTakeOff}>
+            {WHOS_EATING_TAKE_OFF}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function useOptionalSupper(): ReturnType<typeof useSupper> | null {
   try {
     return useSupper();
@@ -339,7 +443,22 @@ export function WhosEatingSheet({
   const notEating = people.filter((person) => !personIsSelected(draft, person));
   const showRulesPanel = Boolean(mealText?.trim()) || rules.length > 0;
 
+  const keepCurrent = () => {
+    if (!confirm) return;
+    const person = people.find((row) => row.key === confirm.key);
+    if (person) setDraft((current) => applyChipToggle(current, person, houseCount, plates));
+    setConfirms((queue) => queue.slice(1));
+  };
+
+  const takeOffCurrent = () => {
+    if (!confirm) return;
+    const rest = confirms.slice(1);
+    setConfirms(rest);
+    if (rest.length === 0) commit(draft);
+  };
+
   return (
+    <>
     <WhosEatingSheetShell
       open={open}
       title={whosEatingSheetTitle(weekday)}
@@ -470,58 +589,19 @@ export function WhosEatingSheet({
           {WHOS_EATING_NEED_PERSON}
         </p>
       ) : null}
-      {confirm ? (
-        <div
-          data-slot="whos-eating-take-off"
-          className="rounded-[14px] border border-border bg-card p-4 shadow-card"
-          role="alertdialog"
-          aria-labelledby="whos-eating-take-off-title"
-        >
-          <p id="whos-eating-take-off-title" className="type-body font-semibold">
-            {takeOffTitle(confirm.name, confirm.weekday)}
-          </p>
-          <p className="type-body mt-2">
-            {confirm.mealHitFood
-              ? takeOffMealHitBody(
-                  confirm.name,
-                  confirm.weekday,
-                  confirm.allergyFoods[0] ?? confirm.mealHitFood,
-                  confirm.mealHitFood,
-                )
-              : takeOffBody(confirm.name, confirm.weekday, confirm.allergyFoods)}
-          </p>
-          <p className="type-meta mt-2 text-muted-foreground">{WHOS_EATING_CROSS_CONTACT}</p>
-          <div className="mt-3 flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="fat"
-              className="flex-1"
-              onClick={() => {
-                const person = people.find((row) => row.key === confirm.key);
-                if (person) setDraft((current) => applyChipToggle(current, person, houseCount, plates));
-                setConfirms((queue) => queue.slice(1));
-              }}
-            >
-              {WHOS_EATING_KEEP}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="fat"
-              className="flex-1"
-              onClick={() => {
-                const rest = confirms.slice(1);
-                setConfirms(rest);
-                if (rest.length === 0) commit(draft);
-              }}
-            >
-              {WHOS_EATING_TAKE_OFF}
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </WhosEatingSheetShell>
+    {confirm ? (
+      <TakeOffConfirmDialog
+        open
+        name={confirm.name}
+        weekday={confirm.weekday}
+        allergyFoods={confirm.allergyFoods}
+        mealHitFood={confirm.mealHitFood}
+        onKeep={keepCurrent}
+        onTakeOff={takeOffCurrent}
+      />
+    ) : null}
+    </>
   );
 }
 

@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PlanningPeopleGate } from "@/components/planning-people-gate";
 import { EmptyDayCard } from "@/components/empty-day-card";
-import { FoodRulesCoverageRow, WhosEatingRow } from "@/components/whos-eating-sheet";
+import { FoodRulesCoverageRow, TakeOffConfirmBody, WhosEatingRow } from "@/components/whos-eating-sheet";
 import type { FoodRule, Household, HouseholdEater, Membership, WeekNightAttendee, WeekNightList } from "./types";
 import {
   allergyConfirmsOnRemove,
@@ -35,8 +35,10 @@ import {
   WHOS_EATING_CROSS_CONTACT,
   WHOS_EATING_EATER_READONLY,
   WHOS_EATING_HELPER,
+  WHOS_EATING_KEEP,
   WHOS_EATING_NEED_PERSON,
   WHOS_EATING_STEPPER_FLOOR,
+  WHOS_EATING_TAKE_OFF,
   everyoneDraft,
   namedDraft,
 } from "./whos-eating";
@@ -169,6 +171,30 @@ describe("who's eating row strings and plates", () => {
     })).toEqual([]);
   });
 
+  it("renders a centered Keep / Take off dialog with the generic draft string", () => {
+    const html = renderToStaticMarkup(
+      createElement(TakeOffConfirmBody, {
+        name: "Sam",
+        weekday: "Tuesday",
+        allergyFoods: ["Peanuts", "Shellfish"],
+        mealHitFood: null,
+        onKeep: () => undefined,
+        onTakeOff: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-slot="whos-eating-take-off"');
+    expect(html).toContain("Take Sam off Tuesday?");
+    expect(html).toContain("Sam has food rules: Peanuts and Shellfish (allergies).");
+    expect(html).toContain("those rules stop applying");
+    expect(html).toContain(WHOS_EATING_CROSS_CONTACT);
+    expect(html).toContain(WHOS_EATING_KEEP);
+    expect(html).toContain(WHOS_EATING_TAKE_OFF);
+    expect(html.toLowerCase()).not.toContain("tap ");
+    expect(html.toLowerCase()).not.toContain("click ");
+    expect(html.toLowerCase()).not.toContain("iphone");
+    expect(html.toLowerCase()).not.toContain("grandma");
+  });
+
   it("uses the meal-hit confirm when the dinner text matches the allergy", () => {
     const confirms = allergyConfirmsOnRemove({
       previous: everyoneDraft(people),
@@ -187,6 +213,20 @@ describe("who's eating row strings and plates", () => {
         confirms[0]?.mealHitFood ?? "peanut",
       ),
     ).toContain("peanut allergy");
+    const html = renderToStaticMarkup(
+      createElement(TakeOffConfirmBody, {
+        name: "Sam",
+        weekday: "Tuesday",
+        allergyFoods: confirms[0]?.allergyFoods ?? ["Peanuts"],
+        mealHitFood: confirms[0]?.mealHitFood ?? "peanut",
+        onKeep: () => undefined,
+        onTakeOff: () => undefined,
+      }),
+    );
+    expect(html).toContain("Sam has a peanut allergy and this dinner has peanut. Take Sam off Tuesday?");
+    expect(html).toContain(WHOS_EATING_KEEP);
+    expect(html).toContain(WHOS_EATING_TAKE_OFF);
+    expect(html).not.toContain("Sam has food rules:");
   });
 
   it("validates + Name with lock strings and a floor of one attendee on save", () => {
@@ -392,5 +432,11 @@ describe("who's eating wiring and no-wake", () => {
     expect(who).toContain("AddNameInline");
     expect(who).toContain("AttendeeChips");
     expect(who).toContain("WhosEatingSheetShell");
+    expect(who).toContain("TakeOffConfirmDialog");
+    expect(who).toContain("@/components/ui/dialog");
+    expect(who).toMatch(/onOpenChange=\{\(next\) => \(!next \? onKeep\(\) : undefined\)\}/);
+    expect(who).toContain("keepCurrent");
+    expect(who).not.toContain('role="alertdialog"');
+    expect(who).not.toMatch(/data-slot="whos-eating-take-off"[\s\S]{0,120}rounded-\[14px\] border border-border/);
   });
 });
