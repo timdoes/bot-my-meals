@@ -85,7 +85,7 @@ begin
 end;
 $$;
 
-revoke all on function private.week_night_attendees_guard() from public;
+revoke all on function private.week_night_attendees_guard() from public, anon;
 
 drop trigger if exists week_night_attendees_guard on public.week_night_attendees;
 create trigger week_night_attendees_guard
@@ -117,7 +117,7 @@ begin
 end;
 $$;
 
-revoke all on function private.clear_attendees_for_off_nights() from public;
+revoke all on function private.clear_attendees_for_off_nights() from public, anon;
 
 drop trigger if exists weeks_clear_attendees_off_nights on public.weeks;
 create trigger weeks_clear_attendees_off_nights
@@ -154,7 +154,7 @@ as $$
   );
 $$;
 
-revoke all on function private.food_rules_for_night(uuid, smallint) from public;
+revoke all on function private.food_rules_for_night(uuid, smallint) from public, anon;
 grant execute on function private.food_rules_for_night(uuid, smallint) to authenticated;
 
 -- Floor of one: a named person (or member) who is the ONLY attendee of a current or future named-list
@@ -193,7 +193,7 @@ begin
 end;
 $$;
 
-revoke all on function private.block_last_attendee_removal() from public;
+revoke all on function private.block_last_attendee_removal() from public, anon;
 
 drop trigger if exists household_eaters_block_last_attendee on public.household_eaters;
 create trigger household_eaters_block_last_attendee
@@ -368,7 +368,7 @@ begin
 end;
 $$;
 
-revoke all on function public.save_week_people_v2(uuid, integer[], text, jsonb) from public;
+revoke all on function public.save_week_people_v2(uuid, integer[], text, jsonb) from public, anon;
 grant execute on function public.save_week_people_v2(uuid, integer[], text, jsonb) to authenticated;
 
 comment on function public.save_week_people_v2(uuid, integer[], text, jsonb) is
@@ -424,7 +424,7 @@ begin
 end;
 $$;
 
-revoke all on function public.save_planning_people_v2(integer[], text, jsonb) from public;
+revoke all on function public.save_planning_people_v2(integer[], text, jsonb) from public, anon;
 grant execute on function public.save_planning_people_v2(integer[], text, jsonb) to authenticated;
 
 comment on function public.save_planning_people_v2(integer[], text, jsonb) is

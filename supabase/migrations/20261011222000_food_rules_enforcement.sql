@@ -39,7 +39,7 @@ begin
 end;
 $$;
 
-revoke all on function private.text_has_term(text, text) from public;
+revoke all on function private.text_has_term(text, text) from public, anon;
 grant execute on function private.text_has_term(text, text) to authenticated;
 
 -- Returns the matched word, or null. Exclusion phrases ("peanut butter" is not milk) are removed
@@ -81,7 +81,7 @@ begin
 end;
 $$;
 
-revoke all on function private.rule_hit(public.food_rules, text) from public;
+revoke all on function private.rule_hit(public.food_rules, text) from public, anon;
 grant execute on function private.rule_hit(public.food_rules, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -131,7 +131,7 @@ begin
 end;
 $$;
 
-revoke all on function private.reject_food_rule_meal() from public;
+revoke all on function private.reject_food_rule_meal() from public, anon;
 
 drop trigger if exists meals_reject_food_rule on public.meals;
 create trigger meals_reject_food_rule
@@ -222,7 +222,7 @@ begin
 end;
 $$;
 
-revoke all on function private.refresh_food_holds_for_recipe(uuid) from public;
+revoke all on function private.refresh_food_holds_for_recipe(uuid) from public, anon;
 
 create or replace function private.refresh_food_holds(p_household uuid)
 returns void
@@ -239,7 +239,7 @@ begin
 end;
 $$;
 
-revoke all on function private.refresh_food_holds(uuid) from public;
+revoke all on function private.refresh_food_holds(uuid) from public, anon;
 
 create or replace function private.food_holds_on_ingredient()
 returns trigger
@@ -255,7 +255,7 @@ begin
 end;
 $$;
 
-revoke all on function private.food_holds_on_ingredient() from public;
+revoke all on function private.food_holds_on_ingredient() from public, anon;
 
 drop trigger if exists recipe_ingredients_food_holds on public.recipe_ingredients;
 create trigger recipe_ingredients_food_holds
@@ -274,7 +274,7 @@ begin
 end;
 $$;
 
-revoke all on function private.food_holds_on_recipe() from public;
+revoke all on function private.food_holds_on_recipe() from public, anon;
 
 drop trigger if exists recipes_food_holds on public.recipes;
 create trigger recipes_food_holds
@@ -293,7 +293,7 @@ begin
 end;
 $$;
 
-revoke all on function private.food_holds_on_rule() from public;
+revoke all on function private.food_holds_on_rule() from public, anon;
 
 drop trigger if exists food_rules_food_holds on public.food_rules;
 create trigger food_rules_food_holds
@@ -335,7 +335,7 @@ begin
 end;
 $$;
 
-revoke all on function public.ack_recipe_food_hold(uuid) from public;
+revoke all on function public.ack_recipe_food_hold(uuid) from public, anon;
 grant execute on function public.ack_recipe_food_hold(uuid) to authenticated;
 
 do $$
@@ -547,7 +547,7 @@ begin
 end;
 $$;
 
-revoke all on function public.food_rules_for_bot(uuid, uuid) from public;
+revoke all on function public.food_rules_for_bot(uuid, uuid) from public, anon;
 grant execute on function public.food_rules_for_bot(uuid, uuid) to authenticated;
 
 comment on function public.food_rules_for_bot(uuid, uuid) is

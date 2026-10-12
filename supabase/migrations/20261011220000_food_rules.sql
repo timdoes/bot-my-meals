@@ -102,7 +102,7 @@ as $$
     '[^a-z0-9]+', ' ', 'g')) || ' ';
 $$;
 
-revoke all on function private.norm_text(text) from public;
+revoke all on function private.norm_text(text) from public, anon;
 grant execute on function private.norm_text(text) to authenticated;
 
 create or replace function private.food_rules_before_write()
@@ -125,7 +125,7 @@ begin
 end;
 $$;
 
-revoke all on function private.food_rules_before_write() from public;
+revoke all on function private.food_rules_before_write() from public, anon;
 
 drop trigger if exists food_rules_before_write on public.food_rules;
 create trigger food_rules_before_write
@@ -155,7 +155,7 @@ begin
 end;
 $$;
 
-revoke all on function private.household_eaters_before_write() from public;
+revoke all on function private.household_eaters_before_write() from public, anon;
 
 drop trigger if exists household_eaters_before_write on public.household_eaters;
 create trigger household_eaters_before_write
