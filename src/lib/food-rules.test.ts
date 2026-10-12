@@ -334,7 +334,10 @@ describe("provider wiring", () => {
     expect(repo).toContain("save_planning_people_v2");
     expect(repo).toContain("set_night_guests");
     expect(repo).toContain("ack_recipe_food_hold");
+    expect(repo).toContain("set_food_rules_reviewed");
     expect(repo).not.toMatch(/supabaseAddEater[\s\S]*requestBotWake/);
     expect(repo).toContain("session.householdId");
+    expect(provider).toContain("liveRealtimeTables(foodRulesLive)");
+    expect(provider).not.toContain("FOOD_RULES_REALTIME_TABLES");
   });
 });

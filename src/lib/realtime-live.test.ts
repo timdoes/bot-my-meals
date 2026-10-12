@@ -1,7 +1,14 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { REALTIME_RESUBSCRIBE_MS, REALTIME_TABLES, startRealtime, type RealtimeClientLike } from "./realtime-live";
+import {
+  FOOD_RULES_REALTIME_TABLES,
+  REALTIME_RESUBSCRIBE_MS,
+  REALTIME_TABLES,
+  liveRealtimeTables,
+  startRealtime,
+  type RealtimeClientLike,
+} from "./realtime-live";
 
 function fake(opts: { session?: { access_token: string } | null } = {}) {
   const calls: string[] = [];
@@ -82,23 +89,14 @@ describe("realtime live", () => {
     expect(f.calls.indexOf("setAuth:tok-1")).toBeLessThan(f.calls.indexOf("subscribe"));
     expect(f.channels).toHaveLength(1);
     expect(f.channels[0]?.tables).toEqual([...REALTIME_TABLES]);
-    expect(REALTIME_TABLES).toHaveLength(12);
+    expect(REALTIME_TABLES).toHaveLength(7);
     expect(f.channels[0]?.tables).toEqual(
-      expect.arrayContaining([
-        "ballot_requests",
-        "saved_meals",
-        "meal_dislikes",
-        "weeks",
-        "meals",
-        "votes",
-        "shopping_items",
-        "household_eaters",
-        "food_rules",
-        "week_night_lists",
-        "week_night_attendees",
-        "recipe_food_holds",
-      ]),
+      expect.arrayContaining(["ballot_requests", "saved_meals", "meal_dislikes", "weeks", "meals", "votes", "shopping_items"]),
     );
+    expect(f.channels[0]?.tables).not.toEqual(expect.arrayContaining(["household_eaters", "food_rules"]));
+    expect(FOOD_RULES_REALTIME_TABLES).toHaveLength(5);
+    expect(liveRealtimeTables(false)).toEqual([...REALTIME_TABLES]);
+    expect(liveRealtimeTables(true)).toEqual([...REALTIME_TABLES, ...FOOD_RULES_REALTIME_TABLES]);
     stop();
   });
 
@@ -196,6 +194,28 @@ describe("realtime live", () => {
     expect(f.timers()).toBe(0);
     f.channels[0]?.status?.("SUBSCRIBED");
     expect(onRestored).not.toHaveBeenCalled();
+  });
+
+  it("binds food-rules tables only when asked, and a missing-table CHANNEL_ERROR does not add a timer", async () => {
+    const core = fake();
+    startRealtime({ client: core.client, onChange: vi.fn(), onRestored: vi.fn(), env: core.env });
+    await core.flush();
+    expect(core.channels[0]?.tables).toEqual([...REALTIME_TABLES]);
+    core.channels[0]?.status?.("CHANNEL_ERROR");
+    expect(core.timers()).toBe(0);
+
+    const extra = fake();
+    startRealtime({
+      client: extra.client,
+      onChange: vi.fn(),
+      onRestored: vi.fn(),
+      env: extra.env,
+      tables: liveRealtimeTables(true),
+    });
+    await extra.flush();
+    expect(extra.channels[0]?.tables).toEqual([...REALTIME_TABLES, ...FOOD_RULES_REALTIME_TABLES]);
+    extra.channels[0]?.status?.("CHANNEL_ERROR");
+    expect(extra.timers()).toBe(0);
   });
 
   it("is wired into the provider and never wakes the bot", () => {

@@ -9,6 +9,7 @@
  * Read only: a change event rereads saved data through `onChange`. It never wakes the bot.
  * The only timer is the short retry after an unexpected CLOSED.
  */
+/** Tables that exist on live DBs today. Food-rules tables are added only after they exist. */
 export const REALTIME_TABLES = [
   "votes",
   "meals",
@@ -17,12 +18,20 @@ export const REALTIME_TABLES = [
   "ballot_requests",
   "saved_meals",
   "meal_dislikes",
+] as const;
+
+/** Not on live DBs until Cos applies the food-rules migrations. Do not bind these until then. */
+export const FOOD_RULES_REALTIME_TABLES = [
   "household_eaters",
   "food_rules",
   "week_night_lists",
   "week_night_attendees",
   "recipe_food_holds",
 ] as const;
+
+export function liveRealtimeTables(foodRulesReady: boolean): readonly string[] {
+  return foodRulesReady ? [...REALTIME_TABLES, ...FOOD_RULES_REALTIME_TABLES] : [...REALTIME_TABLES];
+}
 
 export const REALTIME_RESUBSCRIBE_MS = 5_000;
 
@@ -64,8 +73,11 @@ export function startRealtime(input: {
   onRestored: () => void;
   onStatus?: (event: RealtimeStatusEvent) => void;
   env?: RealtimeEnv;
+  /** Defaults to the live-safe core tables. Pass extras only after those relations exist. */
+  tables?: readonly string[];
 }): () => void {
   const { client } = input;
+  const tables = input.tables ?? REALTIME_TABLES;
   const env = input.env ?? browserEnv;
   let stopped = false;
   let channel: ChannelLike | null = null;
@@ -92,7 +104,7 @@ export function startRealtime(input: {
     if (stopped || channel) return;
     const mine = ++generation;
     let next = client.channel("supper-live");
-    for (const table of REALTIME_TABLES) {
+    for (const table of tables) {
       next = next.on("postgres_changes", { event: "*", schema: "public", table }, () => {
         if (!stopped && mine === generation) input.onChange();
       });

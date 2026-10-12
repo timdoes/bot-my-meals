@@ -71,6 +71,10 @@ import { parseSavedMeals } from "@/lib/saved-meals";
 import { redactUntilLocked } from "@/lib/visibility";
 import { scaleIngredientQuantity, shoppingListsToRebuild, withRebuiltShoppingLists } from "@/lib/shopping";
 import { parseEditableFrom, parseShoppingPrompt } from "@/lib/week-chrome";
+import {
+  noteFoodRulesSchemaReady,
+  optionalFoodRulesRows,
+} from "@/lib/supabase/missing-schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 function mapBallotRequest(
@@ -297,6 +301,14 @@ export async function fetchSupabaseSnapshot(
   const householdRow = required(householdRes.data, householdRes.error, "Household not found");
   if (weekRes.error) throw new Error(weekRes.error.message);
   if (listRes.error) throw new Error(listRes.error.message);
+  const eaters = optionalFoodRulesRows(eatersRes, parseHouseholdEaters);
+  const foodRules = optionalFoodRulesRows(foodRulesRes, parseFoodRules);
+  const nightLists = optionalFoodRulesRows(nightListsRes, parseWeekNightLists);
+  const nightAttendees = optionalFoodRulesRows(nightAttendeesRes, parseWeekNightAttendees);
+  const foodHolds = optionalFoodRulesRows(foodHoldsRes, parseRecipeFoodHolds);
+  noteFoodRulesSchemaReady(
+    eaters.ready && foodRules.ready && nightLists.ready && nightAttendees.ready && foodHolds.ready,
+  );
   const botCheck = normalizeBotCheckSetting(
     householdRow.bot_check_mode,
     householdRow.bot_check_interval_hours,
@@ -480,11 +492,11 @@ export async function fetchSupabaseSnapshot(
     mealHistory: parseMealHistory(historyRes.error ? null : historyRes.data),
     savedMeals: parseSavedMeals(savedMealsRes.error ? null : savedMealsRes.data),
     mealDislikes: parseMealDislikes(mealDislikesRes.error ? null : mealDislikesRes.data),
-    eaters: parseHouseholdEaters(eatersRes.error ? null : eatersRes.data),
-    foodRules: parseFoodRules(foodRulesRes.error ? null : foodRulesRes.data),
-    nightLists: parseWeekNightLists(nightListsRes.error ? null : nightListsRes.data),
-    nightAttendees: parseWeekNightAttendees(nightAttendeesRes.error ? null : nightAttendeesRes.data),
-    foodHolds: parseRecipeFoodHolds(foodHoldsRes.error ? null : foodHoldsRes.data),
+    eaters: eaters.rows,
+    foodRules: foodRules.rows,
+    nightLists: nightLists.rows,
+    nightAttendees: nightAttendees.rows,
+    foodHolds: foodHolds.rows,
   };
 
   return redactUntilLocked(snapshot);
@@ -1605,13 +1617,12 @@ export async function supabaseRemoveFoodRule(
   if (error) throw new Error(error.message);
 }
 
-/** Sets `food_rules_reviewed_at`. Household RLS is owner-update today; report if voters need a policy. */
+/** Sets `food_rules_reviewed_at` via RPC so Admin and User can both persist it. */
 export async function supabaseMarkFoodRulesReviewed(client: SupabaseClient, session: Session) {
   requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
-  const { error } = await client
-    .from("households")
-    .update({ food_rules_reviewed_at: new Date().toISOString() })
-    .eq("id", session.householdId);
+  const { error } = await client.rpc("set_food_rules_reviewed", {
+    p_household_id: session.householdId,
+  });
   if (error) throw new Error(error.message);
 }
 

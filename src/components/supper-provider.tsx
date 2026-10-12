@@ -15,7 +15,8 @@ import {
   requestPendingRefresh,
 } from "@/components/use-bot-wake";
 import { browserBurstEnv, createBurst } from "@/lib/wake-refresh-schedule";
-import { startRealtime, type RealtimeClientLike } from "@/lib/realtime-live";
+import { liveRealtimeTables, startRealtime, type RealtimeClientLike } from "@/lib/realtime-live";
+import { isFoodRulesSchemaReady } from "@/lib/supabase/missing-schema";
 import { storeSlugForAdd } from "@/lib/grocers";
 import { createId } from "@/lib/ids";
 import { todayInTimeZone } from "@/lib/meal-history";
@@ -371,6 +372,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
   }, [viewedRole]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [foodRulesLive, setFoodRulesLive] = useState(false);
   const baseRef = useRef<HouseholdSnapshot | null>(null);
   const displayRef = useRef<HouseholdSnapshot | null>(null);
   const patchesRef = useRef<PendingOptimistic<HouseholdSnapshot>[]>([]);
@@ -423,6 +425,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
       if (gen !== refreshGen.current) return;
       setSession(nextSession);
       publish(nextSnapshot);
+      setFoodRulesLive(isFoodRulesSchemaReady());
     } catch (err) {
       if (gen !== refreshGen.current) return;
       setSession({
@@ -483,6 +486,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
         pollApplyRef.current = true;
         setSession(loaded.session);
         publish(loaded.snapshot);
+        setFoodRulesLive(isFoodRulesSchemaReady());
       };
       await pollGateRef.current?.(weekId);
     },
@@ -605,12 +609,13 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
       client: client as unknown as RealtimeClientLike,
       onChange: () => void refresh(),
       onRestored: () => void refresh(),
+      tables: liveRealtimeTables(foodRulesLive),
     });
     return () => {
       cancelled = true;
       stopRealtime();
     };
-  }, [refresh]);
+  }, [refresh, foodRulesLive]);
 
   const needsWorkRef = useRef<boolean | null>(null);
   const burstRef = useRef<ReturnType<typeof createBurst> | null>(null);

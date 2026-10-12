@@ -386,3 +386,25 @@ describe("food_rules_for_bot", () => {
     );
   });
 });
+
+describe("set_food_rules_reviewed", () => {
+  it("owner and voter set it; eater and other house are rejected; anon_exec=0", async () => {
+    await db.exec(`update public.households set food_rules_reviewed_at=null where id='${H.a}'`);
+    await asUser(U.aOwner, () => db.query(`select public.set_food_rules_reviewed($1)`, [H.a]));
+    const [afterOwner] = await q(`select food_rules_reviewed_at is not null as ok from public.households where id=$1`, [H.a]);
+    assert.equal(afterOwner.ok, true);
+
+    await db.exec(`update public.households set food_rules_reviewed_at=null where id='${H.a}'`);
+    await asUser(U.aVoter, () => db.query(`select public.set_food_rules_reviewed($1)`, [H.a]));
+    const [afterVoter] = await q(`select food_rules_reviewed_at is not null as ok from public.households where id=$1`, [H.a]);
+    assert.equal(afterVoter.ok, true);
+
+    await fails(asUser(U.aEater, () => db.query(`select public.set_food_rules_reviewed($1)`, [H.a])), /Eaters can look/);
+    await fails(asUser(U.bOwner, () => db.query(`select public.set_food_rules_reviewed($1)`, [H.a])), /not_a_member/);
+
+    const [anon] = await q(
+      `select has_function_privilege('anon','public.set_food_rules_reviewed(uuid)','EXECUTE')::int as anon_exec`,
+    );
+    assert.equal(anon.anon_exec, 0);
+  });
+});
