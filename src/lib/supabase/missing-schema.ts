@@ -76,6 +76,26 @@ export function isHouseSetupEightStepLive(): boolean {
 /** RPC that reads the remap marker. Missing function (PGRST202/42883) keeps 7-step. */
 export const SETUP_EIGHT_STEP_READY_RPC = "setup_eight_step_ready";
 
+let rpcMissing = new Set<string>();
+
+/** Postgres 42883 or PostgREST PGRST202: the function is not on this database. */
+export function isMissingFunctionError(error: { code?: string | null } | null | undefined): boolean {
+  return error?.code === "42883" || error?.code === "PGRST202";
+}
+
+/** Remember (for this page session) that an optional RPC is absent, so it is not called again. */
+export function noteRpcMissing(name: string): void {
+  rpcMissing.add(name);
+}
+
+export function isRpcKnownMissing(name: string): boolean {
+  return rpcMissing.has(name);
+}
+
+export function resetRpcMissingForTests(): void {
+  rpcMissing = new Set<string>();
+}
+
 /** Missing function / false / error → 7-step. `true` only after remap is marked. */
 export function parseSetupEightStepReady(
   result: { data?: unknown; error?: { code?: string | null; message?: string | null } | null } | null | undefined,

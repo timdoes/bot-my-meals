@@ -453,12 +453,16 @@ export function validateEaterName(
   name: string,
   existing: readonly HouseholdEater[],
   ignoreId?: string,
+  memberNames: readonly string[] = [],
 ): string | null {
   const displayName = normalizeEaterName(name);
   if (!displayName) return "Name is required.";
   if (displayName.length > EATER_NAME_MAX) return "Use a name of 40 characters or fewer.";
   const key = displayName.toLowerCase();
-  if (existing.some((eater) => eater.id !== ignoreId && eater.displayName.toLowerCase() === key)) {
+  if (
+    existing.some((eater) => eater.id !== ignoreId && eater.displayName.toLowerCase() === key) ||
+    memberNames.some((member) => member.toLowerCase() === key)
+  ) {
     return "That name is already at the table.";
   }
   return null;

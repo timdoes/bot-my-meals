@@ -28,6 +28,9 @@ export function AddNameInline({
   helper = ADD_NAME_HELPER,
   placeholder = ADD_NAME_PLACEHOLDER,
   fullWidth = false,
+  memberNames = [],
+  defaultOpen = false,
+  onClose,
 }: {
   existing: readonly HouseholdEater[];
   onAdd: (name: string) => void | Promise<void>;
@@ -36,8 +39,15 @@ export function AddNameInline({
   helper?: string;
   placeholder?: string;
   fullWidth?: boolean;
+  /** Display names of signed-in people; a name that matches one is rejected. */
+  memberNames?: readonly string[];
+  /** Start with the field open (used where another chip already opened it). */
+  defaultOpen?: boolean;
+  /** Called when the field closes after a cancel or a successful add. */
+  onClose?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
+  const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -45,25 +55,28 @@ export function AddNameInline({
     setOpen(false);
     setDraft("");
     setError(null);
+    onClose?.();
   };
 
   const submit = () => {
+    if (busy) return;
     if (existing.length >= HOUSEHOLD_EATERS_MAX) {
       setError(EATER_CAP_ERROR);
       return;
     }
-    const invalid = validateEaterName(draft, existing);
+    const invalid = validateEaterName(draft, existing, undefined, memberNames);
     if (invalid) {
       setError(invalid);
       return;
     }
     const name = draft.trim();
-    void Promise.resolve(onAdd(name)).catch((err: unknown) => {
-      setError(err instanceof Error ? err.message : invalid);
-    });
-    setDraft("");
-    setError(null);
-    setOpen(false);
+    setBusy(true);
+    void Promise.resolve(onAdd(name))
+      .then(() => reset())
+      .catch((err: unknown) => {
+        setError(err instanceof Error && err.message ? err.message : "Could not add that name.");
+      })
+      .finally(() => setBusy(false));
   };
 
   if (disabled) return null;
@@ -109,7 +122,7 @@ export function AddNameInline({
           }}
           className="h-11 min-h-11 flex-1 rounded-full px-4"
         />
-        <Button type="button" size="fat" variant="primary" className="px-4" onClick={submit}>
+        <Button type="button" size="fat" variant="primary" className="px-4" onClick={submit} disabled={busy}>
           {ADD_NAME_SUBMIT}
         </Button>
         <Button type="button" size="fat" variant="outline" className="px-4" onClick={reset}>

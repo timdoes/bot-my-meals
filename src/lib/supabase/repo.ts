@@ -73,6 +73,9 @@ import { scaleIngredientQuantity, shoppingListsToRebuild, withRebuiltShoppingLis
 import { parseEditableFrom, parseShoppingPrompt } from "@/lib/week-chrome";
 import {
   SETUP_EIGHT_STEP_READY_RPC,
+  isMissingFunctionError,
+  isRpcKnownMissing,
+  noteRpcMissing,
   optionalFoodRulesRows,
   parseSetupEightStepReady,
   syncHouseSetupEightStepGate,
@@ -299,8 +302,11 @@ export async function fetchSupabaseSnapshot(
       .select("*")
       .eq("household_id", householdId)
       .order("created_at", { ascending: false }),
-    client.rpc(SETUP_EIGHT_STEP_READY_RPC),
+    isRpcKnownMissing(SETUP_EIGHT_STEP_READY_RPC)
+      ? Promise.resolve({ data: false, error: null })
+      : client.rpc(SETUP_EIGHT_STEP_READY_RPC),
   ]);
+  if (isMissingFunctionError(eightStepReadyRes.error)) noteRpcMissing(SETUP_EIGHT_STEP_READY_RPC);
 
   const householdRow = required(householdRes.data, householdRes.error, "Household not found");
   if (weekRes.error) throw new Error(weekRes.error.message);
@@ -1629,9 +1635,15 @@ export async function supabaseRemoveFoodRule(
 /** Sets `food_rules_reviewed_at` via RPC so Admin and User can both persist it. */
 export async function supabaseMarkFoodRulesReviewed(client: SupabaseClient, session: Session) {
   requireHouseholdWriter(session, FOOD_RULES_EATER_READONLY);
+  if (isRpcKnownMissing("set_food_rules_reviewed")) return;
   const { error } = await client.rpc("set_food_rules_reviewed", {
     p_household_id: session.householdId,
   });
+  if (isMissingFunctionError(error)) {
+    // Database not migrated yet: skip quietly, now and for the rest of this session.
+    noteRpcMissing("set_food_rules_reviewed");
+    return;
+  }
   if (error) throw new Error(error.message);
 }
 

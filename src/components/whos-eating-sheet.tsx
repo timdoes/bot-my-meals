@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, ChevronRight, Minus, Plus } from "lucide-react";
 import Link from "next/link";
+import { AddNameInline } from "@/components/food-rules";
 import { useSupper } from "@/components/supper-provider";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 import type { FoodRule, HouseholdEater, Membership } from "@/lib/types";
 import {
   ADD_NAME_LABEL,
-  WHOS_EATING_ADD,
   WHOS_EATING_ADD_NAME_HELPER,
   WHOS_EATING_ADD_NAME_PLACEHOLDER,
   WHOS_EATING_CANCEL,
@@ -30,11 +29,11 @@ import {
   WHOS_EATING_EVERYONE,
   WHOS_EATING_GUESTS_HELPER,
   WHOS_EATING_GUESTS_LABEL,
+  WHOS_EATING_LABEL,
   WHOS_EATING_HELPER,
   WHOS_EATING_KEEP,
   WHOS_EATING_NEED_PERSON,
   WHOS_EATING_TAKE_OFF,
-  alreadyAtTableError,
   allergyConfirmsOnRemove,
   applyChipToggle,
   applyEveryoneChip,
@@ -55,7 +54,6 @@ import {
   takeOffBody,
   takeOffMealHitBody,
   takeOffTitle,
-  validateInlineName,
   whosEatingNamesLine,
   whosEatingRowAria,
   whosEatingRowLabel,
@@ -66,11 +64,8 @@ import {
   type TablePerson,
 } from "@/lib/whos-eating";
 
-/**
- * Local stand-ins for agent A's FoodRuleSheet, PersonChips, and AddNameInline.
- * Dedupe after A merges: replace these with imports from src/components/food-rules/.
- */
-function FoodRuleSheet({
+/** Bottom-sheet shell for the Who's eating sheet (not the food-rule form). */
+function WhosEatingSheetShell({
   open,
   title,
   description,
@@ -107,7 +102,8 @@ function FoodRuleSheet({
   );
 }
 
-function PersonChips({
+/** Multi-select attendee chips (Everyone + each person). Not the single-select rule-subject chips. */
+function AttendeeChips({
   people,
   draft,
   houseCount,
@@ -189,73 +185,6 @@ function Chip({
   );
 }
 
-function AddNameInline({
-  eaters,
-  memberships,
-  onAdd,
-  onCancel,
-}: {
-  eaters: readonly HouseholdEater[];
-  memberships: readonly Membership[];
-  onAdd: (name: string) => Promise<void>;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = (event?: FormEvent) => {
-    event?.preventDefault();
-    const next = name.trim();
-    const invalid = validateInlineName(next, eaters, memberships);
-    if (invalid) {
-      setError(invalid);
-      return;
-    }
-    setBusy(true);
-    void onAdd(next)
-      .catch((err: unknown) => {
-        const message = err instanceof Error && err.message ? err.message : alreadyAtTableError(next);
-        setError(message.includes("already") ? alreadyAtTableError(next) : message);
-      })
-      .finally(() => setBusy(false));
-  };
-
-  return (
-    <div data-slot="add-name-inline" className="space-y-2">
-      <form className="flex flex-wrap items-center gap-2" onSubmit={submit}>
-        <Input
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            setError(null);
-          }}
-          placeholder={WHOS_EATING_ADD_NAME_PLACEHOLDER}
-          aria-label={WHOS_EATING_ADD_NAME_PLACEHOLDER}
-          className="h-11 min-w-40 flex-1 rounded-full px-4"
-          autoFocus
-        />
-        <Button type="submit" size="fat" variant="outline" className="h-11 min-h-11 rounded-full px-4" disabled={busy}>
-          {WHOS_EATING_ADD}
-        </Button>
-        <button
-          type="button"
-          className="type-meta inline-flex min-h-11 items-center font-semibold text-primary"
-          onClick={onCancel}
-        >
-          {WHOS_EATING_CANCEL}
-        </button>
-      </form>
-      <p className="type-meta text-muted-foreground">{WHOS_EATING_ADD_NAME_HELPER}</p>
-      {error ? (
-        <p data-slot="add-name-error" className="type-meta text-destructive">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 export function useOptionalSupper(): ReturnType<typeof useSupper> | null {
   try {
     return useSupper();
@@ -287,7 +216,9 @@ export function WhosEatingRow({
         onClick={onOpen}
         className="flex min-h-11 w-full items-center justify-between gap-3 rounded-[14px] bg-muted px-3 py-2 text-left"
       >
-        <span className="type-body text-foreground">{whosEatingRowLabel(list, everyone)}</span>
+        <span className="type-body text-muted-foreground" data-label={whosEatingRowLabel(list, everyone)}>
+          {WHOS_EATING_LABEL}: <span className="font-semibold text-foreground">{whosEatingNamesLine(list, everyone)}</span>
+        </span>
         <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
       </button>
       {!everyone && rulesCount > 0 ? (
@@ -409,7 +340,7 @@ export function WhosEatingSheet({
   const showRulesPanel = Boolean(mealText?.trim()) || rules.length > 0;
 
   return (
-    <FoodRuleSheet
+    <WhosEatingSheetShell
       open={open}
       title={whosEatingSheetTitle(weekday)}
       description={WHOS_EATING_HELPER}
@@ -452,7 +383,7 @@ export function WhosEatingSheet({
           {WHOS_EATING_EATER_READONLY}
         </p>
       ) : null}
-      <PersonChips
+      <AttendeeChips
         people={people}
         draft={draft}
         houseCount={houseCount}
@@ -464,14 +395,17 @@ export function WhosEatingSheet({
       />
       {adding && writable ? (
         <AddNameInline
-          eaters={eaters}
-          memberships={memberships}
-          onCancel={() => setAdding(false)}
+          existing={eaters}
+          memberNames={memberships.map((member) => member.displayName)}
+          defaultOpen
+          fullWidth
+          helper={WHOS_EATING_ADD_NAME_HELPER}
+          placeholder={WHOS_EATING_ADD_NAME_PLACEHOLDER}
+          onClose={() => setAdding(false)}
           onAdd={async (name) => {
             if (!supper) return;
             await supper.addEater(name);
             setPendingName(name);
-            setAdding(false);
           }}
         />
       ) : null}
@@ -587,7 +521,7 @@ export function WhosEatingSheet({
           </div>
         </div>
       ) : null}
-    </FoodRuleSheet>
+    </WhosEatingSheetShell>
   );
 }
 

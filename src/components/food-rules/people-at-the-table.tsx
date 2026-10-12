@@ -149,7 +149,7 @@ export function PeopleAtTheTable({
                     <Button
                       type="button"
                       variant="link"
-                      className="h-11 min-h-11 px-2"
+                      className="h-11 min-h-11 px-2 font-semibold"
                       onClick={() => {
                         setRenamingId(eater.id);
                         setRenameDraft(eater.displayName);
@@ -161,7 +161,7 @@ export function PeopleAtTheTable({
                     <Button
                       type="button"
                       variant="link"
-                      className="h-11 min-h-11 px-2 text-destructive"
+                      className="h-11 min-h-11 px-2 font-semibold text-destructive"
                       onClick={() => setRemoving(eater)}
                     >
                       {REMOVE_LABEL}

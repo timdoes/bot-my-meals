@@ -79,3 +79,17 @@ describe("houseSetupEightStep snapshot flag", () => {
     expect(parseSetupEightStepReady(null)).toBe(false);
   });
 });
+
+describe("optional RPC session memory", () => {
+  it("remembers a missing function and recognises 42883 and PGRST202", async () => {
+    const m = await import("./missing-schema");
+    m.resetRpcMissingForTests();
+    expect(m.isMissingFunctionError({ code: "42883" })).toBe(true);
+    expect(m.isMissingFunctionError({ code: "PGRST202" })).toBe(true);
+    expect(m.isMissingFunctionError({ code: "23505" })).toBe(false);
+    expect(m.isRpcKnownMissing("setup_eight_step_ready")).toBe(false);
+    m.noteRpcMissing("setup_eight_step_ready");
+    expect(m.isRpcKnownMissing("setup_eight_step_ready")).toBe(true);
+    m.resetRpcMissingForTests();
+  });
+});

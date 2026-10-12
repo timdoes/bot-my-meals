@@ -15,6 +15,7 @@ import {
   syncHouseSetupEightStepGate,
 } from "./missing-schema";
 import type { Session } from "@/lib/types";
+import { resetRpcMissingForTests } from "./missing-schema";
 
 const user = {
   id: "user-1",
@@ -253,6 +254,7 @@ function snapshotClient(options: {
 }
 
 afterEach(() => {
+  resetRpcMissingForTests();
   syncHouseSetupEightStepGate({ schemaReady: false, remapReady: false });
 });
 

@@ -1,11 +1,8 @@
 import { WEEKDAY_LABELS } from "./dates";
 import {
   ADD_NAME_LABEL,
-  EATER_NAME_MAX,
-  HOUSEHOLD_EATERS_MAX,
   WHOLE_HOUSE_LABEL,
   foodRuleWho,
-  normalizeEaterName,
   type NightPeopleInput,
 } from "./food-rules";
 import { ruleHit } from "./food-rule-match";
@@ -44,7 +41,6 @@ export const WHOS_EATING_CANCEL = "Cancel";
 export const WHOS_EATING_ADD = "Add";
 export const WHOS_EATING_CROSS_CONTACT =
   "Whole house rules still apply. For kitchen-wide cross-contact, set the rule to Whole house in Food rules.";
-export const WHOS_EATING_CAP = "You've reached 12 named people.";
 export const FOOD_RULES_COVERAGE_NONE = "No food rules set up";
 export const FOOD_RULES_COVERAGE_ADD = "Add";
 export const FOOD_RULES_COVERAGE_VIEW = "View";
@@ -375,29 +371,6 @@ export function takeOffMealHitBody(
   matched: string,
 ): string {
   return `${name} has a ${allergyNoun(food)} allergy and this dinner has ${allergyNoun(matched)}. ${takeOffTitle(name, weekday)}`;
-}
-
-export function alreadyAtTableError(name: string): string {
-  return `${name} is already at the table.`;
-}
-
-export function validateInlineName(
-  name: string,
-  eaters: readonly HouseholdEater[],
-  memberships: readonly Membership[] = [],
-): string | null {
-  const displayName = normalizeEaterName(name);
-  if (!displayName) return "Name is required.";
-  if (displayName.length > EATER_NAME_MAX) return "Use a name of 40 characters or fewer.";
-  if (eaters.length >= HOUSEHOLD_EATERS_MAX) return WHOS_EATING_CAP;
-  const key = displayName.toLowerCase();
-  if (
-    eaters.some((eater) => eater.displayName.toLowerCase() === key) ||
-    memberships.some((member) => member.displayName.toLowerCase() === key)
-  ) {
-    return alreadyAtTableError(displayName);
-  }
-  return null;
 }
 
 export function peopleTakenOff(

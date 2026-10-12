@@ -1,3 +1,4 @@
+import { HOUSEHOLD_EATERS_MAX, validateEaterName } from "@/lib/food-rules";
 import { createElement } from "react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -11,7 +12,6 @@ import {
   allergyConfirmsOnRemove,
   applyChipToggle,
   applyNamedListStepper,
-  alreadyAtTableError,
   draftsFromSnapshot,
   firstTimeGuests,
   footerPeoplePlatesLine,
@@ -27,13 +27,11 @@ import {
   takeOffBody,
   takeOffMealHitBody,
   takeOffTitle,
-  validateInlineName,
   weekCoverageRuleIds,
   whosEatingNamesLine,
   whosEatingRowAria,
   whosEatingRowLabel,
   whosEatingSheetTitle,
-  WHOS_EATING_CAP,
   WHOS_EATING_CROSS_CONTACT,
   WHOS_EATING_EATER_READONLY,
   WHOS_EATING_HELPER,
@@ -192,16 +190,16 @@ describe("who's eating row strings and plates", () => {
   });
 
   it("validates + Name with lock strings and a floor of one attendee on save", () => {
-    expect(validateInlineName("Sam", eaters, members)).toBe(alreadyAtTableError("Sam"));
-    expect(validateInlineName("Maya", eaters, members)).toBeNull();
-    expect(validateInlineName("x".repeat(41), eaters)).toBe("Use a name of 40 characters or fewer.");
+    expect(validateEaterName("Sam", eaters, undefined, members.map((m) => m.displayName))).toBe("That name is already at the table.");
+    expect(validateEaterName("Maya", eaters, undefined, members.map((m) => m.displayName))).toBeNull();
+    expect(validateEaterName("x".repeat(41), eaters)).toBe("Use a name of 40 characters or fewer.");
     const twelve = Array.from({ length: 12 }, (_, index) => ({
       id: `e-${index}`,
       householdId: "h",
       displayName: `Kid ${index}`,
       createdAt: "t",
     }));
-    expect(validateInlineName("Maya", twelve)).toBe(WHOS_EATING_CAP);
+    expect(twelve).toHaveLength(HOUSEHOLD_EATERS_MAX);
     const inputs = nightPeopleInputs(
       [namedDraft([], [], 2), everyoneDraft(people)],
       [3, 4],
@@ -388,11 +386,11 @@ describe("who's eating wiring and no-wake", () => {
       expect(source.toLowerCase()).not.toContain("iphone");
     }
     expect(nights).toContain("attendee-only edit: no wake");
-    expect(who).toContain("Local stand-ins for agent A's");
+    expect(who).toContain("AddNameInline");
     expect(who).toContain("WHOS_EATING_EATER_READONLY");
     expect(WHOS_EATING_EATER_READONLY).toBe("Only Admins and Users can change who's eating.");
     expect(who).toContain("AddNameInline");
-    expect(who).toContain("PersonChips");
-    expect(who).toContain("FoodRuleSheet");
+    expect(who).toContain("AttendeeChips");
+    expect(who).toContain("WhosEatingSheetShell");
   });
 });
