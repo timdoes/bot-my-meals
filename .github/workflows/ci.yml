@@ -48,5 +48,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: SQL tests (food rules, in-memory Postgres)
+        run: npm run test:sql
+
       - name: Worker build smoke
         run: npm run build:worker
