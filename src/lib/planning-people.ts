@@ -19,6 +19,8 @@ export const SPECIAL_INSTRUCTIONS_PLACEHOLDER = "e.g. Guests Thursday — easy w
 /** Hard cap. Typing is not cut off at a shorter soft limit mid-sentence. */
 export const SPECIAL_INSTRUCTIONS_MAX = 500;
 
+/** Who's-eating coverage sits above this field when the house has named people. */
+
 /**
  * Empty planning: the next-week row exists and its plates are not saved yet.
  * Meals already on the week mean this gate was not part of that week.
