@@ -72,7 +72,8 @@ import {
 } from "@/lib/week-navigator";
 import { isPendingBotFill, lockedDinnerTap, POST_LOCK_GET_RECIPES_NEXT_HINT, POST_LOCK_GET_RECIPES_NEXT_WAKE_HINT } from "@/lib/post-lock-waiting";
 import { focusNightCard, nightCardAnchorId } from "@/lib/week-strip";
-import { canActOnBallot, checkWeekLock, latestVoteForMeal, nightLifecycle } from "@/lib/lock";
+import { reorderFoodRuleConflict } from "@/lib/food-rule-check";
+import { canActOnBallot, checkWeekLock, latestVoteForMeal, mapMealReorderError, nightLifecycle } from "@/lib/lock";
 import { recipeNightsForWeek } from "@/lib/recipes";
 import {
   dinnerNightActionsOpen,
@@ -214,6 +215,13 @@ function WeekBallot() {
       const source = scope.meals.find((meal) => meal.id === sourceId);
       const target = scope.meals.find((meal) => meal.id === targetId);
       if (!source || !target) return;
+      const foodRuleHit = reorderFoodRuleConflict(snapshot, sourceId, targetId);
+      if (foodRuleHit) {
+        const message = mapMealReorderError(`food_rule_conflict: ${foodRuleHit.foodLabel}`);
+        setReorderStatus(message);
+        setToast(message);
+        return;
+      }
       setReorderBusy(new Set([sourceId, targetId]));
       setReorderStatus(
         mealReorderAnnouncement({
@@ -224,7 +232,9 @@ function WeekBallot() {
         }),
       );
       void reorderMeals(sourceId, targetId)
-        .catch(() => setReorderStatus(""))
+        .catch((err) => {
+          setReorderStatus(mapMealReorderError(err instanceof Error ? err.message : ""));
+        })
         .finally(() => setReorderBusy(new Set()));
     },
     [snapshot, scope, reorderMeals],

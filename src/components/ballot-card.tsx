@@ -2,7 +2,16 @@
 
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, CircleMinus, GripVertical, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, CircleMinus, GripVertical, RefreshCw, TriangleAlert } from "lucide-react";
+import { useFoodRuleHeadsUp, useOptionalSupper, usePreferredWeekId } from "@/components/use-food-rule-heads-up";
+import {
+  FOOD_RULE_HEADS_UP_ANYWAY,
+  FOOD_RULE_HEADS_UP_ELSE,
+  FOOD_RULE_NEEDS_CHANGE,
+  cardFoodRuleHits,
+  findMealForDayName,
+  foodRuleChipLabel,
+} from "@/lib/food-rule-check";
 import {
   REMOVE_CONFIRM_ACTION,
   REMOVE_CONFIRM_KEEP,
@@ -203,15 +212,25 @@ export function BallotCard({
   const canAct = Boolean(onSwap || onRemove) && !locked && !made;
   const showActions = canAct;
   const swapFieldId = mealCardControlId("swap-reason", dayLabel);
+  const dayName = confirmDayLabel ?? dayLabel;
+  const headsUp = useFoodRuleHeadsUp({ text: reason, dayName });
+  const supper = useOptionalSupper();
+  const preferWeekId = usePreferredWeekId();
+  const meal = supper?.snapshot ? findMealForDayName(supper.snapshot, dayName, preferWeekId) : undefined;
+  const cardHits = supper?.snapshot && meal ? cardFoodRuleHits(supper.snapshot, meal) : { allergy: null, intolerance: null };
+  const conflict = cardHits.allergy ?? cardHits.intolerance;
+  const showNeedsChange = Boolean(cardHits.allergy) && !locked && !made;
   const dayLabelClass = cn(
     "type-day-label",
     muted ? "text-secondary-foreground/70" : "text-muted-foreground",
   );
 
-  const sendSwap = () => {
+  const sendSwap = (force = false) => {
     if (!onSwap) return;
+    if (!force && !headsUp.trySend()) return;
     const pending = onSwap(reason.trim());
     setSheet(null);
+    headsUp.requestSomethingElse();
     void Promise.resolve(pending).catch(() => undefined);
   };
 
@@ -244,6 +263,26 @@ export function BallotCard({
       <h2 className={cn("type-section mt-1", made && "text-foreground/80")} data-slot="meal-card-title">
         {title}
       </h2>
+      {conflict ? (
+        <p
+          data-slot="food-rule-chip"
+          data-severity={conflict.severity}
+          className={cn(
+            "type-chip mt-2 inline-flex items-center gap-1 rounded-full border px-2.5 py-1",
+            conflict.severity === "allergy"
+              ? "border-destructive/40 text-destructive"
+              : "border-[color:var(--swap)]/40 text-swap",
+          )}
+        >
+          <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+          {foodRuleChipLabel(conflict)}
+        </p>
+      ) : null}
+      {showNeedsChange ? (
+        <p data-slot="food-rule-needs-change" className="type-body mt-2 text-muted-foreground">
+          {FOOD_RULE_NEEDS_CHANGE}.
+        </p>
+      ) : null}
       {pitch ? (
         <p
           className={cn(
@@ -428,8 +467,39 @@ export function BallotCard({
               placeholder={SWAP_SHEET_PLACEHOLDER}
               className="min-h-16 max-h-32 overflow-y-auto rounded-[var(--radius-button)] text-base"
             />
+            {headsUp.warning ? (
+              <p data-slot="food-rule-heads-up" className="type-body text-destructive">
+                {headsUp.warning}
+              </p>
+            ) : null}
           </div>
           <SheetFooter className="flex-row gap-2">
+            {headsUp.pending ? (
+              <>
+                <Button
+                  type="button"
+                  size="fat"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => headsUp.requestSomethingElse()}
+                >
+                  {FOOD_RULE_HEADS_UP_ELSE}
+                </Button>
+                <Button
+                  type="button"
+                  size="fat"
+                  variant="primary"
+                  className="flex-1"
+                  onClick={() => {
+                    headsUp.requestAnyway();
+                    sendSwap(true);
+                  }}
+                >
+                  {FOOD_RULE_HEADS_UP_ANYWAY}
+                </Button>
+              </>
+            ) : (
+              <>
             <Button
               type="button"
               size="fat"
@@ -448,6 +518,8 @@ export function BallotCard({
             >
               {SWAP_SHEET_SEND}
             </Button>
+              </>
+            )}
           </SheetFooter>
         </SheetContent>
       </Sheet>

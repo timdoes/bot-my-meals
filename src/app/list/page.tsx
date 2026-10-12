@@ -27,6 +27,11 @@ import {
 } from "@/lib/lock-success";
 import { isPendingBotFill } from "@/lib/post-lock-waiting";
 import { recipeNightsForWeek } from "@/lib/recipes";
+import {
+  FOOD_RULE_CHECK_LINE,
+  shoppingItemCheckTone,
+  weekShowsAllergenCheckLine,
+} from "@/lib/food-rule-check";
 import { groupStickyStoreLists, listItemDisplay } from "@/lib/shopping";
 
 export default function ListPage() {
@@ -122,6 +127,7 @@ function ListBody() {
   }
 
   const groups = groupStickyStoreLists(list.items, snapshot.stores);
+  const showAllergenLine = weekShowsAllergenCheckLine(snapshot, scope.week.id);
 
   return (
     <AppShell
@@ -131,6 +137,11 @@ function ListBody() {
       backLabel={backLabel}
       status={<StatusStrip state="locked" people={[]} secondary={LIST_LOCKED_SECONDARY} />}
     >
+      {showAllergenLine ? (
+        <p data-slot="food-rule-check-line" className="type-meta mb-4 text-muted-foreground">
+          {FOOD_RULE_CHECK_LINE}
+        </p>
+      ) : null}
       <div className="space-y-8">
         {groups.map((group) => (
           <section key={group.store.id} data-slot="list-store-section">
@@ -152,6 +163,7 @@ function ListBody() {
                     name={display.name}
                     quantity={display.quantity}
                     checked={item.checked}
+                    checkLabel={shoppingItemCheckTone(snapshot, scope.week.id, display.name)}
                     onToggle={toggleItem}
                   />
                 );
@@ -209,12 +221,14 @@ function ShoppingListRow({
   name,
   quantity,
   checked,
+  checkLabel,
   onToggle,
 }: {
   itemId: string;
   name: string;
   quantity: string;
   checked: boolean;
+  checkLabel?: "allergy" | "intolerance" | null;
   onToggle: (itemId: string, checked: boolean) => Promise<void>;
 }) {
   const optimistic = useOptimisticValue(checked, (next) => onToggle(itemId, next));
@@ -223,6 +237,7 @@ function ShoppingListRow({
       name={name}
       quantity={quantity}
       checked={optimistic.value}
+      checkLabel={checkLabel}
       onCheckedChange={optimistic.commit}
     />
   );

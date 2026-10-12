@@ -31,6 +31,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { mealCardControlId } from "@/lib/dates";
 import { MAX_HEADCOUNT, MIN_HEADCOUNT, dinnerRequestPeople } from "@/lib/headcount";
+import { useFoodRuleHeadsUp } from "@/components/use-food-rule-heads-up";
+import {
+  FOOD_RULE_HEADS_UP_ANYWAY,
+  FOOD_RULE_HEADS_UP_ELSE,
+} from "@/lib/food-rule-check";
 import { AWAITING_MEAL_LABEL } from "@/lib/wake-feedback";
 import { cn } from "@/lib/utils";
 
@@ -124,18 +129,21 @@ export function EmptyDayCard({
   const [people, setPeople] = useState(() => dinnerRequestPeople(servings));
   const noteFieldId = mealCardControlId("add-note", dayLabel);
   const peopleFieldId = mealCardControlId("add-people", dayLabel);
+  const headsUp = useFoodRuleHeadsUp({ text: draft, dayName });
 
   const beginAdd = () => {
     setPeople(dinnerRequestPeople(servings));
     setOpen(true);
   };
 
-  const requestDinner = () => {
+  const requestDinner = (force = false) => {
     if (!onAdd) return;
+    if (!force && !headsUp.trySend()) return;
     const pending = onAdd(draft.trim(), dinnerRequestPeople(people));
     setDraft("");
     setPeople(dinnerRequestPeople(servings));
     setOpen(false);
+    headsUp.requestSomethingElse();
     void Promise.resolve(pending).catch(() => undefined);
   };
 
@@ -232,8 +240,39 @@ export function EmptyDayCard({
                 className="min-h-24 rounded-[var(--radius-button)] text-base"
               />
             </div>
+            {headsUp.warning ? (
+              <p data-slot="food-rule-heads-up" className="type-body text-destructive">
+                {headsUp.warning}
+              </p>
+            ) : null}
           </div>
           <SheetFooter className="flex-row gap-2">
+            {headsUp.pending ? (
+              <>
+                <Button
+                  type="button"
+                  size="fat"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => headsUp.requestSomethingElse()}
+                >
+                  {FOOD_RULE_HEADS_UP_ELSE}
+                </Button>
+                <Button
+                  type="button"
+                  size="fat"
+                  variant="primary"
+                  className="flex-1 shadow-float"
+                  onClick={() => {
+                    headsUp.requestAnyway();
+                    requestDinner(true);
+                  }}
+                >
+                  {FOOD_RULE_HEADS_UP_ANYWAY}
+                </Button>
+              </>
+            ) : (
+              <>
             <Button
               type="button"
               size="fat"
@@ -252,6 +291,8 @@ export function EmptyDayCard({
             >
               {ADD_SHEET_SEND}
             </Button>
+              </>
+            )}
           </SheetFooter>
         </SheetContent>
       </Sheet> : null}
