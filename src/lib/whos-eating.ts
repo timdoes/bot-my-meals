@@ -9,7 +9,7 @@ import {
   type NightPeopleInput,
 } from "./food-rules";
 import { ruleHit } from "./food-rule-match";
-import { MAX_HEADCOUNT, clampNightHeadcount, normalizeNightHeadcounts } from "./headcount";
+import { MAX_HEADCOUNT, clampNightHeadcount } from "./headcount";
 import { canActOnBallot } from "./lock";
 import type {
   FoodRule,
@@ -360,13 +360,21 @@ export function takeOffBody(name: string, weekday: string, foods: readonly strin
   return `${name} has food rules: ${joinFoods(foods)} (${kind}). If ${name} isn't eating ${weekday}, those rules stop applying to that night's dinner.`;
 }
 
+function allergyNoun(food: string): string {
+  const lower = food.toLowerCase();
+  if (lower.endsWith("ies") && lower.length > 4) return `${lower.slice(0, -3)}y`;
+  if (lower.endsWith("oes") && lower.length > 4) return lower.slice(0, -2);
+  if (lower.endsWith("s") && !lower.endsWith("ss") && lower !== "shellfish") return lower.slice(0, -1);
+  return lower;
+}
+
 export function takeOffMealHitBody(
   name: string,
   weekday: string,
   food: string,
   matched: string,
 ): string {
-  return `${name} has a ${food.toLowerCase()} allergy and this dinner has ${matched.toLowerCase()}. ${takeOffTitle(name, weekday)}`;
+  return `${name} has a ${allergyNoun(food)} allergy and this dinner has ${allergyNoun(matched)}. ${takeOffTitle(name, weekday)}`;
 }
 
 export function alreadyAtTableError(name: string): string {
@@ -454,7 +462,11 @@ export function nightPeopleInputs(
   houseCount: number,
 ): NightPeopleInput[] {
   return drafts.map((draft, dayIndex) => {
-    if ((counts[dayIndex] ?? 0) <= 0 || draftIsEveryone(draft, houseCount)) {
+    if (
+      (counts[dayIndex] ?? 0) <= 0 ||
+      draftIsEveryone(draft, houseCount) ||
+      selectedPeopleCount(draft, houseCount) === 0
+    ) {
       return { dayIndex, everyone: true };
     }
     return {
@@ -516,9 +528,8 @@ export function namedListForRequest(input: {
 }
 
 export function sameNightCounts(left: readonly number[], right: readonly number[]): boolean {
-  const a = normalizeNightHeadcounts([...left]);
-  const b = normalizeNightHeadcounts([...right]);
-  return a.every((count, index) => count === b[index]);
+  if (left.length !== right.length) return false;
+  return left.every((count, index) => clampNightHeadcount(count) === clampNightHeadcount(right[index] ?? 0));
 }
 
 export function customizeNight(

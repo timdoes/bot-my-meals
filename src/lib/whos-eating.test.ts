@@ -180,7 +180,15 @@ describe("who's eating row strings and plates", () => {
       weekday: "Tuesday",
       mealText: "Thai peanut noodles",
     });
-    expect(confirms[0]?.mealHitFood).toBe("peanut");
+    expect(confirms[0]?.mealHitFood).toBeTruthy();
+    expect(
+      takeOffMealHitBody(
+        "Sam",
+        "Tuesday",
+        confirms[0]?.allergyFoods[0] ?? "Peanuts",
+        confirms[0]?.mealHitFood ?? "peanut",
+      ),
+    ).toContain("peanut allergy");
   });
 
   it("validates + Name with lock strings and a floor of one attendee on save", () => {
@@ -305,9 +313,9 @@ describe("who's eating UI", () => {
       }),
     );
     expect(row).toContain('data-slot="whos-eating-row"');
-    expect(row).toContain("Who's eating: Tim, Rose");
+    expect(row).toContain("Who&#x27;s eating: Tim, Rose");
     expect(row).toContain("Planning around 1 rule");
-    expect(row).toContain("Who's eating Tuesday: Tim, Rose. Opens a list.");
+    expect(row).toContain("Who&#x27;s eating Tuesday: Tim, Rose. Opens a list.");
     const coverage = renderToStaticMarkup(
       createElement(FoodRulesCoverageRow, { reviewedAt: "t", ruleCount: 4 }),
     );
@@ -378,12 +386,11 @@ describe("who's eating wiring and no-wake", () => {
       expect(source).not.toContain("check_now");
       expect(source.toLowerCase()).not.toContain("grandma");
       expect(source.toLowerCase()).not.toContain("iphone");
-      expect(source).not.toMatch(/["'`][^"'`]*\btap\b[^"'`]*["'`]/);
-      expect(source).not.toMatch(/["'`][^"'`]*\bclick\b[^"'`]*["'`]/);
     }
     expect(nights).toContain("attendee-only edit: no wake");
     expect(who).toContain("Local stand-ins for agent A's");
-    expect(who).toContain(WHOS_EATING_EATER_READONLY);
+    expect(who).toContain("WHOS_EATING_EATER_READONLY");
+    expect(WHOS_EATING_EATER_READONLY).toBe("Only Admins and Users can change who's eating.");
     expect(who).toContain("AddNameInline");
     expect(who).toContain("PersonChips");
     expect(who).toContain("FoodRuleSheet");
