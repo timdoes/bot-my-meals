@@ -35,7 +35,7 @@ describe("Past weeks bottom stack", () => {
     expect(week).toContain("{showPastWeeks ? (");
     expect(week).toContain("{showLockBar ? <LockBar /> : null}");
     expect(week).toContain('data-slot="past-weeks-link"');
-    expect(week).toContain('href="/settings/history"');
+    expect(week).toContain('href="/house/past-weeks"');
     expect(week.indexOf('data-slot="past-weeks-link"')).toBeLessThan(week.indexOf("<InstallPrompt />"));
     expect(week.indexOf('data-slot="past-weeks-link"')).toBeLessThan(
       week.indexOf("{showLockBar ? <LockBar /> : null}"),

@@ -22,6 +22,7 @@ import {
   BOT_WAKE_URL_PLACEHOLDER,
 } from "@/lib/bot-wake";
 import { saveBotWakeSettings } from "@/lib/bot-wake-client";
+import { ADMIN_BADGE, WAKE_READ_ONLY_NOTE } from "@/lib/house-settings";
 
 export function BotWakeSettings({
   canEdit,
@@ -49,7 +50,22 @@ export function BotWakeSettings({
       className={placement === "setup" ? "scroll-mt-24" : "mt-6 scroll-mt-24"}
       data-slot="bot-wake-settings"
     >
-      <h2 className="type-section text-primary">{BOT_WAKE_SECTION_LABEL}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="type-section text-primary">{BOT_WAKE_SECTION_LABEL}</h2>
+        {placement === "settings" ? (
+          <span
+            data-slot="bot-wake-admin-badge"
+            className="type-chip inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-muted-foreground"
+          >
+            {ADMIN_BADGE}
+          </span>
+        ) : null}
+      </div>
+      {!canEdit && placement === "settings" ? (
+        <p data-slot="bot-wake-read-only" className="type-meta mt-1 text-muted-foreground">
+          {WAKE_READ_ONLY_NOTE}
+        </p>
+      ) : null}
       {canEdit && placement === "settings" ? (
         <p className="type-meta mt-1 text-muted-foreground">{BOT_WAKE_URL_HELPER}</p>
       ) : null}
@@ -140,7 +156,7 @@ export function BotWakeSettings({
           {error ? <p className="type-meta text-destructive">{error}</p> : null}
         </form>
       ) : null}
-      {placement === "settings" ? <BotCheckNow wakeConfigured={configuredOverride} /> : null}
+      {placement === "settings" && canEdit ? <BotCheckNow wakeConfigured={configuredOverride} /> : null}
     </HouseCard>
   );
 }

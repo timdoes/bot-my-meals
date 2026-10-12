@@ -1,39 +1,33 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { UnlockWeekControl } from "@/components/unlock-week-control";
-import { ChevronRight } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { AddToHomeRow } from "@/components/add-to-home-row";
 import { AppearancePicker } from "@/components/appearance-picker";
-import { BotWakeSettings } from "@/components/bot-wake-settings";
 import { AppShell } from "@/components/app-shell";
 import { AuthGate } from "@/components/auth-gate";
+import { BotWakeSettings } from "@/components/bot-wake-settings";
 import { HouseCard } from "@/components/house-card";
-import { HouseStores } from "@/components/house-stores";
-import { InstallPrompt } from "@/components/install-prompt";
-import { InviteShare } from "@/components/invite-share";
-import { ManagePeople } from "@/components/manage-people";
-import { PeoplePerNight } from "@/components/people-per-night";
 import { useSupper } from "@/components/supper-provider";
-import { useViewedWeek } from "@/components/use-viewed-week";
-import { WeeklyBudgetField } from "@/components/weekly-budget-field";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
-  formatWeeklyBudgetDollars,
-  parseWeeklyBudgetDollars,
-  shouldShowHouseSetup,
-  weeklyBudgetCurrencyPrefix,
-} from "@/lib/house-setup";
-import { foodRulesHouseRowLine, isFoodRulesAvailable } from "@/components/food-rules";
-import { HOUSE_PEOPLE_DEFAULTS_NOTE } from "@/lib/edit-nights";
-import { FOOD_RULES_TITLE } from "@/lib/food-rules";
-import { NEVER_AGAIN_LIST_LABEL, neverAgainMeals } from "@/lib/meal-dislikes";
-import { PAST_WEEKS_LABEL } from "@/lib/meal-history";
-import { FAVORITES_LABEL } from "@/lib/saved-meals";
+  HELP_FEEDBACK_URL,
+  SETTINGS_EYEBROW,
+  SETTINGS_HELP_FEEDBACK,
+  SETTINGS_SECTION_ACCOUNT,
+  SETTINGS_SECTION_APP,
+  SETTINGS_SECTION_BOT,
+  SETTINGS_SECTION_HELP,
+  SETTINGS_TITLE,
+  SETTINGS_VERSION,
+  SIGNING_OUT_LABEL,
+  SIGN_OUT_LABEL,
+  appVersionLabel,
+} from "@/lib/house-settings";
 import { isAdmin, roleLabel } from "@/lib/users";
 
+/** Settings = you and this app (HOUSE-SETTINGS-SPLIT §3). The household lives on /house. */
 export default function SettingsPage() {
   return (
     <AuthGate>
@@ -42,47 +36,24 @@ export default function SettingsPage() {
   );
 }
 
+function SectionHead({ id, children }: { id: string; children: string }) {
+  return (
+    <h2 data-slot="settings-section" data-section={id} className="type-eyebrow mt-8 text-muted-foreground first:mt-2">
+      {children}
+    </h2>
+  );
+}
+
 function SettingsBody() {
-  const {
-    snapshot,
-    session,
-    signOut,
-    updateHousehold,
-    addStore,
-    removeStore,
-    createJoinToken,
-  } = useSupper();
+  const { snapshot, session, signOut } = useSupper();
   const router = useRouter();
   const owner = isAdmin(session?.role);
-  const { scope } = useViewedWeek();
-  const [budgetDraft, setBudgetDraft] = useState<string | null>(null);
-  const [budgetError, setBudgetError] = useState<string | null>(null);
-  const [budgetBusy, setBudgetBusy] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const triedJoinToken = useRef(false);
-  const budget =
-    budgetDraft ?? formatWeeklyBudgetDollars(snapshot?.household.weeklyBudgetCents);
-
-  useEffect(() => {
-    if (triedJoinToken.current || !owner || !snapshot || snapshot.joinToken) return;
-    triedJoinToken.current = true;
-    void createJoinToken(false);
-  }, [createJoinToken, owner, snapshot]);
-
-  if (!snapshot) {
-    return (
-      <AppShell title="House">
-        <p className="type-body text-muted-foreground">Create or join a household first.</p>
-        <AppearancePicker />
-      </AppShell>
-    );
-  }
 
   return (
-    <AppShell title={snapshot.household.name} eyebrow="Household">
-      <InstallPrompt />
-
-      <HouseCard>
+    <AppShell title={SETTINGS_TITLE} eyebrow={SETTINGS_EYEBROW}>
+      <SectionHead id="account">{SETTINGS_SECTION_ACCOUNT}</SectionHead>
+      <HouseCard className="mt-3">
         <p className="type-eyebrow text-primary">Signed in as</p>
         <p className="type-title mt-1">{session?.displayName}</p>
         <p className="type-meta text-muted-foreground">
@@ -102,166 +73,45 @@ function SettingsBody() {
               .catch(() => setSigningOut(false));
           }}
         >
-          {signingOut ? "Signing out…" : "Sign out"}
+          {signingOut ? SIGNING_OUT_LABEL : SIGN_OUT_LABEL}
         </Button>
       </HouseCard>
 
+      <SectionHead id="app">{SETTINGS_SECTION_APP}</SectionHead>
       <AppearancePicker />
-
-      <div className="mt-6 space-y-3">
-        <Link
-          href="/settings/saved"
-          data-slot="favorites-row"
-          className="flex min-h-12 items-center justify-between gap-3 rounded-[14px] bg-card px-5 py-3 shadow-card"
-        >
-          <span className="type-section text-primary">{FAVORITES_LABEL}</span>
-          <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-        </Link>
-        {isFoodRulesAvailable() ? (
-          <Link
-            href="/settings/food-rules"
-            data-slot="food-rules-house-row"
-            className="flex min-h-12 items-center justify-between gap-3 rounded-[14px] bg-card px-5 py-3 shadow-card"
-          >
-            <span className="min-w-0">
-              <span className="type-section block text-primary">{FOOD_RULES_TITLE}</span>
-              <span className="type-meta mt-0.5 block text-muted-foreground">
-                {foodRulesHouseRowLine(
-                  snapshot.foodRules,
-                  snapshot.household.foodRulesReviewedAt,
-                  neverAgainMeals(snapshot.mealDislikes).length,
-                )}
-              </span>
-            </span>
-            <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-          </Link>
-        ) : (
-          <Link
-            href="/settings/never-again"
-            data-slot="never-again-house-row"
-            className="flex min-h-12 items-center justify-between gap-3 rounded-[14px] bg-card px-5 py-3 shadow-card"
-          >
-            <span className="type-section text-primary">{NEVER_AGAIN_LIST_LABEL}</span>
-            <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-          </Link>
-        )}
-        <Link
-          href="/settings/history"
-          data-slot="past-weeks-row"
-          className="flex min-h-12 items-center justify-between rounded-[14px] bg-card px-5 shadow-card"
-        >
-          <span className="type-section text-primary">{PAST_WEEKS_LABEL}</span>
-          <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
-        </Link>
+      <div className="mt-3">
+        <AddToHomeRow />
       </div>
 
-      {shouldShowHouseSetup(session?.role, snapshot.household.setupStep) ? (
-        <HouseCard className="mt-6">
-          <h2 className="type-section text-primary">Finish setup</h2>
-          <p className="type-meta mt-1 text-muted-foreground">
-            Invite, household size, nights, stores, budget, then create meals. Your place is saved.
-          </p>
-          <Button asChild size="fat" variant="primary" className="mt-3 w-full">
-            <Link href="/week?setup=1">Finish house setup</Link>
-          </Button>
-        </HouseCard>
+      {snapshot ? (
+        <>
+          <SectionHead id="bot">{SETTINGS_SECTION_BOT}</SectionHead>
+          <BotWakeSettings canEdit={owner} />
+        </>
       ) : null}
 
-      <HouseCard className="mt-6">
-        <h2 className="type-section text-primary">Invite</h2>
-        <p className="type-meta mt-1 text-muted-foreground">
-          Share the link. They open it in their browser and join this house — Bot My Meals does not
-          email anyone from here.
-        </p>
-        {owner ? (
-          <InviteShare
-            token={snapshot.joinToken ?? null}
-            onRotate={() => createJoinToken(true).then(() => undefined)}
-          />
-        ) : (
-          <p className="type-meta mt-3 text-muted-foreground">Ask an Admin to share the invite link.</p>
-        )}
-      </HouseCard>
-
-      <ManagePeople />
-
-      <PeoplePerNight
-        household={snapshot.household}
-        canEdit={owner}
-        note={HOUSE_PEOPLE_DEFAULTS_NOTE}
-        onChange={(patch) => void updateHousehold(patch)}
-      />
-
-      <HouseStores
-        stores={snapshot.stores}
-        canEdit={owner}
-        postalCode={snapshot.household.postalCode}
-        onPostalCode={(code) => void updateHousehold({ postalCode: code || null })}
-        onAdd={(slug, name) => void addStore(slug, name)}
-        onRemove={(id) => void removeStore(id)}
-      />
-
-      <HouseCard className="mt-6">
-        <h2 className="type-section text-primary">Weekly meal budget</h2>
-        <p className="type-meta mt-1 text-muted-foreground">
-          A target for dinners this week. We never invent grocery prices.
-        </p>
-        {owner ? (
-          <form
-            className="mt-3 space-y-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setBudgetError(null);
-              let weeklyBudgetCents: number | null;
-              try {
-                weeklyBudgetCents = parseWeeklyBudgetDollars(budget);
-              } catch (err) {
-                setBudgetError(err instanceof Error ? err.message : "Could not save that budget.");
-                return;
-              }
-              setBudgetBusy(true);
-              void updateHousehold({ weeklyBudgetCents })
-                .then(() => setBudgetDraft(null))
-                .catch((err: unknown) => {
-                  setBudgetError(err instanceof Error ? err.message : "Could not save that budget.");
-                })
-                .finally(() => setBudgetBusy(false));
-            }}
-          >
-            <Label htmlFor="house-weekly-budget">Weekly meal budget</Label>
-            <WeeklyBudgetField
-              id="house-weekly-budget"
-              value={budget}
-              postalCode={snapshot.household.postalCode}
-              onChange={setBudgetDraft}
-            />
-            <Button size="fat" className="w-full" disabled={budgetBusy} aria-busy={budgetBusy}>
-              {budgetBusy ? "Saving…" : "Save budget"}
-            </Button>
-            {budgetError ? <p className="type-meta text-destructive">{budgetError}</p> : null}
-          </form>
-        ) : (
-          <p className="type-body mt-3">
-            {snapshot.household.weeklyBudgetCents == null
-              ? "No weekly target set."
-              : `${weeklyBudgetCurrencyPrefix(snapshot.household.postalCode)}${formatWeeklyBudgetDollars(
-                  snapshot.household.weeklyBudgetCents,
-                )}`}
-          </p>
-        )}
-      </HouseCard>
-
-      <BotWakeSettings canEdit={owner} />
-
-      {owner && scope?.week.status === "locked" ? (
-        <section className="mt-6">
-          <UnlockWeekControl variant="block" />
-        </section>
-      ) : null}
-
-      <p className="type-meta mt-8 text-center text-muted-foreground">
-        Household-scoped by design. Other families cannot see this table.
-      </p>
+      <SectionHead id="help">{SETTINGS_SECTION_HELP}</SectionHead>
+      <div className="mt-3 space-y-3">
+        <a
+          href={HELP_FEEDBACK_URL}
+          target="_blank"
+          rel="noreferrer"
+          data-slot="help-feedback-row"
+          className="flex min-h-12 items-center justify-between gap-3 rounded-[14px] bg-card px-5 py-3 shadow-card"
+        >
+          <span className="type-section text-primary">{SETTINGS_HELP_FEEDBACK}</span>
+          <ExternalLink className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        </a>
+        <div
+          data-slot="version-row"
+          className="flex min-h-12 items-center justify-between gap-3 rounded-[14px] bg-card px-5 py-3 shadow-card"
+        >
+          <span className="type-section">{SETTINGS_VERSION}</span>
+          <span className="type-meta font-mono text-muted-foreground">
+            {appVersionLabel(process.env.NEXT_PUBLIC_APP_VERSION)}
+          </span>
+        </div>
+      </div>
     </AppShell>
   );
 }

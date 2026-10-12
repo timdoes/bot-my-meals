@@ -176,7 +176,8 @@ describe("week navigator chrome", () => {
     expect(html).toContain("h-[52px]");
     expect(html).toContain('data-slot="week-nav-previous"');
     expect(html).toContain('data-slot="week-nav-next"');
-    expect(html).toContain("size-11");
+    // Chevrons 44×48 (NAV-TABS lock §3).
+    expect(html).toContain("h-12 w-11");
     expect(html).toContain('data-slot="week-nav-fade"');
     expect(html).toContain("pointer-events-none");
     expect(html).toContain("z-20");

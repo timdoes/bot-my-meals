@@ -100,14 +100,31 @@ export function selectionFromStop(stop: NavigatorStop): ViewedWeekSelection {
   }
 }
 
-export function navigatorHref(selection: ViewedWeekSelection): string {
+/** Query string (with `?`) that carries the viewed week between Meals, List and recipe pages. */
+export function weekQuery(selection: ViewedWeekSelection): string {
   switch (selection.kind) {
     case "cooking":
-      return "/week";
+      return "";
     case "planning":
-      return "/week?week=next";
+      return "?week=next";
     case "past":
-      return `/week?past=${selection.startsOn}`;
+      return `?past=${selection.startsOn}`;
+    default: {
+      const _exhaustive: never = selection;
+      return _exhaustive;
+    }
+  }
+}
+
+/** Meals and List share one week: same params on both tabs. */
+export function navigatorHref(selection: ViewedWeekSelection, base: "/week" | "/list" = "/week"): string {
+  switch (selection.kind) {
+    case "cooking":
+      return base;
+    case "planning":
+      return `${base}?week=next`;
+    case "past":
+      return `${base}?past=${selection.startsOn}`;
     default: {
       const _exhaustive: never = selection;
       return _exhaustive;

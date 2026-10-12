@@ -35,7 +35,7 @@ function FoodRulesBody() {
   const [lastAttendeeEaterId, setLastAttendeeEaterId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (snapshot && !available) router.replace("/settings");
+    if (snapshot && !available) router.replace("/house");
   }, [available, router, snapshot]);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ function FoodRulesBody() {
 
   if (!available) {
     return (
-      <AppShell title="House" backHref="/settings" backLabel="House">
+      <AppShell title="House" backHref="/house" backLabel="House">
         <p className="type-body text-muted-foreground">Create or join a household first.</p>
       </AppShell>
     );
@@ -54,14 +54,14 @@ function FoodRulesBody() {
 
   if (!snapshot) {
     return (
-      <AppShell title={FOOD_RULES_TITLE} backHref="/settings" backLabel="House">
+      <AppShell title={FOOD_RULES_TITLE} backHref="/house" backLabel="House">
         <p className="type-body text-muted-foreground">Create or join a household first.</p>
       </AppShell>
     );
   }
 
   return (
-    <AppShell title={FOOD_RULES_TITLE} backHref="/settings" backLabel="House">
+    <AppShell title={FOOD_RULES_TITLE} backHref="/house" backLabel="House">
       <FoodRulesHome
         rules={snapshot.foodRules}
         eaters={snapshot.eaters}

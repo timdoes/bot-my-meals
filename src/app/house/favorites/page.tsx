@@ -25,7 +25,7 @@ function FavoritesBody() {
 
   if (!snapshot) {
     return (
-      <AppShell title={FAVORITES_LABEL} backHref="/settings" backLabel="House">
+      <AppShell title={FAVORITES_LABEL} backHref="/house" backLabel="House">
         <p className="type-body text-muted-foreground">Create or join a household first.</p>
       </AppShell>
     );
@@ -45,7 +45,7 @@ function FavoritesBody() {
   });
 
   return (
-    <AppShell title={FAVORITES_LABEL} backHref="/settings" backLabel="House">
+    <AppShell title={FAVORITES_LABEL} backHref="/house" backLabel="House">
       <FavoritesList
         meals={snapshot.savedMeals}
         timeZone={snapshot.household.timezone}

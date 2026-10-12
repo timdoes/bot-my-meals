@@ -478,6 +478,7 @@ describe("Wake your Bot settings and gated hints", () => {
       "components/use-bot-wake.ts",
       "lib/bot-wake-client.ts",
       "app/settings/page.tsx",
+      "app/house/page.tsx",
     ].map((file) => readFileSync(path.join(srcRoot, file), "utf8"));
 
     expect(provider).toContain('requestBotWake("week_locked")');

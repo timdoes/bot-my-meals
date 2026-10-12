@@ -2,7 +2,7 @@
 
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, CircleMinus, GripVertical, RefreshCw, TriangleAlert } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, CircleMinus, GripVertical, RefreshCw, TriangleAlert } from "lucide-react";
 import { useFoodRuleHeadsUp, useOptionalSupper, usePreferredWeekId } from "@/components/use-food-rule-heads-up";
 import {
   FOOD_RULE_HEADS_UP_ANYWAY,
@@ -185,6 +185,7 @@ export function BallotCard({
   onRemove,
   reorder,
   openHref,
+  opensRecipe = false,
   className,
 }: {
   dayLabel: string;
@@ -203,6 +204,8 @@ export function BallotCard({
   reorder?: MealReorderHandlers;
   /** Body tap opens the meal. Omitted when a parent link already wraps the card. */
   openHref?: string;
+  /** Selecting the card opens its recipe: subtle › chevron (NAV-TABS lock §2). */
+  opensRecipe?: boolean;
   className?: string;
 }) {
   const articleRef = useRef<HTMLElement>(null);
@@ -260,9 +263,18 @@ export function BallotCard({
           {dayLabel}
         </p>
       )}
-      <h2 className={cn("type-section mt-1", made && "text-foreground/80")} data-slot="meal-card-title">
-        {title}
-      </h2>
+      <div className="mt-1 flex items-start justify-between gap-2">
+        <h2 className={cn("type-section min-w-0", made && "text-foreground/80")} data-slot="meal-card-title">
+          {title}
+        </h2>
+        {opensRecipe || openHref ? (
+          <ChevronRight
+            aria-hidden
+            data-slot="meal-card-chevron"
+            className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+          />
+        ) : null}
+      </div>
       {conflict ? (
         <p
           data-slot="food-rule-chip"

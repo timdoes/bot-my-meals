@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { formatWeekEyebrow } from "./dates";
@@ -96,7 +96,11 @@ describe("people-per-night servings", () => {
 
 describe("Clear Sky recipe craft", () => {
   it("keeps Sun–Sat nights and RecipeBlock on Clear Sky tokens", () => {
-    const recipes = readFileSync(path.resolve(import.meta.dirname, "../app/recipes/page.tsx"), "utf8");
+    const recipes = readFileSync(path.resolve(import.meta.dirname, "../app/week/recipes/page.tsx"), "utf8");
+    expect(existsSync(path.resolve(import.meta.dirname, "../app/recipes/page.tsx"))).toBe(false);
+    expect(recipes).toContain("RecipeBlock");
+    expect(recipes).toContain("steppableNights");
+    expect(recipes).not.toContain("Clear Sky");
     const block = readFileSync(
       path.resolve(import.meta.dirname, "../components/recipe-view.tsx"),
       "utf8",
@@ -106,12 +110,6 @@ describe("Clear Sky recipe craft", () => {
       "utf8",
     );
 
-    expect(recipes).toContain("recipeNightsForWeek");
-    expect(recipes).toContain('data-slot="recipe-night"');
-    expect(recipes).toContain('data-day={meal.dayIndex}');
-    expect(recipes).toContain("bg-card-tint");
-    expect(recipes).toContain("ring-2 ring-primary");
-    expect(recipes).toContain('backHref="/week"');
     expect(block).toContain('data-slot="recipe-block"');
     expect(block).toContain('data-slot="recipe-servings"');
     expect(block).toContain("bg-secondary");
@@ -129,19 +127,6 @@ describe("Clear Sky recipe craft", () => {
     expect(block).not.toContain("#b35025");
     expect(block).not.toContain("Fraunces");
     expect(block).not.toContain("Clear Sky");
-    expect(recipes).not.toContain("Clear Sky");
-    expect(recipes).not.toContain("Blue & White");
-    expect(recipes).toContain("RECIPES_PRE_LOCK_DESCRIPTION");
-    expect(recipes).toContain("RECIPES_EMPTY_WEEK");
-    expect(recipes).not.toContain("Seed a week");
-    expect(recipes).toContain("removedMealIds");
-    expect(recipes).toContain("EMPTY_DAY_TITLE");
-    expect(recipes).not.toContain("skippedMealIds");
-    expect(recipes).not.toContain("Night off");
-    expect(recipes).not.toMatch(/approves or skips/i);
-    expect(recipes).not.toContain("Approve");
-    expect(recipes).not.toContain("You approved");
-    expect(recipes).not.toContain("Your vote needed");
   });
 });
 

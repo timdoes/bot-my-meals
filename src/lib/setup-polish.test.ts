@@ -48,7 +48,7 @@ describe("setup polish copy lock", () => {
     const landing = readFileSync(path.join(srcRoot, "components/join-landing.tsx"), "utf8");
     const share = readFileSync(path.join(srcRoot, "components/invite-share.tsx"), "utf8");
     const wizard = readFileSync(path.join(srcRoot, "components/setup-wizard.tsx"), "utf8");
-    const house = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
+    const house = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
 
     expect(onboarding).not.toContain("Join a table");
     expect(onboarding).not.toContain("joinHousehold");

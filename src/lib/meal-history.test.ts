@@ -169,13 +169,13 @@ describe("history payload", () => {
 });
 
 describe("Past weeks surfaces", () => {
-  it("lives under House and This week, with no History tab and no recipe replay", () => {
-    const shell = readFileSync(path.join(srcRoot, "components/app-shell.tsx"), "utf8");
-    const settings = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
+  it("lives under House and Meals, with no History tab and no recipe replay", () => {
+    const shell = readFileSync(path.join(srcRoot, "lib/nav-tabs.ts"), "utf8");
+    const settings = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
     const week = readFileSync(path.join(srcRoot, "app/week/page.tsx"), "utf8");
-    const index = readFileSync(path.join(srcRoot, "app/settings/history/page.tsx"), "utf8");
+    const index = readFileSync(path.join(srcRoot, "app/house/past-weeks/page.tsx"), "utf8");
     const detail = readFileSync(
-      path.join(srcRoot, "app/settings/history/[startsOn]/page.tsx"),
+      path.join(srcRoot, "app/house/past-weeks/[startsOn]/page.tsx"),
       "utf8",
     );
     const view = readFileSync(path.join(srcRoot, "components/past-weeks.tsx"), "utf8");
@@ -184,18 +184,18 @@ describe("Past weeks surfaces", () => {
     expect(shell.match(/href: "\//g)).toHaveLength(4);
     expect(shell).toContain('label: "House"');
     expect(shell).not.toMatch(/label:\s*"History"/);
-    expect(shell).not.toContain("/settings/history");
+    expect(shell).not.toContain("/house/past-weeks");
 
     expect(settings).toContain('data-slot="past-weeks-row"');
-    expect(settings).toContain('href="/settings/history"');
+    expect(settings).toContain('href="/house/past-weeks"');
     expect(settings).toContain("PAST_WEEKS_LABEL");
 
     expect(week).toContain('data-slot="past-weeks-link"');
     expect(week).toContain("snapshot.mealHistory.length > 0");
-    expect(week).toContain('href="/settings/history"');
+    expect(week).toContain('href="/house/past-weeks"');
     expect(week).toContain("PAST_WEEKS_LABEL");
 
-    expect(index).toContain('backHref="/settings"');
+    expect(index).toContain('backHref="/house"');
     expect(index).toContain('backLabel="House"');
     expect(index).toContain("PastWeeksList");
     expect(detail).toContain("navigatorHref");

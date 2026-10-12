@@ -46,8 +46,8 @@ describe("open weeks", () => {
     expect(split.cooking?.startsOn).toBe(cookingStart);
     expect(split.planning?.startsOn).toBe("2026-10-04");
     expect(weekHomeTitle("planning")).toBe("Next week");
-    expect(shoppingListTitle("cooking")).toBe("Shopping · This week");
-    expect(shoppingListTitle("planning")).toBe("Shopping · Next week");
+    // NAV-TABS lock §4: title is always "Shopping list"; the week rides in the eyebrow + strip.
+    expect(shoppingListTitle()).toBe("Shopping list");
     expect(waitingWeekCue("cooking", cookingStart)).toBeNull();
     expect(waitingWeekCue("cooking", cookingStart, { bothOpen: true })).toBe(
       `This week · ${formatWeekRange(cookingStart)}`,

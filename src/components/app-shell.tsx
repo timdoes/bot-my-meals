@@ -3,17 +3,19 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, ClipboardList, Settings2, Utensils } from "lucide-react";
+import { ClipboardList, House, Settings, Utensils, type LucideIcon } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { ChromeBackLink } from "@/components/chrome-back";
+import { useSupper } from "@/components/supper-provider";
+import { NAV_TABS, navTabActive, navTabHref, type NavTabId } from "@/lib/nav-tabs";
 import { cn } from "@/lib/utils";
 
-const TABS = [
-  { href: "/week", label: "This week", icon: Utensils },
-  { href: "/recipes", label: "Recipes", icon: BookOpen },
-  { href: "/list", label: "List", icon: ClipboardList },
-  { href: "/settings", label: "House", icon: Settings2 },
-];
+const TAB_ICONS: Record<NavTabId, LucideIcon> = {
+  meals: Utensils,
+  list: ClipboardList,
+  house: House,
+  settings: Settings,
+};
 
 export function WeekTitleRow({
   title,
@@ -73,6 +75,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const { viewedWeek, resetViewedWeek } = useSupper();
   const headRef = useRef<HTMLDivElement>(null);
   const [headH, setHeadH] = useState(0);
 
@@ -154,13 +157,19 @@ export function AppShell({
         className="fixed inset-x-0 bottom-0 z-30 border-t border-border/80 bg-card/95 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] backdrop-blur-md"
       >
         <div className="mx-auto grid max-w-lg grid-cols-4 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-          {TABS.map((tab) => {
-            const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-            const Icon = tab.icon;
+          {NAV_TABS.map((tab) => {
+            const active = navTabActive(pathname, tab.href);
+            const Icon = TAB_ICONS[tab.id];
+            // Selecting Meals while already on Meals goes back to the smart default week.
+            const reselectMeals = tab.id === "meals" && pathname === "/week";
             return (
               <Link
                 key={tab.href}
-                href={tab.href}
+                href={reselectMeals ? "/week" : navTabHref(tab.href, viewedWeek)}
+                data-slot="app-tab"
+                data-tab={tab.id}
+                aria-current={active ? "page" : undefined}
+                onClick={reselectMeals ? () => resetViewedWeek() : undefined}
                 className={cn(
                   "tap-target type-nav flex flex-col items-center justify-center gap-0.5 rounded-[var(--radius-button)]",
                   active ? "text-primary" : "text-muted-foreground",

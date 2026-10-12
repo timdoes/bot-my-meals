@@ -15,6 +15,7 @@ export function WeekStrip({
   locked = false,
   mutedDates = [],
   onSelect,
+  interactive = true,
 }: {
   startsOn: string;
   nights: readonly WeekStripNight[];
@@ -23,6 +24,8 @@ export function WeekStrip({
   locked?: boolean;
   mutedDates?: readonly string[];
   onSelect: (mealId: string) => void;
+  /** List: cells look the same but are not buttons (no per-day action). */
+  interactive?: boolean;
 }) {
   const cells = weekStripCells(startsOn, nights);
   const muted = new Set(mutedDates);
@@ -33,7 +36,10 @@ export function WeekStrip({
       data-locked={locked ? "true" : "false"}
       className="overflow-hidden px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div role="group" aria-label="Jump to a night" className="flex w-max min-w-full gap-2">
+      <div
+        role="group"
+        aria-label={interactive ? "Jump to a night" : "Nights this week"}
+        className="flex w-max min-w-full gap-2">
         {cells.map((cell) => {
           if (!cell.hasMeal || !cell.mealId) {
             return <EmptyStripCell key={cell.nightDate} cell={cell} />;
@@ -47,6 +53,7 @@ export function WeekStrip({
               today={cell.nightDate === todayIso}
               past={muted.has(cell.nightDate)}
               onSelect={onSelect}
+              interactive={interactive}
             />
           );
         })}
@@ -78,6 +85,7 @@ function MealStripCell({
   today,
   past,
   onSelect,
+  interactive,
 }: {
   cell: WeekStripCell;
   mealId: string;
@@ -85,8 +93,49 @@ function MealStripCell({
   today: boolean;
   past: boolean;
   onSelect: (mealId: string) => void;
+  interactive: boolean;
 }) {
   const label = formatMealCardDayLabel(cell.nightDate);
+  // One selected-day style (filled blue); today is a dot under the date.
+  const face = (
+    <>
+      <StripCellFace cell={cell} emphasis />
+      {today ? (
+        <span
+          aria-hidden
+          data-slot="week-strip-today-dot"
+          className={cn(
+            "absolute bottom-0 left-1/2 size-1 -translate-x-1/2 rounded-full",
+            selected ? "bg-primary-foreground" : "bg-primary",
+          )}
+        />
+      ) : null}
+    </>
+  );
+  const tone = cn(
+    cellGeometry,
+    "text-foreground",
+    past && !selected && "text-muted-foreground",
+    selected && "bg-primary text-primary-foreground",
+  );
+  if (!interactive) {
+    return (
+      <div
+        data-slot="week-strip-cell"
+        data-selectable="false"
+        data-empty="false"
+        data-meal-id={mealId}
+        data-today={today ? "true" : "false"}
+        data-past={past ? "true" : "false"}
+        data-selected={selected ? "true" : "false"}
+        aria-current={today ? "date" : undefined}
+        aria-label={label}
+        className={tone}
+      >
+        {face}
+      </div>
+    );
+  }
   return (
     <button
       type="button"
@@ -101,16 +150,9 @@ function MealStripCell({
       aria-current={today ? "date" : undefined}
       aria-label={past ? `${label}, read only` : label}
       onClick={() => onSelect(mealId)}
-      className={cn(
-        cellGeometry,
-        "cursor-pointer text-foreground",
-        today && "bg-primary text-primary-foreground",
-        !today && past && "text-muted-foreground",
-        !today && past && selected && "bg-muted",
-        !today && !past && selected && "bg-primary/15 text-primary",
-      )}
+      className={cn(tone, "cursor-pointer")}
     >
-      <StripCellFace cell={cell} emphasis />
+      {face}
     </button>
   );
 }

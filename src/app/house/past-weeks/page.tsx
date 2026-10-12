@@ -18,14 +18,14 @@ function PastWeeksBody() {
   const { snapshot } = useSupper();
   if (!snapshot) {
     return (
-      <AppShell title={PAST_WEEKS_LABEL} backHref="/settings" backLabel="House">
+      <AppShell title={PAST_WEEKS_LABEL} backHref="/house" backLabel="House">
         <p className="type-body text-muted-foreground">Create or join a household first.</p>
       </AppShell>
     );
   }
 
   return (
-    <AppShell title={PAST_WEEKS_LABEL} backHref="/settings" backLabel="House">
+    <AppShell title={PAST_WEEKS_LABEL} backHref="/house" backLabel="House">
       <p data-slot="past-weeks-helper" className="type-meta mb-4 text-muted-foreground">
         {PAST_WEEKS_HELPER}
       </p>

@@ -359,7 +359,7 @@ describe("who's eating UI", () => {
     );
     expect(coverage).toContain("Planning around 4 food rules");
     expect(coverage).toContain("View");
-    expect(coverage).toContain("/settings/food-rules");
+    expect(coverage).toContain("/house/food-rules");
   });
 
   it("keeps the planning gate identical when the feature is hidden", () => {

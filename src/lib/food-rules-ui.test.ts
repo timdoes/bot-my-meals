@@ -353,32 +353,32 @@ describe("People at the table SSR", () => {
 
 describe("live-safety and wiring", () => {
   it("hides the Food rules House row and never-again redirect until the snapshot proves the tables exist", () => {
-    const house = readFileSync(path.join(srcRoot, "app/settings/page.tsx"), "utf8");
-    const neverAgain = readFileSync(path.join(srcRoot, "app/settings/never-again/page.tsx"), "utf8");
-    const foodRulesPage = readFileSync(path.join(srcRoot, "app/settings/food-rules/page.tsx"), "utf8");
+    const house = readFileSync(path.join(srcRoot, "app/house/page.tsx"), "utf8");
+    const neverAgain = readFileSync(path.join(srcRoot, "app/house/never-again/page.tsx"), "utf8");
+    const foodRulesPage = readFileSync(path.join(srcRoot, "app/house/food-rules/page.tsx"), "utf8");
 
     expect(house).toContain("isFoodRulesAvailable()");
     expect(house).toContain('data-slot="food-rules-house-row"');
     expect(house).toContain('data-slot="never-again-house-row"');
     expect(house).toContain("NEVER_AGAIN_LIST_LABEL");
-    expect(house).toContain("/settings/food-rules");
-    expect(house).toContain("/settings/never-again");
+    expect(house).toContain("/house/food-rules");
+    expect(house).toContain("/house/never-again");
 
     expect(neverAgain).toContain("isFoodRulesAvailable()");
-    expect(neverAgain).toContain('router.replace("/settings/food-rules#meals")');
+    expect(neverAgain).toContain('router.replace("/house/food-rules#meals")');
     expect(neverAgain).toContain("NeverAgainList");
     expect(neverAgain).toContain("if (snapshot && available)");
 
     expect(foodRulesPage).toContain("isFoodRulesAvailable()");
-    expect(foodRulesPage).toContain('router.replace("/settings")');
+    expect(foodRulesPage).toContain('router.replace("/house")');
     expect(foodRulesPage).toContain("if (snapshot && !available)");
   });
 
   it("never wakes the bot from rule or named-person edits", () => {
     const owned = [
-      "app/settings/food-rules/page.tsx",
-      "app/settings/never-again/page.tsx",
-      "app/settings/page.tsx",
+      "app/house/food-rules/page.tsx",
+      "app/house/never-again/page.tsx",
+      "app/house/page.tsx",
       "components/never-again-list.tsx",
       "components/food-rules/food-rules-home.tsx",
       "components/food-rules/food-rule-sheet.tsx",

@@ -325,7 +325,7 @@ describe("reaction wiring", () => {
   it("does not wake the bot or rebuild shopping from either Send", () => {
     const provider = readFileSync(path.join(srcRoot, "components/supper-provider.tsx"), "utf8");
     const detail = readFileSync(path.join(srcRoot, "app/week/[mealId]/page.tsx"), "utf8");
-    const favorites = readFileSync(path.join(srcRoot, "app/settings/saved/page.tsx"), "utf8");
+    const favorites = readFileSync(path.join(srcRoot, "app/house/favorites/page.tsx"), "utf8");
     const sql = readFileSync(
       path.join(repoRoot, "supabase/migrations/20261007020000_meal_reactions.sql"),
       "utf8",

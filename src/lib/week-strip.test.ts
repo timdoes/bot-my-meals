@@ -102,7 +102,7 @@ describe("This week strip", () => {
     expect(navigatorSource).toContain("h-[52px]");
     expect(navigatorSource).toContain("week-nav-previous");
     expect(navigatorSource).toContain("week-nav-next");
-    expect(navigatorSource).toContain("size-11");
+    expect(navigatorSource).toContain("h-12 w-11");
     expect(strip).toContain('data-slot="week-strip"');
     expect(strip).toContain("h-[44px]");
     expect(strip).toContain("min-h-[44px]");
