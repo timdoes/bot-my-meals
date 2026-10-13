@@ -238,7 +238,7 @@ export function grokBotPastePrompt(input: {
     `Use these plates per night: ${plates}.`,
     `Shop at: ${stores}.`,
     `Budget: ${budget}.`,
-    "Wake your Bot is required before Create this week's meals. Paste the Webhook URL in House → Wake your Bot. There is no Skip. Week and plan changes wake the bot. Write ballot, recipes, and the shopping list back to the site, and stay quiet if nothing changed.",
+    "Wake your Bot is required before Create this week's meals. Paste the Webhook URL in Settings → Wake your Bot. There is no Skip. Week and plan changes wake the bot. Write ballot, recipes, and the shopping list back to the site, and stay quiet if nothing changed.",
     "On each wake, read GET /api/bot/status. Do the work when needs_work is true on any open week, and stay silent when nothing changed.",
     "fill_pending means this locked week still needs recipes or a shopping list. Write those, and skip a list when nothing needs buying.",
     "Keep a webhook routine named Wake on app event. On wake, sync this household (ballot, recipes, shopping list, setup) from the app, and stay quiet if nothing changed.",
