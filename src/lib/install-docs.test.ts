@@ -38,7 +38,7 @@ function expectPasswordInstallHappyPath(doc: string) {
 function expectWakeInstallPaste(paste: string) {
   expect(paste).toMatch(/Wake on app event/);
   expect(paste).toMatch(/Webhook URL/);
-  expect(paste).toMatch(/House → Wake your Bot/);
+  expect(paste).toMatch(/Settings → Wake your Bot/);
   expect(paste).toMatch(/BOT_WAKE_WEBHOOK_URL/);
   expect(paste).toMatch(/BOT_WAKE_WEBHOOK_KEY/);
   expect(paste).toMatch(/sender key/);
@@ -346,7 +346,7 @@ describe("Install docs — email + password + Wake on app event", () => {
       setupSection.indexOf("Tap **Create this week's meals**"),
     );
     expect(readme).toMatch(/Webhook URL/);
-    expect(readme).toMatch(/House → Wake your Bot/);
+    expect(readme).toMatch(/Settings → Wake your Bot/);
     expect(readme).toMatch(/BOT_WAKE_WEBHOOK_URL/);
     expect(readme).toMatch(/required for every household|Required for every household/);
     expect(readme).toMatch(/setup is incomplete/);
@@ -356,7 +356,7 @@ describe("Install docs — email + password + Wake on app event", () => {
 
     expect(routines).toMatch(/Wake on app event/);
     expect(routines).toMatch(/Webhook URL/);
-    expect(routines).toMatch(/House → Wake your Bot/);
+    expect(routines).toMatch(/Settings → Wake your Bot/);
     expect(routines).toMatch(/BOT_WAKE_WEBHOOK_URL/);
     expect(routines).toMatch(/BOT_WAKE_WEBHOOK_KEY/);
     expect(routines).toMatch(/sender key/);

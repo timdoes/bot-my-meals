@@ -18,7 +18,7 @@
   "workers_dev": true,
   // Optional Worker secrets (dashboard or `wrangler secret put`). Never NEXT_PUBLIC_.
   // BOT_WAKE_WEBHOOK_URL and BOT_WAKE_WEBHOOK_KEY wake the household Grok Bot.
-  // CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN let House → Wake your Bot save those two.
+  // CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN let Settings → Wake your Bot save those two.
   "preview_urls": true,
   "assets": {
     "directory": ".open-next/assets",

@@ -518,7 +518,7 @@ describe("Wake your Bot settings and gated hints", () => {
     const readme = readFileSync(path.join(repoRoot, "README.md"), "utf8");
     expect(docs).toContain("Wake on app event");
     expect(docs).toContain("Webhook URL");
-    expect(docs).toContain("House → Wake your Bot");
+    expect(docs).toContain("Settings → Wake your Bot");
     expect(docs).toContain("BOT_WAKE_WEBHOOK_URL");
     expect(docs).toContain("BOT_WAKE_WEBHOOK_KEY");
     expect(docs).toContain("Authorization: Bearer");
@@ -532,7 +532,7 @@ describe("Wake your Bot settings and gated hints", () => {
     expect(docs).not.toMatch(/Copy \*\*POST to\*\* \(the webhook URL\) and \*\*key\*\*/);
     expect(readme).toContain("Wake on app event");
     expect(readme).toContain("Webhook URL");
-    expect(readme).toContain("House → Wake your Bot");
+    expect(readme).toContain("Settings → Wake your Bot");
     expect(readme).toContain("BOT_WAKE_WEBHOOK_URL");
     expect(readme).toContain("Authorization: Bearer");
     expect(readme).not.toMatch(/Copy POST to and key/);
