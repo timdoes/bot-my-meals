@@ -19,6 +19,7 @@ import {
   type ProcessingClock,
   type VisibilityDocument,
 } from "./foreground-week-refresh";
+import { sourceBetween } from "./test-source";
 
 const srcRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(srcRoot, "..");
@@ -281,10 +282,7 @@ describe("foreground week refresh", () => {
     const provider = readSrc("components/supper-provider.tsx");
     const hook = readSrc("components/use-foreground-week-refresh.ts");
     const lib = readSrc("lib/foreground-week-refresh.ts");
-    const refetch = provider.slice(
-      provider.indexOf("const refetchViewedWeek"),
-      provider.indexOf("const dismissNotice"),
-    );
+    const refetch = sourceBetween(provider, "const refetchViewedWeek", "const dismissNotice");
     expect(provider).toContain("shouldWakeAfterRefresh");
     expect(provider).toContain("createViewedWeekRefetch");
     expect(refetch).not.toContain("requestBotWake");

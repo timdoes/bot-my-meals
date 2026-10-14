@@ -21,6 +21,7 @@ import {
   shoppingListsToRebuild,
   withRebuiltShoppingLists,
 } from "./shopping";
+import { sourceBetween } from "./test-source";
 
 const storeLine = (id: string, storeId: string, name: string): ShoppingItem => ({
   id,
@@ -668,22 +669,10 @@ describe("shopping list rebuild", () => {
       path.resolve(import.meta.dirname, "../../supabase/migrations/20261004180000_shopping_list_rebuild.sql"),
       "utf8",
     );
-    const lines = sql.slice(
-      sql.indexOf("function private.week_shopping_lines"),
-      sql.indexOf("revoke all on function private.shopping_name_key"),
-    );
-    const off = sql.slice(
-      sql.indexOf("function private.night_is_off"),
-      sql.indexOf("function private.week_shopping_lines"),
-    );
-    const lockFn = sql.slice(
-      sql.indexOf("function public.lock_week"),
-      sql.indexOf("function public.rebuild_week_shopping_list"),
-    );
-    const rebuild = sql.slice(
-      sql.indexOf("function public.rebuild_week_shopping_list"),
-      sql.indexOf("revoke all on function public.rebuild_week_shopping_list"),
-    );
+    const lines = sourceBetween(sql, "function private.week_shopping_lines", "revoke all on function private.shopping_name_key");
+    const off = sourceBetween(sql, "function private.night_is_off", "function private.week_shopping_lines");
+    const lockFn = sourceBetween(sql, "function public.lock_week", "function public.rebuild_week_shopping_list");
+    const rebuild = sourceBetween(sql, "function public.rebuild_week_shopping_list", "revoke all on function public.rebuild_week_shopping_list");
     expect(off).toContain("v.choice in ('remove', 'skip')");
     expect(off).toContain("mem.role in ('owner', 'voter')");
     expect(lines).toContain("not private.night_is_off(m.id)");
@@ -702,14 +691,8 @@ describe("shopping list rebuild", () => {
     expect(rebuild).not.toContain("check_now");
 
     const repo = readFileSync(path.resolve(import.meta.dirname, "supabase/repo.ts"), "utf8");
-    const sync = repo.slice(
-      repo.indexOf("export async function supabaseRebuildWeekShoppingList"),
-      repo.indexOf("export async function supabaseLockWeek"),
-    );
-    const save = repo.slice(
-      repo.indexOf("export async function supabaseSaveNightServings"),
-      repo.indexOf("export async function supabaseSetVote"),
-    );
+    const sync = sourceBetween(repo, "export async function supabaseRebuildWeekShoppingList", "export async function supabaseLockWeek");
+    const save = sourceBetween(repo, "export async function supabaseSaveNightServings", "export async function supabaseSetVote");
     expect(sync).toContain("rebuild_week_shopping_list");
     expect(sync).toContain("shoppingListsToRebuild");
     expect(sync).not.toContain("requestBotWake");
@@ -723,10 +706,7 @@ describe("shopping list rebuild", () => {
       path.resolve(import.meta.dirname, "../components/supper-provider.tsx"),
       "utf8",
     );
-    const refresh = provider.slice(
-      provider.indexOf("const refresh = useCallback"),
-      provider.indexOf("const setForegroundWeekTarget"),
-    );
+    const refresh = sourceBetween(provider, "const refresh = useCallback", "const setForegroundWeekTarget");
     expect(provider).toContain("withRebuiltShoppingLists");
     expect(refresh).toContain("supabaseSyncShoppingLists");
     expect(refresh).not.toContain("requestBotWake");
