@@ -29,6 +29,7 @@ import {
   THEME_SWAP_FOREGROUND,
   THEME_TOKENS,
 } from "./theme";
+import { sourceBetween } from "./test-source";
 
 const srcRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(srcRoot, "..");
@@ -151,7 +152,7 @@ describe("theme D Clear Sky brand tokens", () => {
     const shell = readFileSync(path.join(srcRoot, "components/app-shell.tsx"), "utf8");
     expect(shell).toContain("BrandMark");
     expect(shell).toContain('size="compact"');
-    const header = shell.slice(shell.indexOf("<header"), shell.indexOf("</header>"));
+    const header = sourceBetween(shell, "<header", "</header>");
     expect(header).toContain('data-slot="app-header"');
     expect(header).toContain('<BrandMark size="compact" />');
     expect(header.indexOf("<BrandMark")).toBeLessThan(header.indexOf("{backHref"));

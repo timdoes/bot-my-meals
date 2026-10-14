@@ -11,6 +11,7 @@ import {
   joinOgMetadata,
   joinOgOrigin,
 } from "./join-og";
+import { sourceBetween } from "./test-source";
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
 const srcRoot = path.resolve(import.meta.dirname, "..");
@@ -76,7 +77,7 @@ describe("join invite link preview", () => {
   it("never reads the token or house data for the card", () => {
     for (const rel of ["app/join/[token]/page.tsx", "app/join/page.tsx"]) {
       const source = readFileSync(path.join(srcRoot, rel), "utf8");
-      const meta = source.slice(source.indexOf("generateMetadata"), source.indexOf("export default"));
+      const meta = sourceBetween(source, "generateMetadata", "export default");
       expect(meta).toContain("joinOgMetadata(joinOgOrigin(");
       expect(meta).not.toMatch(/params|token|household|peek|supabase/i);
     }

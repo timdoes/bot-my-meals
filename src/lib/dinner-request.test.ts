@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { sourceBetween } from "./test-source";
 
 const srcRoot = path.resolve(import.meta.dirname);
 
@@ -11,20 +12,11 @@ describe("Request a new dinner people persist", () => {
     const provider = readFileSync(path.join(srcRoot, "../components/supper-provider.tsx"), "utf8");
     const repo = readFileSync(path.join(srcRoot, "supabase/repo.ts"), "utf8");
     const headcount = readFileSync(path.join(srcRoot, "headcount.ts"), "utf8");
-    const peopleFn = headcount.slice(
-      headcount.indexOf("export function dinnerRequestPeople"),
-      headcount.indexOf("export function withNightServings"),
-    );
+    const peopleFn = sourceBetween(headcount, "export function dinnerRequestPeople", "export function withNightServings");
     const voteStart = provider.indexOf("setVote: (mealId, choice, note, servings)");
     const vote = provider.slice(voteStart, provider.indexOf("proposeReplacement:", voteStart));
-    const save = repo.slice(
-      repo.indexOf("export async function supabaseSaveNightServings"),
-      repo.indexOf("export async function supabaseSetVote"),
-    );
-    const setVote = repo.slice(
-      repo.indexOf("export async function supabaseSetVote"),
-      repo.indexOf("export async function supabaseProposeReplacement"),
-    );
+    const save = sourceBetween(repo, "export async function supabaseSaveNightServings", "export async function supabaseSetVote");
+    const setVote = sourceBetween(repo, "export async function supabaseSetVote", "export async function supabaseProposeReplacement");
 
     expect(peopleFn).toContain("MIN_HEADCOUNT");
     expect(peopleFn).not.toContain("DEFAULT_FAMILY_SIZE");
