@@ -1,5 +1,7 @@
 # Bot My Meals
 
+**Free and open source.** Run it yourself on your own free Cloudflare and Supabase accounts. Step-by-step setup: [botmymeals.com/setup](https://botmymeals.com/setup/).
+
 This week's dinners, agreed.
 
 Bot My Meals is a household dinner planner: one cooking week of meal titles, plus one next week when you plan ahead. Voting adults you add yourself, and recipes plus a store-split shopping list for that week only after it locks. It is an installable PWA. The data model is household-scoped from day one so a later paid multi-household product does not require a rewrite.
