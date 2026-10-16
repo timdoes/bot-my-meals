@@ -18,7 +18,7 @@
     "test:sql": "node --test scripts/sql-tests/*.test.mjs"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.20.6",
+    "@opennextjs/cloudflare": "^1.20.12",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.113.0",
     "class-variance-authority": "^0.7.1",
