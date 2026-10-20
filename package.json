@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start -p 43147 -H 0.0.0.0",
     "lint": "eslint",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/check-pr-proof.test.mjs",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "build:worker": "opennextjs-cloudflare build",
     "deploy": "opennextjs-cloudflare build && node scripts/cf-deploy.mjs",

@@ -1,0 +1,33 @@
+# Required status check name is the job name: Proof.
+# The job always runs (no job-level if). Dependabot exits 0 from the
+# script so a required check is green, never skipped/pending/missing.
+# PR body is passed as env BODY — never interpolated into run:.
+
+name: Proof
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  Proof:
+    name: Proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check Proof section
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: node scripts/check-pr-proof.mjs
