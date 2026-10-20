@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BOT_WAKE_SOFT_FAIL } from "@/lib/bot-wake";
-import { fetchBotWakeConfigured, requestBotWake, type WakeClientResult } from "@/lib/bot-wake-client";
+import {
+  fetchBotWakeConfigured,
+  rememberBotWakeConfigured,
+  requestBotWake,
+  type WakeClientResult,
+} from "@/lib/bot-wake-client";
 import { WAKE_COOLDOWN_MS, wakeSettledPhase, type WakePhase } from "@/lib/wake-feedback";
 import { nextBotWorking } from "@/lib/wake-refresh-schedule";
 
@@ -12,7 +17,7 @@ export const BOT_WAKE_NOTIFIED_EVENT = "bot-wake-notified";
 export const BOT_BURST_END_EVENT = "bot-burst-end";
 
 /**
- * Null until GET /api/bot/wake answers. Unknown is not configured.
+ * Null until GET /api/bot/wake-config answers. Unknown is not configured.
  * Create stays off until this is true.
  */
 export function useBotWakeConfigured(override?: boolean): boolean | null {
@@ -36,6 +41,7 @@ export function useBotWakeConfigured(override?: boolean): boolean | null {
 }
 
 export function markBotWakeConfigured(): void {
+  rememberBotWakeConfigured(true);
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(BOT_WAKE_CONFIGURED_EVENT));
 }
