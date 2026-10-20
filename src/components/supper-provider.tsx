@@ -13,7 +13,7 @@ import { botCheckForHousehold } from "@/lib/bot-check";
 import { patchPlanningPeople } from "@/lib/planning-people";
 import { FINISH_WAKE_BEFORE_CREATE, shouldWakeNeedsWork } from "@/lib/bot-wake";
 import { createViewedWeekRefetch, shouldWakeAfterRefresh } from "@/lib/foreground-week-refresh";
-import { fetchBotWakeConfigured, requestBotWake } from "@/lib/bot-wake-client";
+import { fetchBotWakeConfigured, requestBotWake, resetBotWakeConfiguredCache } from "@/lib/bot-wake-client";
 import {
   PENDING_REFRESH_EVENT,
   notifyBotBurstEnd,
@@ -425,6 +425,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
     if (gen !== refreshGen.current) return;
     const user = userData.user;
     if (!user) {
+      resetBotWakeConfiguredCache();
       patchesRef.current = [];
       setSession(null);
       publish(null);
@@ -828,6 +829,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
         const { error: authError } = await client.auth.updateUser({ password });
         if (authError) throw authError;
         await client.auth.signOut();
+        resetBotWakeConfiguredCache();
         try {
           await refresh();
         } catch {
@@ -838,6 +840,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
         run(async () => {
           const client = createSupabaseBrowserClient();
           await client?.auth.signOut();
+          resetBotWakeConfiguredCache();
         }),
       setVote: (mealId, choice, note, servings) => {
         const current = session;

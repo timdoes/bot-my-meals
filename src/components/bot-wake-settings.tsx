@@ -33,7 +33,8 @@ export function BotWakeSettings({
   configured?: boolean;
   placement?: "settings" | "setup";
 }) {
-  const fetched = useBotWakeConfigured(configuredOverride) === true;
+  const configured = useBotWakeConfigured(configuredOverride);
+  const fetched = configured === true;
   const [justSaved, setJustSaved] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [url, setUrl] = useState("");
@@ -156,7 +157,9 @@ export function BotWakeSettings({
           {error ? <p className="type-meta text-destructive">{error}</p> : null}
         </form>
       ) : null}
-      {placement === "settings" && canEdit ? <BotCheckNow wakeConfigured={configuredOverride} /> : null}
+      {placement === "settings" && canEdit ? (
+        <BotCheckNow wakeConfigured={configured ?? undefined} />
+      ) : null}
     </HouseCard>
   );
 }
