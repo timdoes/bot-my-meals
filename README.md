@@ -1,5 +1,7 @@
 # Bot My Meals
 
+Bot My Meals is a free, open-source weekly dinner planner for one household: you, a partner, roommates, or a family, each signing in with your own account on any phone, tablet, or computer. Your Grok Bot proposes a week of dinners, your household swaps what it doesn't want and approves the week, and then you get full recipes and one shopping list split by the stores you picked, with no made-up grocery prices. Run it yourself on free Cloudflare Workers and Supabase accounts using this repo, or let us host it for you at [botmymeals.com](https://botmymeals.com).
+
 **Free and open source.** Run it yourself on your own free Cloudflare and Supabase accounts. Step-by-step setup: [botmymeals.com/setup](https://botmymeals.com/setup/).
 
 This week's dinners, agreed.
