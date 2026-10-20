@@ -504,10 +504,12 @@ describe("Wake your Bot settings and gated hints", () => {
     expect(secrets).toContain("BOT_WAKE_WEBHOOK_URL");
     expect(secrets).toContain("BOT_WAKE_WEBHOOK_KEY");
     expect(route).toContain("saveBotWakeSecrets");
+    expect(route).toContain("botWakeConfiguredResponse");
     expect(route).not.toMatch(/NEXT_PUBLIC_BOT/);
     expect(route).not.toMatch(/service.role/i);
     for (const source of clientFiles) {
       expect(source).not.toContain("bot-wake-secret");
+      expect(source).not.toContain("bot-wake-http");
       expect(source).not.toContain("process.env.BOT_WAKE");
       expect(source).not.toContain("NEXT_PUBLIC_BOT");
     }

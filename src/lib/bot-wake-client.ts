@@ -37,15 +37,30 @@ export async function requestBotWake(event: WakeEvent): Promise<WakeClientResult
   }
 }
 
-export async function fetchBotWakeConfigured(): Promise<boolean> {
+let configuredRead: Promise<boolean> | null = null;
+
+export function resetBotWakeConfiguredCache(): void {
+  configuredRead = null;
+}
+
+export function rememberBotWakeConfigured(configured: boolean): void {
+  configuredRead = Promise.resolve(configured);
+}
+
+async function loadBotWakeConfigured(): Promise<boolean> {
   try {
-    const response = await fetch("/api/bot/wake", { credentials: "same-origin" });
+    const response = await fetch("/api/bot/wake-config", { credentials: "same-origin" });
     if (!response.ok) return false;
     const body: unknown = await response.json();
     return body != null && typeof body === "object" && "configured" in body && body.configured === true;
   } catch {
     return false;
   }
+}
+
+export async function fetchBotWakeConfigured(): Promise<boolean> {
+  configuredRead ??= loadBotWakeConfigured();
+  return configuredRead;
 }
 
 export async function saveBotWakeSettings(input: {
