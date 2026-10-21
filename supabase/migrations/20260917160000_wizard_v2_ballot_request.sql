@@ -124,6 +124,9 @@ create policy ballot_requests_owner_write on public.ballot_requests
     )
   );
 
+grant select, insert, update, delete on public.ballot_requests to authenticated;
+grant all on public.ballot_requests to service_role;
+
 create or replace function private.fulfill_ballot_request_for_week()
 returns trigger
 language plpgsql

@@ -101,6 +101,8 @@ create policy meal_likes_voter_insert on public.meal_likes
 
 grant select, insert, update, delete on public.meal_dislikes to authenticated;
 grant select, insert on public.meal_likes to authenticated;
+grant all on public.meal_dislikes to service_role;
+grant all on public.meal_likes to service_role;
 
 -- Never again drops the favorite and strips it from a pending ballot. No bot wake.
 create or replace function private.block_meal_on_never_again()

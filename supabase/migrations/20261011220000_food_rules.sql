@@ -284,6 +284,8 @@ grant select, insert, update, delete on public.household_eaters to authenticated
 grant select, insert, update, delete on public.food_rules to authenticated;
 grant select on public.allergen_terms to authenticated;
 grant select on public.allergen_exclusions to authenticated;
+grant all on public.household_eaters, public.food_rules,
+  public.allergen_terms, public.allergen_exclusions to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Allergen vocabulary v1 (US major nine). Conservative: a net, not a guarantee.

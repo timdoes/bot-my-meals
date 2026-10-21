@@ -29,6 +29,11 @@ create policy household_join_tokens_owner_select on public.household_join_tokens
     )
   );
 
+-- Table DML for owners (SELECT policy) and security-definer writes. No anon table grant:
+-- signed-out clients call peek_join_token, which is security definer.
+grant select, insert, update, delete on public.household_join_tokens to authenticated;
+grant all on public.household_join_tokens to service_role;
+
 create or replace function private.mint_join_token(hid uuid, actor uuid)
 returns text
 language plpgsql

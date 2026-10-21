@@ -76,6 +76,8 @@ revoke all on public.meal_history_weeks from public, anon, authenticated;
 revoke all on public.meal_history_nights from public, anon, authenticated;
 grant select on public.meal_history_weeks to authenticated;
 grant select on public.meal_history_nights to authenticated;
+grant all on public.meal_history_weeks to service_role;
+grant all on public.meal_history_nights to service_role;
 
 create or replace function public.meal_history()
 returns jsonb

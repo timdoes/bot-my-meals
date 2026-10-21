@@ -682,3 +682,34 @@ alter publication supabase_realtime add table public.votes;
 alter publication supabase_realtime add table public.meals;
 alter publication supabase_realtime add table public.weeks;
 alter publication supabase_realtime add table public.shopping_items;
+
+-- Data API table grants. After 2026-10-30, new public tables no longer receive
+-- automatic grants to anon / authenticated / service_role.
+-- anon: not granted. Every RLS policy here is `to authenticated`; the old default
+-- ALL grant was unused (RLS denied anon anyway). peek_join_token is the signed-out path.
+grant select, insert, update, delete on table
+  public.profiles,
+  public.households,
+  public.memberships,
+  public.household_stores,
+  public.weeks,
+  public.meals,
+  public.votes,
+  public.recipes,
+  public.recipe_ingredients,
+  public.shopping_lists,
+  public.shopping_items
+  to authenticated;
+grant all on table
+  public.profiles,
+  public.households,
+  public.memberships,
+  public.household_stores,
+  public.weeks,
+  public.meals,
+  public.votes,
+  public.recipes,
+  public.recipe_ingredients,
+  public.shopping_lists,
+  public.shopping_items
+  to service_role;

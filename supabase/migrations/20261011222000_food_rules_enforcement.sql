@@ -170,6 +170,7 @@ create policy recipe_food_holds_member_read on public.recipe_food_holds
 
 revoke all on public.recipe_food_holds from anon, authenticated, public;
 grant select on public.recipe_food_holds to authenticated;
+grant all on public.recipe_food_holds to service_role;
 
 create or replace function private.refresh_food_holds_for_recipe(p_recipe uuid)
 returns void
