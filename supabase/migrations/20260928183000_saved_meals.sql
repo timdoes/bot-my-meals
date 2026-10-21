@@ -99,6 +99,7 @@ create policy saved_meals_voter_write on public.saved_meals
   );
 
 grant select, insert, update, delete on public.saved_meals to authenticated;
+grant all on public.saved_meals to service_role;
 
 -- Lock stamps cool-down from the locked cook, not from the save tap.
 create or replace function private.stamp_saved_meals_on_lock()

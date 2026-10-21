@@ -29,6 +29,9 @@ create policy household_invites_owner_all on public.household_invites
     )
   );
 
+grant select, insert, update, delete on public.household_invites to authenticated;
+grant all on public.household_invites to service_role;
+
 create or replace function private.protect_last_owner()
 returns trigger
 language plpgsql

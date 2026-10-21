@@ -30,6 +30,7 @@ create policy week_night_lists_member_read on public.week_night_lists
 
 revoke all on public.week_night_lists from anon, authenticated, public;
 grant select on public.week_night_lists to authenticated;
+grant all on public.week_night_lists to service_role;
 
 create table if not exists public.week_night_attendees (
   id uuid primary key default gen_random_uuid(),
@@ -70,6 +71,7 @@ create policy week_night_attendees_member_read on public.week_night_attendees
 -- Writes only through the RPCs below (security definer). No direct write grants.
 revoke all on public.week_night_attendees from anon, authenticated, public;
 grant select on public.week_night_attendees to authenticated;
+grant all on public.week_night_attendees to service_role;
 
 -- A cascade or manual write can never move a row between households.
 create or replace function private.week_night_attendees_guard()
