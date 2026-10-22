@@ -698,7 +698,7 @@ describe("supabaseBotCheckStatus", () => {
       id: "m1",
       title: "Lemon roast chicken",
       servings: 4,
-      night_date: "2026-09-28",
+      night_date: "2026-12-31",
     };
     const lockedWeek = { id: "week-1", status: "locked" };
 

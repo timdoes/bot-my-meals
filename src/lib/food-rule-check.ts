@@ -198,9 +198,15 @@ export function cardFoodRuleHits(snapshot: HouseholdSnapshot, meal: Meal): {
   };
 }
 
-export function weekAllergyLockHits(snapshot: HouseholdSnapshot, weekId: string): FoodRuleHit[] {
+export function weekAllergyLockHits(
+  snapshot: HouseholdSnapshot,
+  weekId: string,
+  todayIso?: string,
+): FoodRuleHit[] {
   if (!hasFoodRuleUi(snapshot)) return [];
-  return mealsForWeek(snapshot, weekId).flatMap((meal) => allergyHits(mealRuleHits(snapshot, meal)));
+  return mealsForWeek(snapshot, weekId)
+    .filter((meal) => (todayIso ? meal.nightDate >= todayIso : true))
+    .flatMap((meal) => allergyHits(mealRuleHits(snapshot, meal)));
 }
 
 export function foodRuleChipLabel(hit: FoodRuleHit): string {

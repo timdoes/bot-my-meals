@@ -141,6 +141,39 @@ describe("shopping merge", () => {
     expect(items[0].priceSource).toBeNull();
   });
 
+  it("skips nights before planned_from", () => {
+    const recipes: Recipe[] = [
+      {
+        id: "r-sun",
+        mealId: "sun",
+        servings: 4,
+        prepMinutes: 10,
+        cookMinutes: 10,
+        steps: [],
+        ingredients: [{ id: "i-sun", name: "Lemon", quantity: 1, unit: "ct", storeId: "tj" }],
+      },
+      {
+        id: "r-tue",
+        mealId: "tue",
+        servings: 4,
+        prepMinutes: 10,
+        cookMinutes: 10,
+        steps: [],
+        ingredients: [{ id: "i-tue", name: "Salmon", quantity: 1, unit: "lb", storeId: "smiths" }],
+      },
+    ];
+    const items = dinnerShoppingLines({
+      meals: [
+        { ...meal("sun"), nightDate: "2026-10-18" },
+        { ...meal("tue"), nightDate: "2026-10-20" },
+      ],
+      recipes,
+      votes: [],
+      plannedFrom: "2026-10-20",
+    });
+    expect(items.map((item) => item.name)).toEqual(["Salmon"]);
+  });
+
   it("list rows expose name and quantity only — never a price", () => {
     const priced: ShoppingItem = {
       id: "1",
@@ -712,6 +745,14 @@ describe("shopping list rebuild", () => {
     expect(refresh).not.toContain("requestBotWake");
     expect(refresh).not.toContain("wakeWeekOrPlanChange");
     expect(refresh).not.toContain("check_now");
+
+    const coverage = readFileSync(
+      path.resolve(import.meta.dirname, "../../supabase/migrations/20261022120000_week_planned_from.sql"),
+      "utf8",
+    );
+    expect(coverage).toContain("private.week_lock_covers_night(w.planned_from, m.night_date)");
+    expect(coverage).toContain("planned_from = coalesce(planned_from, today)");
+    expect(coverage).toContain("and m.night_date >= today");
     const row = readFileSync(
       path.resolve(import.meta.dirname, "../components/list-row.tsx"),
       "utf8",

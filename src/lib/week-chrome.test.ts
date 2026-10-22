@@ -14,6 +14,11 @@ import {
   nightStaysLocked,
   showFirstMealRow,
   showOpenShoppingList,
+  cookingNightChip,
+  lockBarLabel,
+  lockBarSubline,
+  lockDinnerCount,
+  nightCoveredByLock,
   stripCellMuted,
   upcomingDinner,
 } from "./week-chrome";
@@ -44,6 +49,82 @@ function meal(id: string, nightDate: string, title: string): Meal {
     estimatedCostAsOf: null,
   };
 }
+
+describe("lock coverage", () => {
+  it("covers nights from planned_from, and treats a null on a locked week as fully covered", () => {
+    expect(
+      nightCoveredByLock({
+        nightDate: "2026-10-19",
+        plannedFrom: "2026-10-20",
+        weekStatus: "locked",
+        editableFrom: null,
+      }),
+    ).toBe(false);
+    expect(
+      nightCoveredByLock({
+        nightDate: "2026-10-20",
+        plannedFrom: "2026-10-20",
+        weekStatus: "locked",
+        editableFrom: null,
+      }),
+    ).toBe(true);
+    expect(
+      nightCoveredByLock({
+        nightDate: "2026-10-18",
+        plannedFrom: null,
+        weekStatus: "locked",
+        editableFrom: null,
+      }),
+    ).toBe(true);
+    expect(
+      nightCoveredByLock({
+        nightDate: "2026-10-18",
+        plannedFrom: null,
+        weekStatus: "voting",
+        editableFrom: "2026-10-21",
+      }),
+    ).toBe(true);
+    expect(
+      nightCoveredByLock({
+        nightDate: "2026-10-18",
+        plannedFrom: null,
+        weekStatus: "voting",
+        editableFrom: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("splits Made, No recipe, and Not planned from past + covered + recipe", () => {
+    expect(cookingNightChip({ past: true, covered: false, recipeReady: true, off: false })).toBe(
+      "not_planned",
+    );
+    expect(cookingNightChip({ past: true, covered: true, recipeReady: true, off: false })).toBe(
+      "made",
+    );
+    expect(cookingNightChip({ past: true, covered: true, recipeReady: false, off: false })).toBe(
+      "no_recipe",
+    );
+    expect(cookingNightChip({ past: true, covered: true, recipeReady: false, off: true })).toBe(null);
+    expect(cookingNightChip({ past: false, covered: true, recipeReady: true, off: false })).toBe(
+      null,
+    );
+  });
+
+  it("names the lock bar from today onward", () => {
+    expect(lockBarLabel({ busy: false, hasPastNight: true })).toBe("Lock the rest of this week");
+    expect(lockBarLabel({ busy: false, hasPastNight: false })).toBe("Lock this week");
+    expect(lockBarLabel({ busy: true, hasPastNight: true })).toBe("Locking…");
+    expect(lockBarSubline({ dinnerCount: 4, hasPastNight: true })).toBe(
+      "Locks 4 dinners from today on.",
+    );
+    expect(lockBarSubline({ dinnerCount: 1, hasPastNight: true })).toBe(
+      "Locks 1 dinner from today on.",
+    );
+    expect(lockBarSubline({ dinnerCount: 6, hasPastNight: false })).toBe("Locks 6 dinners.");
+    expect(lockBarSubline({ dinnerCount: 1, hasPastNight: false })).toBe("Locks 1 dinner.");
+    expect(lockDinnerCount([meal("sun", "2026-10-18", "Soup"), meal("tue", "2026-10-20", "Tacos")], [], undefined, "2026-10-20")).toBe(1);
+  });
+});
 
 describe("featured meal eyebrow", () => {
   it("uses Tonight’s meal when the featured night is today in the house timezone", () => {
@@ -80,16 +161,10 @@ describe("week chrome lock rules", () => {
     ).toBe(false);
   });
 
-  it("mutes past strip cells only after mid-week unlock", () => {
-    expect(
-      stripCellMuted({ weekStatus: "locked", nightDate: "2026-09-27", editableFrom: null }),
-    ).toBe(false);
-    expect(
-      stripCellMuted({ weekStatus: "voting", nightDate: "2026-09-27", editableFrom: "2026-09-28" }),
-    ).toBe(true);
-    expect(
-      stripCellMuted({ weekStatus: "voting", nightDate: "2026-09-28", editableFrom: "2026-09-28" }),
-    ).toBe(false);
+  it("mutes past strip cells in every week, locked or not", () => {
+    expect(stripCellMuted({ nightDate: "2026-09-27", todayIso: "2026-09-29" })).toBe(true);
+    expect(stripCellMuted({ nightDate: "2026-09-29", todayIso: "2026-09-29" })).toBe(false);
+    expect(stripCellMuted({ nightDate: "2026-09-30", todayIso: "2026-09-29" })).toBe(false);
   });
 
   it("hides Open shopping list after done, dismiss, all checked, unlock, or an empty list", () => {

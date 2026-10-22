@@ -163,7 +163,7 @@ describe("lock_week food-rules gate and set_night_guests", () => {
     const [week] = await rows(db, `insert into public.weeks(household_id,starts_on,status,night_headcounts) values ($1,$2,'voting','{2,2,2,2,2,2,2}') returning id`, [H, start]);
     const [sam] = await rows(db, `insert into public.household_eaters(household_id,display_name) values ($1,'Sam') returning id`, [H]);
     const [alex] = await rows(db, `select id from public.memberships where user_id=$1`, [U.owner]);
-    for (const d of [0, 1]) {
+    for (const d of [0, 1, 2, 3, 4, 5, 6]) {
       await db.query(`insert into public.meals(household_id,week_id,day_index,night_date,title,pitch,audience,servings)
         values ($1,$2,$3,$4::date,'Lemon chicken','','couple',2)`, [H, week.id, d, new Date(Date.parse(start + "T00:00:00Z") + d * 86400000).toISOString().slice(0, 10)]);
     }
@@ -178,10 +178,13 @@ describe("lock_week food-rules gate and set_night_guests", () => {
     await asUser(db, U.owner, () =>
       db.query(`select public.save_week_people_v2($1,$2,null,$3::jsonb)`, [
         week.id, [2, 2, 2, 2, 2, 2, 2],
-        JSON.stringify([
-          { day_index: 0, membership_ids: [alex.id], guests: 1 },
-          { day_index: 1, membership_ids: [alex.id], guests: 1 },
-        ]),
+        JSON.stringify(
+          [0, 1, 2, 3, 4, 5, 6].map((day_index) => ({
+            day_index,
+            membership_ids: [alex.id],
+            guests: 1,
+          })),
+        ),
       ]),
     );
     await asUser(db, U.owner, () => db.query(`select public.lock_week($1)`, [week.id]));

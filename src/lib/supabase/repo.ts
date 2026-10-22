@@ -139,6 +139,7 @@ function mapWeekRow(weekRow: Record<string, unknown>): Week {
     status: asWeekStatus(weekRow.status) ?? "voting",
     lockedAt: typeof weekRow.locked_at === "string" ? weekRow.locked_at : null,
     editableFrom: parseEditableFrom(weekRow.editable_from),
+    plannedFrom: parseEditableFrom(weekRow.planned_from),
     shoppingPrompt: parseShoppingPrompt(weekRow.shopping_prompt),
     peopleConfirmedAt:
       typeof weekRow.people_confirmed_at === "string" ? weekRow.people_confirmed_at : null,
@@ -1349,10 +1350,10 @@ export async function supabaseBotCheckStatus(client: SupabaseClient): Promise<Bo
 
   const { data: weekData, error: weekError } = await client
     .from("weeks")
-    .select("id, status, starts_on")
-    .eq("household_id", householdId)
-    .order("starts_on", { ascending: false })
-    .limit(8);
+      .select("id, status, starts_on, planned_from")
+      .eq("household_id", householdId)
+      .order("starts_on", { ascending: false })
+      .limit(8);
   if (weekError) throw new Error(weekError.message);
 
   const today = todayInTimeZone(new Date(), String(householdRow.timezone ?? ""));
@@ -1363,6 +1364,7 @@ export async function supabaseBotCheckStatus(client: SupabaseClient): Promise<Bo
         id: String(row.id),
         status: asWeekStatus(row.status) ?? "voting",
         startsOn: typeof row.starts_on === "string" ? row.starts_on.slice(0, 10) : null,
+        plannedFrom: typeof row.planned_from === "string" ? row.planned_from.slice(0, 10) : null,
       }];
     }),
     today,
@@ -1507,9 +1509,10 @@ export async function supabaseBotCheckStatus(client: SupabaseClient): Promise<Bo
         votes,
         memberships: members,
         ballotRequest: ballot,
-        week: { status: openWeek.status },
+        week: { status: openWeek.status, plannedFrom: openWeek.plannedFrom },
         recipes,
         shoppingList,
+        todayIso: today,
       }),
     );
   }

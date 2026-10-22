@@ -39,7 +39,7 @@ import {
   mealSaveAvailability,
   savedMealForKey,
 } from "@/lib/saved-meals";
-import { isPastDinnerNight, nightStaysLocked } from "@/lib/week-chrome";
+import { isPastDinnerNight, nightCoveredByLock, nightStaysLocked } from "@/lib/week-chrome";
 import type { VoteChoice } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -108,6 +108,12 @@ function MealDetail({ mealId }: { mealId: string }) {
   const leftoverSources = scope.meals.filter(
     (item) => item.dayIndex < meal.dayIndex && !item.isLeftovers,
   );
+  const nightCovered = nightCoveredByLock({
+    nightDate: meal.nightDate,
+    plannedFrom: scope.week.plannedFrom,
+    weekStatus: scope.week.status,
+    editableFrom: scope.week.editableFrom,
+  });
 
   const skipped = isNightOff(meal.id, scope.votes, snapshot.memberships);
   const recipe = scope.recipes.find((item) => item.mealId === meal.id);
@@ -118,6 +124,8 @@ function MealDetail({ mealId }: { mealId: string }) {
     memberships: snapshot.memberships,
     recipes: scope.recipes,
     shoppingList: scope.shoppingList,
+    plannedFrom: scope.week.plannedFrom,
+    todayIso: todayInTimeZone(new Date(), snapshot.household.timezone),
     mealId: meal.id,
   });
   const voters = votingMembers(snapshot.memberships);
@@ -159,7 +167,13 @@ function MealDetail({ mealId }: { mealId: string }) {
 
   const todayIso = todayInTimeZone(new Date(), snapshot.household.timezone);
   const query = weekQuery(weekRole === "planning" ? { kind: "planning" } : { kind: "cooking" });
-  const { previous, next } = adjacentNights(scope.meals, scope.votes, meal.id, snapshot.memberships);
+  const { previous, next } = adjacentNights(
+    scope.meals,
+    scope.votes,
+    meal.id,
+    snapshot.memberships,
+    scope.week,
+  );
   const nextLine = recipeNextLine(next);
   const nightArrows = (
     <div data-slot="recipe-night-arrows" className="flex items-center gap-1">
@@ -192,7 +206,11 @@ function MealDetail({ mealId }: { mealId: string }) {
           {nextLine}
         </p>
       ) : null}
-      {weekLocked ? (
+      {calendarPast && !nightCovered ? (
+        <p data-slot="not-planned-night" className="type-body rounded-[14px] bg-muted p-4 text-slate-600">
+          {meal.title}
+        </p>
+      ) : weekLocked ? (
         skipped ? (
           <p className="type-body rounded-[14px] bg-secondary p-4 shadow-card">
             This night is off. It did not go on the shopping list.

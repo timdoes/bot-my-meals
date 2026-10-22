@@ -40,19 +40,9 @@ export function ListWeekStrip() {
           hasMeal: nightHasStripMeal(meal, scope.votes, snapshot.memberships),
         }))
       : [];
-  const mutedDates = scope
-    ? nights
-        .filter(
-          (night) =>
-            night.hasMeal &&
-            stripCellMuted({
-              weekStatus: scope.week.status,
-              nightDate: night.nightDate,
-              editableFrom: scope.week.editableFrom,
-            }),
-        )
-        .map((night) => night.nightDate)
-    : [];
+  const mutedDates = nights
+    .filter((night) => stripCellMuted({ nightDate: night.nightDate, todayIso }))
+    .map((night) => night.nightDate);
   const startsOn = stops[index]?.startsOn ?? snapshot.week.startsOn;
   const todayId = past ? null : (nights.find((night) => night.hasMeal && night.nightDate === todayIso)?.id ?? null);
   return (

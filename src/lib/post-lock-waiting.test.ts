@@ -140,6 +140,40 @@ describe("pending bot fill", () => {
     ).toBe(false);
   });
 
+  it("does not wait on uncovered past nights or a covered night that has already passed", () => {
+    const sunday = meal(0, "Lemon herb chicken");
+    const tuesday = meal(2, "Salmon rice bowls");
+    expect(
+      isPendingBotFill(
+        fill({
+          meals: [sunday, tuesday],
+          plannedFrom: "2026-09-03",
+          todayIso: "2026-09-03",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isPendingBotFill(
+        fill({
+          meals: [sunday, tuesday],
+          recipes: [recipe("m2", ["Roast the salmon."])],
+          shoppingList: { items: [grocery] },
+          plannedFrom: "2026-09-03",
+          todayIso: "2026-09-03",
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isPendingBotFill(
+        fill({
+          meals: [sunday, tuesday],
+          plannedFrom: "2026-09-01",
+          todayIso: "2026-09-04",
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it("opens a waiting sheet while pending and the real recipe once the bot has written it", () => {
     const dinners = [meal(0, "Lemon roast chicken"), meal(1, "Bean tacos")];
     const input = fill({

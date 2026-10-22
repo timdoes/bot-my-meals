@@ -8,6 +8,7 @@ import {
   PAST_WEEKS_HELPER,
   PAST_WEEKS_LABEL,
   dinnerCountLabel,
+  historyDinnerCount,
   historyNightLine,
   historyWeekRowLabel,
   isFinishedWeek,
@@ -74,6 +75,30 @@ describe("finished weeks", () => {
         ],
       },
     ]);
+
+    const midweek = listFinishedWeeks(
+      [
+        {
+          startsOn: "2026-09-27",
+          status: "locked",
+          plannedFrom: "2026-09-29",
+          nights: [
+            { nightDate: "2026-09-27", title: "Lemon-garlic chicken", plates: 4 },
+            { nightDate: "2026-09-29", title: "Tacos", plates: 4 },
+            { nightDate: "2026-10-03", title: "Steak tacos", plates: 2 },
+          ],
+        },
+      ],
+      zone,
+      sundayAfter,
+    );
+    expect(midweek[0]?.nights).toEqual([
+      { nightDate: "2026-09-27", title: "", plates: null, notPlanned: true },
+      { nightDate: "2026-09-28", title: "", plates: null, notPlanned: true },
+      { nightDate: "2026-09-29", title: "Tacos", plates: 4 },
+      { nightDate: "2026-10-03", title: "Steak tacos", plates: 2 },
+    ]);
+    expect(historyDinnerCount(midweek[0]?.nights ?? [])).toBe(2);
   });
 
   it("lists at most 26 finished weeks, newest first", () => {
@@ -111,6 +136,17 @@ describe("history copy", () => {
     expect(
       historyNightLine({ nightDate: "2026-09-27", title: "Lemon-garlic chicken" }),
     ).toBe("Sun · Sep 27 · Lemon-garlic chicken");
+    expect(
+      historyNightLine({ nightDate: "2026-10-18", title: "", notPlanned: true }),
+    ).toBe("Sun · Oct 18 · Not planned");
+    expect(
+      historyDinnerCount([
+        { notPlanned: true },
+        { notPlanned: true },
+        { notPlanned: false },
+        { notPlanned: false },
+      ]),
+    ).toBe(2);
   });
 });
 
@@ -235,5 +271,14 @@ describe("Past weeks surfaces", () => {
     expect(migration).not.toContain("shopping_lists");
     expect(repo).toContain('client.rpc("meal_history")');
     expect(repo).toContain("parseMealHistory");
+
+    const coverage = readFileSync(
+      path.resolve(import.meta.dirname, "../../supabase/migrations/20261022120000_week_planned_from.sql"),
+      "utf8",
+    );
+    expect(coverage).toContain("add column if not exists planned_from date");
+    expect(coverage).toContain("private.week_lock_covers_night(w.planned_from, m.night_date)");
+    expect(coverage).toContain("'notPlanned', true");
+    expect(coverage).not.toContain("update public.weeks set planned_from");
   });
 });

@@ -2,6 +2,7 @@ import { headcountForNight, normalizeNightHeadcounts } from "./headcount";
 import { clampHouseholdSize, isHouseSetupComplete, parseBallotRequestStatus } from "./house-setup";
 import { nightLifecycle } from "./lock";
 import { awaitingMealSlot } from "./ballot";
+import { todayInTimeZone } from "./meal-history";
 import { isPendingBotFill } from "./post-lock-waiting";
 import type {
   BallotRequest,
@@ -408,7 +409,8 @@ export function botCheckForHousehold(
     | "planning"
   >,
 ): BotCheckStatus {
-  const cooking = botCheckForSnapshot(snapshot);
+  const todayIso = todayInTimeZone(new Date(), snapshot.household.timezone);
+  const cooking = botCheckForSnapshot({ ...snapshot, todayIso });
   if (!snapshot.planning) return cooking;
   const planning = botCheckForSnapshot({
     household: snapshot.household,
@@ -419,6 +421,7 @@ export function botCheckForHousehold(
     week: snapshot.planning.week,
     recipes: snapshot.planning.recipes,
     shoppingList: snapshot.planning.shoppingList,
+    todayIso,
   });
   return preferBotCheckStatus([cooking, planning]);
 }
@@ -453,9 +456,10 @@ export function botCheckForSnapshot(snapshot: {
   votes: Vote[];
   memberships: Membership[];
   ballotRequest?: Pick<BallotRequest, "status" | "householdSize" | "nightHeadcounts"> | null;
-  week?: Pick<Week, "status"> & { nightHeadcounts?: number[] | null };
+  week?: Pick<Week, "status"> & { nightHeadcounts?: number[] | null; plannedFrom?: string | null };
   recipes?: Recipe[];
   shoppingList?: { items: readonly unknown[] } | null;
+  todayIso?: string;
 }): BotCheckStatus {
   const household = snapshot.household;
   const weekPlates = savedWeekPlates(snapshot.week);
@@ -468,6 +472,8 @@ export function botCheckForSnapshot(snapshot: {
         memberships: snapshot.memberships,
         recipes: snapshot.recipes ?? [],
         shoppingList: snapshot.shoppingList ?? null,
+        plannedFrom: snapshot.week.plannedFrom,
+        todayIso: snapshot.todayIso,
       })
     : false;
   return deriveBotCheckStatus({

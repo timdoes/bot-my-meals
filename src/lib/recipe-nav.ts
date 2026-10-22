@@ -1,7 +1,8 @@
 import { formatMealCardDayLabel } from "./dates";
 import { isNightOff } from "./lock";
 import { recipeNightsForWeek } from "./recipes";
-import type { Meal, Membership, Vote } from "./types";
+import { nightCoveredByLock } from "./week-chrome";
+import type { Meal, Membership, Vote, Week } from "./types";
 
 /** NAV-TABS lock §2 / HOUSE-SETTINGS-SPLIT §4 strings. */
 export const ALL_RECIPES_LABEL = "All recipes";
@@ -10,9 +11,28 @@ export const PREVIOUS_NIGHT_LABEL = "Previous night";
 export const NEXT_NIGHT_LABEL = "Next night";
 export const RECIPE_BACK_LABEL = "Meals";
 
-/** Nights you can step between on a recipe page: in day order, nights off skipped. */
-export function steppableNights(meals: Meal[], votes: Vote[], memberships?: Membership[]): Meal[] {
-  return recipeNightsForWeek(meals).filter((meal) => !isNightOff(meal.id, votes, memberships));
+/** Nights you can step between on a recipe page: in day order, nights off and uncovered past nights skipped. */
+export function steppableNights(
+  meals: Meal[],
+  votes: Vote[],
+  memberships?: Membership[],
+  week?: Pick<Week, "status" | "plannedFrom" | "editableFrom">,
+): Meal[] {
+  return recipeNightsForWeek(meals).filter((meal) => {
+    if (isNightOff(meal.id, votes, memberships)) return false;
+    if (
+      week &&
+      !nightCoveredByLock({
+        nightDate: meal.nightDate,
+        plannedFrom: week.plannedFrom,
+        weekStatus: week.status,
+        editableFrom: week.editableFrom,
+      })
+    ) {
+      return false;
+    }
+    return true;
+  });
 }
 
 /** Previous / next cooking night for the recipe arrows. Null at the week's ends (arrow disabled). */
@@ -21,8 +41,9 @@ export function adjacentNights(
   votes: Vote[],
   mealId: string,
   memberships?: Membership[],
+  week?: Pick<Week, "status" | "plannedFrom" | "editableFrom">,
 ): { previous: Meal | null; next: Meal | null } {
-  const nights = steppableNights(meals, votes, memberships);
+  const nights = steppableNights(meals, votes, memberships, week);
   const at = nights.findIndex((meal) => meal.id === mealId);
   if (at < 0) {
     // A night that is off: step to the nearest cooking nights around it.

@@ -87,10 +87,12 @@ describe("Clear Sky lock-success craft", () => {
     expect(week).toContain("<UnlockWeekControl");
     expect(lockBar).toContain('data-slot="lock-bar"');
     expect(lockBar).toContain('data-state="ready"');
-    expect(lockBar).toContain("Lock this week");
+    expect(lockBar).toContain("lockBarLabel");
+    expect(lockBar).toContain("lockBarSubline");
+    expect(lockBar).toContain('data-slot="lock-bar-subline"');
     expect(lockBar).toContain('import { Loader2, Lock } from "lucide-react"');
     expect(lockBar).toMatch(
-      /variant="primary"[\s\S]*?className="w-full gap-2 shadow-float"[\s\S]*?<Lock className="size-5" \/>[\s\S]*?Lock this week/,
+      /variant="primary"[\s\S]*?className="w-full gap-2 shadow-float"[\s\S]*?<Lock className="size-5" \/>[\s\S]*?\{label\}/,
     );
     expect(lockBar).toContain("variant=\"primary\"");
     expect(lockBar).toContain("bg-card");
@@ -125,8 +127,15 @@ describe("Clear Sky lock-success craft", () => {
     expect(lockBar).toContain('import { Loader2, Lock } from "lucide-react"');
     expect(lockBar).toContain('<Lock className="size-5" />');
     expect(lockBar).toContain('<Loader2 className="size-5 animate-spin" aria-hidden />');
-    expect(lockBar).toContain("Locking…");
+    expect(lockBar).toContain("lockBarLabel");
     expect(lockBar).toContain("disabled={busy || foodRuleBlock}");
+    const chrome = readFileSync(
+      path.resolve(import.meta.dirname, "./week-chrome.ts"),
+      "utf8",
+    );
+    expect(chrome).toContain('export const LOCK_BUSY_LABEL = "Locking…";');
+    expect(chrome).toContain('export const LOCK_THIS_WEEK_LABEL = "Lock this week";');
+    expect(chrome).toContain('export const LOCK_REST_OF_WEEK_LABEL = "Lock the rest of this week";');
     expect(lockBar).toMatch(/variant="primary"[\s\S]*?className="w-full gap-2 shadow-float"/);
     expect(lockBar).not.toMatch(/data-state="ready"[\s\S]*variant="outline"/);
   });

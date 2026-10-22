@@ -76,24 +76,12 @@ export function nightHasStripMeal(
   }
 }
 
-/** Past strip cells mute only after a mid-week unlock, not while the whole week is locked. */
+/** Past strip cells are muted in every cooking week, locked or not. */
 export function stripCellMuted(input: {
-  weekStatus: WeekStatus;
   nightDate: string;
-  editableFrom: string | null;
+  todayIso: string;
 }): boolean {
-  switch (input.weekStatus) {
-    case "locked":
-      return false;
-    case "voting": {
-      const from = input.editableFrom;
-      return from != null && input.nightDate < from;
-    }
-    default: {
-      const _exhaustive: never = input.weekStatus;
-      return _exhaustive;
-    }
-  }
+  return input.nightDate < input.todayIso;
 }
 
 export function showOpenShoppingList(input: {
@@ -140,8 +128,91 @@ export function featuredMealEyebrow(nightDate: string, todayIso: string): string
   return `${weekdayLabelFromNight(nightDate)}’s meal`;
 }
 
-/** Exact label on a past dinner card. */
+/** Exact labels on a past dinner card. */
 export const MADE_CHIP_LABEL = "Made";
+export const NOT_PLANNED_CHIP_LABEL = "Not planned";
+export const NO_RECIPE_CHIP_LABEL = "No recipe";
+
+export const LOCK_THIS_WEEK_LABEL = "Lock this week";
+export const LOCK_REST_OF_WEEK_LABEL = "Lock the rest of this week";
+export const LOCK_BUSY_LABEL = "Locking…";
+
+export type BallotNightChip = "made" | "not_planned" | "no_recipe";
+
+export function parsePlannedFrom(value: unknown): string | null {
+  return parseEditableFrom(value);
+}
+
+/**
+ * A night is covered when the first lock included it.
+ * Null `plannedFrom` on a week that has been locked (or unlocked after a lock)
+ * means the whole week is covered — existing rows before this column existed.
+ * A never-locked week with null `plannedFrom` covers nothing.
+ */
+export function nightCoveredByLock(input: {
+  nightDate: string;
+  plannedFrom: string | null;
+  weekStatus: WeekStatus;
+  editableFrom: string | null;
+}): boolean {
+  if (input.plannedFrom != null) return input.nightDate >= input.plannedFrom;
+  switch (input.weekStatus) {
+    case "locked":
+      return true;
+    case "voting":
+      return input.editableFrom != null;
+    default: {
+      const _exhaustive: never = input.weekStatus;
+      return _exhaustive;
+    }
+  }
+}
+
+export function cookingNightChip(input: {
+  past: boolean;
+  covered: boolean;
+  recipeReady: boolean;
+  off: boolean;
+}): BallotNightChip | null {
+  if (!input.past) return null;
+  if (!input.covered) return "not_planned";
+  if (input.off) return null;
+  return input.recipeReady ? "made" : "no_recipe";
+}
+
+export function lockBarLabel(input: { busy: boolean; hasPastNight: boolean }): string {
+  if (input.busy) return LOCK_BUSY_LABEL;
+  return input.hasPastNight ? LOCK_REST_OF_WEEK_LABEL : LOCK_THIS_WEEK_LABEL;
+}
+
+export function lockBarSubline(input: { dinnerCount: number; hasPastNight: boolean }): string {
+  const n = input.dinnerCount;
+  if (!input.hasPastNight) {
+    return n === 1 ? "Locks 1 dinner." : `Locks ${n} dinners.`;
+  }
+  return n === 1 ? "Locks 1 dinner from today on." : `Locks ${n} dinners from today on.`;
+}
+
+export function lockDinnerCount(
+  meals: readonly Meal[],
+  votes: Vote[],
+  memberships: Membership[] | undefined,
+  todayIso: string,
+): number {
+  return meals.filter((meal) => {
+    if (meal.nightDate < todayIso) return false;
+    if (!meal.title.trim()) return false;
+    return !isNightOff(meal.id, votes, memberships);
+  }).length;
+}
+
+export function weekHasPastNight(meals: readonly Meal[], todayIso: string): boolean {
+  return meals.some((meal) => meal.nightDate < todayIso);
+}
+
+export function notPlannedAriaLabel(weekday: string): string {
+  return `${weekday}, not planned`;
+}
 
 export type MealNightPhase = "past" | "today" | "future";
 

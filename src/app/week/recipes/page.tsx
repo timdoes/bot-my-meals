@@ -9,6 +9,7 @@ import { RecipeBlock } from "@/components/recipe-view";
 import { useSupper } from "@/components/supper-provider";
 import { formatMealCardDayLabel, formatWeekEyebrow } from "@/lib/dates";
 import { scopeForRole } from "@/lib/open-weeks";
+import { todayInTimeZone } from "@/lib/meal-history";
 import { isPendingBotFill } from "@/lib/post-lock-waiting";
 import { ALL_RECIPES_TITLE, RECIPE_BACK_LABEL, steppableNights } from "@/lib/recipe-nav";
 import { weekQuery } from "@/lib/week-navigator";
@@ -37,6 +38,7 @@ function AllRecipesBody() {
       </AppShell>
     );
   }
+  const todayIso = todayInTimeZone(new Date(), snapshot.household.timezone);
   const pending = isPendingBotFill({
     weekStatus: scope.week.status,
     meals: scope.meals,
@@ -44,8 +46,10 @@ function AllRecipesBody() {
     memberships: snapshot.memberships,
     recipes: scope.recipes,
     shoppingList: scope.shoppingList,
+    plannedFrom: scope.week.plannedFrom,
+    todayIso,
   });
-  const nights = steppableNights(scope.meals, scope.votes, snapshot.memberships);
+  const nights = steppableNights(scope.meals, scope.votes, snapshot.memberships, scope.week);
   return (
     <AppShell
       title={ALL_RECIPES_TITLE}

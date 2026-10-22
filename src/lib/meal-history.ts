@@ -123,12 +123,21 @@ export type HistoryNightSource = {
   nightDate: string;
   title: string;
   plates?: number | null;
-  /** Removed / no-dinner. Omitted from history. */
+  /** Removed / no-dinner. Omitted from history unless this night was never covered. */
   off?: boolean;
+  notPlanned?: boolean;
 };
 
-/** Title and optional plates only. Blank and off nights are dropped. */
+/** Title and optional plates only. Blank and off nights are dropped unless not planned. */
 export function toHistoryNight(source: HistoryNightSource): MealHistoryNight | null {
+  if (source.notPlanned) {
+    return {
+      nightDate: source.nightDate,
+      title: "",
+      plates: null,
+      notPlanned: true,
+    };
+  }
   if (source.off) return null;
   const title = source.title.trim();
   if (!title) return null;
@@ -144,8 +153,27 @@ export function toHistoryNight(source: HistoryNightSource): MealHistoryNight | n
 export type HistoryWeekSource = {
   startsOn: string;
   status: WeekStatus;
+  plannedFrom?: string | null;
   nights: HistoryNightSource[];
 };
+
+function uncoveredHistoryNights(startsOn: string, plannedFrom: string | null | undefined): MealHistoryNight[] {
+  if (!plannedFrom || plannedFrom <= startsOn) return [];
+  const nights: MealHistoryNight[] = [];
+  for (let date = startsOn; date < plannedFrom; date = addDays(date, 1)) {
+    nights.push({ nightDate: date, title: "", plates: null, notPlanned: true });
+  }
+  return nights;
+}
+
+function historyNightsForWeek(week: HistoryWeekSource): MealHistoryNight[] {
+  const uncovered = uncoveredHistoryNights(week.startsOn, week.plannedFrom);
+  const covered = week.nights
+    .filter((night) => (week.plannedFrom ? night.nightDate >= week.plannedFrom : true))
+    .map((night) => toHistoryNight(night))
+    .filter((night): night is MealHistoryNight => night != null);
+  return [...uncovered, ...covered].sort((a, b) => a.nightDate.localeCompare(b.nightDate));
+}
 
 export function listFinishedWeeks(
   weeks: HistoryWeekSource[],
@@ -156,10 +184,7 @@ export function listFinishedWeeks(
     .filter((week) => isFinishedWeek(week.status, week.startsOn, timeZone, now))
     .map((week) => ({
       startsOn: week.startsOn,
-      nights: week.nights
-        .map((night) => toHistoryNight(night))
-        .filter((night): night is MealHistoryNight => night != null)
-        .sort((a, b) => a.nightDate.localeCompare(b.nightDate)),
+      nights: historyNightsForWeek(week),
     }))
     .sort((a, b) => b.startsOn.localeCompare(a.startsOn))
     .slice(0, HISTORY_UI_LIMIT);
@@ -169,11 +194,22 @@ export function dinnerCountLabel(count: number): string {
   return count === 1 ? "1 dinner" : `${count} dinners`;
 }
 
+export function historyDinnerCount(nights: readonly Pick<MealHistoryNight, "notPlanned">[]): number {
+  return nights.filter((night) => !night.notPlanned).length;
+}
+
 export function historyWeekRowLabel(startsOn: string, dinnerCount: number): string {
   return `${formatWeekRange(startsOn)} · ${dinnerCountLabel(dinnerCount)}`;
 }
 
-export function historyNightLine(night: Pick<MealHistoryNight, "nightDate" | "title">): string {
+export const NOT_PLANNED_HISTORY_LABEL = "Not planned";
+
+export function historyNightLine(
+  night: Pick<MealHistoryNight, "nightDate" | "title" | "notPlanned">,
+): string {
+  if (night.notPlanned) {
+    return `${formatMealCardDayLabel(night.nightDate)} · ${NOT_PLANNED_HISTORY_LABEL}`;
+  }
   return `${formatMealCardDayLabel(night.nightDate)} · ${night.title}`;
 }
 
@@ -191,11 +227,13 @@ export function parseMealHistory(data: unknown): MealHistoryWeek[] {
       if (!nightRow || typeof nightRow !== "object") continue;
       const night = nightRow as Record<string, unknown>;
       if (typeof night.nightDate !== "string" || !ISO_DATE.test(night.nightDate)) continue;
-      if (typeof night.title !== "string") continue;
+      const notPlanned = night.notPlanned === true;
+      if (!notPlanned && typeof night.title !== "string") continue;
       const parsed = toHistoryNight({
         nightDate: night.nightDate,
-        title: night.title,
+        title: typeof night.title === "string" ? night.title : "",
         plates: typeof night.plates === "number" ? night.plates : null,
+        notPlanned,
       });
       if (parsed) nights.push(parsed);
     }

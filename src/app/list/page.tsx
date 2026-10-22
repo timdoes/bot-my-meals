@@ -32,6 +32,7 @@ import {
   LIST_PRE_LOCK_DESCRIPTION,
   LOCK_FIRST_TITLE,
 } from "@/lib/lock-success";
+import { todayInTimeZone } from "@/lib/meal-history";
 import { isPendingBotFill } from "@/lib/post-lock-waiting";
 import { recipeNightsForWeek } from "@/lib/recipes";
 import {
@@ -74,6 +75,7 @@ function ListBody() {
             week: scope.week,
             recipes: scope.recipes,
             shoppingList: scope.shoppingList,
+            todayIso: todayInTimeZone(new Date(), snapshot.household.timezone),
           }).needs_work
         : false,
     signature: foregroundSignature,
@@ -116,6 +118,8 @@ function ListBody() {
     memberships: snapshot.memberships,
     recipes: scope.recipes,
     shoppingList: scope.shoppingList,
+    plannedFrom: scope.week.plannedFrom,
+    todayIso: todayInTimeZone(new Date(), snapshot.household.timezone),
   });
   const nights = recipeNightsForWeek(scope.meals);
   const removedMealIds = new Set(
@@ -162,7 +166,7 @@ function ListBody() {
     items: group.items.map((item) => ({ ...listItemDisplay(item), checked: item.checked })),
   }));
   const checkedCount = list.items.filter((item) => item.checked).length;
-  const dinners = steppableNights(scope.meals, scope.votes, snapshot.memberships).length;
+  const dinners = steppableNights(scope.meals, scope.votes, snapshot.memberships, scope.week).length;
 
   return (
     <AppShell

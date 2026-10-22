@@ -18,6 +18,8 @@ export const PAST_WEEKS_ROW_HEIGHT_REM = 3;
 /** Lock card: `p-3` around a fat `h-12` button. Shell `py-2` is the stack pad. */
 export const LOCK_CARD_PADDING_REM = 0.75;
 export const LOCK_BUTTON_HEIGHT_REM = 3;
+/** Subline under Lock the rest of this week (`type-meta` + `mt-2`). */
+export const LOCK_SUBLINE_HEIGHT_REM = 1.25;
 
 export const pastWeeksStackLinkClass =
   "type-body flex min-h-12 w-full items-center justify-between gap-3 rounded-[14px] bg-card px-5 text-foreground shadow-card";
@@ -35,7 +37,11 @@ function rem(rootFontPx: number, value: number): number {
 }
 
 export function lockCardHeightPx(rootFontPx = 16): number {
-  return rem(rootFontPx, LOCK_CARD_PADDING_REM) * 2 + rem(rootFontPx, LOCK_BUTTON_HEIGHT_REM);
+  return (
+    rem(rootFontPx, LOCK_CARD_PADDING_REM) * 2 +
+    rem(rootFontPx, LOCK_BUTTON_HEIGHT_REM) +
+    rem(rootFontPx, LOCK_SUBLINE_HEIGHT_REM)
+  );
 }
 
 export type WeekBottomStackLayout = {

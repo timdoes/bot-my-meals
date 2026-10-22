@@ -171,6 +171,8 @@ export type Week = {
   lockedAt: string | null;
   /** House-local date of a mid-week unlock. Nights before this stay read-only. */
   editableFrom: string | null;
+  /** House-local date of the first lock. Null until then; null on a locked week means fully covered. */
+  plannedFrom: string | null;
   shoppingPrompt: ShoppingPrompt;
   /** Null until this week's plates are saved. The planning gate stays open while null. */
   peopleConfirmedAt: string | null;
@@ -185,6 +187,8 @@ export type MealHistoryNight = {
   nightDate: string;
   title: string;
   plates: number | null;
+  /** Uncovered past night. Shown as "Not planned" with no title. */
+  notPlanned?: boolean;
 };
 
 export type MealHistoryWeek = {

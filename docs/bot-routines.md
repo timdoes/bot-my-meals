@@ -27,7 +27,7 @@ With the URL set, **Check now** says “Wakes your Bot My Meals bot now.” **Ge
    - `meal_pending` — an open swap or a new-dinner request on that week
    - `portion_pending` — a dinner’s servings don’t match the plates
    - `plate_or_people_change` — plates or household size changed and a dinner’s servings still need to catch up
-   - `fill_pending` — that week is locked and a dinner is still missing a recipe, or that week’s shopping list is empty when a dinner needs groceries. Write those. Each week has its own list. Do not invent a list when nothing needs buying, and do not merge this week with next week.
+   - `fill_pending` — that week is locked and a covered dinner that has not passed is still missing a recipe, or that week’s shopping list is empty when a covered dinner needs groceries. Fill only nights on or after `planned_from` that have not passed. Nights before `planned_from` and past covered nights are ignored. Each week has its own list. Do not invent a list when nothing needs buying, and do not merge this week with next week.
 
 Never invent grocery prices. Never claim Smith’s cart adds.
 
