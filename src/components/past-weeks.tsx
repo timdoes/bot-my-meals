@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   HISTORY_UI_LIMIT,
   PAST_WEEKS_EMPTY,
+  historyDinnerCount,
   historyNightLine,
   historyWeekRowLabel,
 } from "@/lib/meal-history";
@@ -30,7 +31,7 @@ export function PastWeeksList({ weeks }: { weeks: MealHistoryWeek[] }) {
             data-slot="past-week-row"
             className="type-body flex min-h-12 items-center rounded-[14px] bg-card px-5 shadow-card"
           >
-            {historyWeekRowLabel(week.startsOn, week.nights.length)}
+            {historyWeekRowLabel(week.startsOn, historyDinnerCount(week.nights))}
           </Link>
         </li>
       ))}
@@ -51,7 +52,12 @@ export function PastWeekDetail({ week }: { week: MealHistoryWeek }) {
             id={nightCardAnchorId(night.nightDate)}
             tabIndex={-1}
             data-slot="past-week-night"
-            className="type-body scroll-mt-[calc(var(--shell-head-h)+0.25rem)] rounded-[14px] bg-card px-5 py-4 shadow-card outline-none focus:ring-2 focus:ring-primary/40"
+            data-not-planned={night.notPlanned ? "true" : "false"}
+            className={`type-body scroll-mt-[calc(var(--shell-head-h)+0.25rem)] rounded-[14px] px-5 py-4 outline-none focus:ring-2 focus:ring-primary/40 ${
+              night.notPlanned
+                ? "bg-muted text-slate-600 shadow-none"
+                : "bg-card shadow-card"
+            }`}
           >
             {historyNightLine(night)}
           </li>

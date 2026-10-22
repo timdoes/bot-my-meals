@@ -167,6 +167,11 @@ describe("recipe page prev/next nights", () => {
     expect(adjacentNights(meals, votes, "tue").previous?.id).toBe("mon");
   });
 
+  it("skips nights the lock never covered", () => {
+    const week = { status: "locked" as const, plannedFrom: "2026-10-13", editableFrom: null };
+    expect(steppableNights(meals, votes, undefined, week).map((item) => item.id)).toEqual(["wed"]);
+  });
+
   it("uses the locked eyebrow and Next line strings", () => {
     expect(recipeEyebrow("2026-10-11", "2026-10-11")).toBe("Tonight · Sun Oct 11");
     expect(recipeEyebrow("2026-10-12", "2026-10-11")).toBe("Mon · Oct 12");

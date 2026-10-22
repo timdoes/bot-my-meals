@@ -75,10 +75,12 @@ export function dinnerShoppingLines(input: {
   recipes: Recipe[];
   votes: Vote[];
   memberships?: Membership[];
+  plannedFrom?: string | null;
 }): ShoppingLine[] {
   const draft: ShoppingLine[] = [];
 
   for (const meal of input.meals) {
+    if (input.plannedFrom != null && meal.nightDate < input.plannedFrom) continue;
     if (isNightOff(meal.id, input.votes, input.memberships)) continue;
     const recipe = input.recipes.find((item) => item.mealId === meal.id);
     if (!recipe) continue;
@@ -199,6 +201,7 @@ function rebuiltShoppingList(
     recipes: scope.recipes,
     votes: scope.votes,
     memberships,
+    plannedFrom: scope.week.plannedFrom,
   });
   const next = reconcileShoppingItems(scope.shoppingList, desired);
   if (!next.changed) return scope.shoppingList;
@@ -234,6 +237,7 @@ export function shoppingListsToRebuild(snapshot: HouseholdSnapshot): string[] {
       recipes: scope.recipes,
       votes: scope.votes,
       memberships: snapshot.memberships,
+      plannedFrom: scope.week.plannedFrom,
     });
     return reconcileShoppingItems(scope.shoppingList, desired).changed ? [scope.week.id] : [];
   });

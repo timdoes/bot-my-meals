@@ -185,11 +185,13 @@ export function checkWeekLock(
   meals: Meal[],
   votes: Vote[],
   memberships: Membership[],
+  todayIso?: string,
 ): LockCheck {
   const voters = votingMembers(memberships);
   const blockers: LockCheck["blockers"] = [];
+  const counted = todayIso ? meals.filter((meal) => meal.nightDate >= todayIso) : meals;
 
-  for (const meal of meals) {
+  for (const meal of counted) {
     const lifecycle = nightLifecycle(meal, votes, memberships);
     if (lifecycle === "swapped" || lifecycle === "request_new_meal") {
       blockers.push({ mealId: meal.id, status: lifecycle });
@@ -201,13 +203,13 @@ export function checkWeekLock(
     blockers.filter((item) => item.status === "request_new_meal").map((item) => item.mealId),
   );
   const pendingAddCount = pendingAddIds.size;
-  const pendingAddMeal = meals.find((meal) => pendingAddIds.has(meal.id));
+  const pendingAddMeal = counted.find((meal) => pendingAddIds.has(meal.id));
 
   return {
-    ready: blockers.length === 0 && voters.length > 0 && meals.length > 0,
+    ready: blockers.length === 0 && voters.length > 0 && counted.length > 0,
     reason: lockReason({
       voters: voters.length,
-      nightSlots: meals.length,
+      nightSlots: counted.length,
       swapCount,
       pendingAddCount,
       pendingAddDay: pendingAddMeal ? weekdayLabelFromNight(pendingAddMeal.nightDate) : undefined,

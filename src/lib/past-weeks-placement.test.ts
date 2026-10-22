@@ -29,7 +29,7 @@ describe("Past weeks bottom stack", () => {
 
     expect(week).toContain("const showPastWeeks = snapshot.mealHistory.length > 0");
     expect(week).toContain(
-      "const showLockBar = !viewingPast && !locked && check.ready && !showPeopleGate",
+      "const showLockBar = !viewingPast && !locked && check.ready && !showPeopleGate && lockDinners > 0",
     );
     expect(week).toContain('data-slot="week-bottom-stack"');
     expect(week).toContain("{showPastWeeks ? (");

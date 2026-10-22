@@ -42,7 +42,13 @@ export function WeekStrip({
         className="flex w-max min-w-full gap-2">
         {cells.map((cell) => {
           if (!cell.hasMeal || !cell.mealId) {
-            return <EmptyStripCell key={cell.nightDate} cell={cell} />;
+            return (
+              <EmptyStripCell
+                key={cell.nightDate}
+                cell={cell}
+                past={muted.has(cell.nightDate) || cell.nightDate < todayIso}
+              />
+            );
           }
           return (
             <MealStripCell
@@ -51,7 +57,7 @@ export function WeekStrip({
               mealId={cell.mealId}
               selected={cell.mealId === selectedMealId}
               today={cell.nightDate === todayIso}
-              past={muted.has(cell.nightDate)}
+              past={muted.has(cell.nightDate) || cell.nightDate < todayIso}
               onSelect={onSelect}
               interactive={interactive}
             />
@@ -62,14 +68,14 @@ export function WeekStrip({
   );
 }
 
-function EmptyStripCell({ cell }: { cell: WeekStripCell }) {
+function EmptyStripCell({ cell, past }: { cell: WeekStripCell; past: boolean }) {
   return (
     <div
       data-slot="week-strip-cell"
       data-selectable="false"
       data-empty="true"
       data-today="false"
-      data-past="false"
+      data-past={past ? "true" : "false"}
       data-selected="false"
       className={cn(cellGeometry, "text-muted-foreground/60")}
     >

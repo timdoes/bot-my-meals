@@ -95,6 +95,7 @@ export function viewedWeekDataSignature(scope: WeekScope): string {
       status: scope.week.status,
       lockedAt: scope.week.lockedAt,
       editableFrom: scope.week.editableFrom,
+      plannedFrom: scope.week.plannedFrom,
       peopleConfirmedAt: scope.week.peopleConfirmedAt,
       nightHeadcounts: scope.week.nightHeadcounts,
       specialInstructions: scope.week.specialInstructions,

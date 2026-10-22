@@ -138,6 +138,15 @@ describe("past, today, and future meal cards", () => {
       "review",
     );
     expect(
+      lockedDinnerTap({
+        locked: false,
+        pending: false,
+        presentation: "ballot",
+        past: true,
+        covered: false,
+      }),
+    ).toBe("none");
+    expect(
       lockedDinnerTap({ locked: true, pending: true, presentation: "locked_empty", past: true }),
     ).toBe("none");
     expect(lockedDinnerTap({ locked: true, pending: true, presentation: "ballot" })).toBe("waiting");
@@ -191,7 +200,8 @@ describe("past, today, and future meal cards", () => {
     expect(week).toContain("isPastDinnerNight(meal.nightDate, todayIso)");
     expect(week).toContain('role === "cooking" && isPastDinnerNight');
     expect(week).toContain("dinnerNightActionsOpen");
-    expect(week).toContain("made={past}");
+    expect(week).toContain("cookingNightChip");
+    expect(week).toContain("chip={chip}");
     expect(week).toContain("past: pastNight");
     expect(week).toContain("UnlockWeekControl");
     expect(week).not.toContain("localStorage");
@@ -200,7 +210,39 @@ describe("past, today, and future meal cards", () => {
     expect(meal).not.toContain("requestBotWake");
     expect(meal).not.toContain("localStorage");
     expect(card).toContain("MADE_CHIP_LABEL");
+    expect(card).toContain("NOT_PLANNED_CHIP_LABEL");
+    expect(card).toContain("NO_RECIPE_CHIP_LABEL");
     expect(card).not.toContain("localStorage");
     expect(card).not.toContain("<Lock");
+  });
+
+  it("renders a shorter muted Not planned card with no tap and no actions", () => {
+    const html = renderToStaticMarkup(
+      createElement(BallotCard, {
+        dayLabel: "Sun · Oct 18",
+        confirmDayLabel: "Sunday",
+        title: "Lemon herb chicken",
+        pitch: "Should not show",
+        servings: 4,
+        chip: "not_planned",
+        openHref: "/week/sun",
+        onSwap: () => undefined,
+        onRemove: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-chip="not_planned"');
+    expect(html).toContain('data-slot="not-planned-chip"');
+    expect(html).toContain(">Not planned<");
+    expect(html).toContain("Lemon herb chicken");
+    expect(html).toContain("bg-muted");
+    expect(html).toContain("text-slate-600");
+    expect(html).toContain("shadow-none");
+    expect(html).toContain("Sunday, not planned");
+    expect(html).not.toContain("Should not show");
+    expect(html).not.toContain('href="/week/sun"');
+    expect(html).not.toContain('data-slot="meal-card-chevron"');
+    expect(html).not.toMatch(/>\s*Swap\s*</);
+    expect(html).not.toMatch(/>\s*Remove\s*</);
+    expect(html).not.toContain(">Made<");
   });
 });

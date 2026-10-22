@@ -69,11 +69,13 @@ export function recipePendingHint(role: WeekRole, wake: boolean): string {
 
 export type PendingBotFillInput = {
   weekStatus: WeekStatus;
-  meals: ReadonlyArray<Pick<Meal, "id" | "title">>;
+  meals: ReadonlyArray<Pick<Meal, "id" | "title" | "nightDate">>;
   votes: Vote[];
   memberships: Membership[];
   recipes: Recipe[];
   shoppingList: { items: readonly unknown[] } | null;
+  plannedFrom?: string | null;
+  todayIso?: string;
 };
 
 export type LockedDinnerTap = "none" | "waiting" | "recipe" | "review";
@@ -90,6 +92,16 @@ export function dinnerRecipeReady(meal: Pick<Meal, "id" | "title">, recipes: Rec
   const recipe = recipeForMeal(recipes, meal.id);
   if (!recipe) return false;
   return recipe.steps.some((step) => step.trim().length > 0);
+}
+
+function nightCountsForBotFill(
+  meal: Pick<Meal, "id" | "title" | "nightDate">,
+  input: PendingBotFillInput,
+): boolean {
+  if (!isLockedDinner(meal, input.votes, input.memberships)) return false;
+  if (input.plannedFrom != null && meal.nightDate < input.plannedFrom) return false;
+  if (input.todayIso && meal.nightDate < input.todayIso) return false;
+  return true;
 }
 
 function isLockedDinner(
@@ -134,10 +146,10 @@ export function shoppingListReadyForLock(
   return recipesReady && !dinnersNeedGroceries(dinners, recipes);
 }
 
-/** Locked week, and the bot has not written the list and every dinner recipe yet. */
+/** Locked week, and the bot has not written the list and every covered, unpassed dinner recipe yet. */
 export function isPendingBotFill(input: PendingBotFillInput): boolean {
   if (input.weekStatus !== "locked") return false;
-  const dinners = input.meals.filter((meal) => isLockedDinner(meal, input.votes, input.memberships));
+  const dinners = input.meals.filter((meal) => nightCountsForBotFill(meal, input));
   const recipesReady = dinners.every((meal) => dinnerRecipeReady(meal, input.recipes));
   const listReady = shoppingListReadyForLock(input.shoppingList, dinners, input.recipes, recipesReady);
   return !recipesReady || !listReady;
@@ -147,7 +159,7 @@ export function isPendingBotFill(input: PendingBotFillInput): boolean {
 export function nightShowsRecipePending(input: PendingBotFillInput & { mealId: string }): boolean {
   if (!isPendingBotFill(input)) return false;
   const meal = input.meals.find((item) => item.id === input.mealId);
-  if (!meal || !isLockedDinner(meal, input.votes, input.memberships)) return false;
+  if (!meal || !nightCountsForBotFill(meal, input)) return false;
   return !dinnerRecipeReady(meal, input.recipes);
 }
 
@@ -157,7 +169,10 @@ export function lockedDinnerTap(input: {
   presentation: WeekNightPresentation;
   /** House-local past night. Opens the meal for review and does not open the waiting sheet. */
   past?: boolean;
+  /** False for a past night the lock never covered. Tap does nothing. */
+  covered?: boolean;
 }): LockedDinnerTap {
+  if (input.past && input.covered === false) return "none";
   if (input.past && input.presentation === "ballot") return "review";
   if (!input.locked || input.presentation !== "ballot") return "none";
   return input.pending ? "waiting" : "recipe";

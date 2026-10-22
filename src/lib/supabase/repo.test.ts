@@ -182,6 +182,7 @@ const weekRow = {
   status: "voting",
   locked_at: null,
   editable_from: null,
+  planned_from: null,
   shopping_prompt: "open",
   people_confirmed_at: null,
   night_headcounts: null,

@@ -73,20 +73,24 @@ import {
   weekQuery,
 } from "@/lib/week-navigator";
 import { ALL_RECIPES_LABEL } from "@/lib/recipe-nav";
-import { isPendingBotFill, lockedDinnerTap, POST_LOCK_GET_RECIPES_NEXT_HINT, POST_LOCK_GET_RECIPES_NEXT_WAKE_HINT } from "@/lib/post-lock-waiting";
+import { dinnerRecipeReady, isPendingBotFill, lockedDinnerTap, POST_LOCK_GET_RECIPES_NEXT_HINT, POST_LOCK_GET_RECIPES_NEXT_WAKE_HINT } from "@/lib/post-lock-waiting";
 import { focusNightCard, nightCardAnchorId } from "@/lib/week-strip";
 import { reorderFoodRuleConflict } from "@/lib/food-rule-check";
-import { canActOnBallot, checkWeekLock, latestVoteForMeal, mapMealReorderError, nightLifecycle } from "@/lib/lock";
+import { canActOnBallot, checkWeekLock, isNightOff, latestVoteForMeal, mapMealReorderError, nightLifecycle } from "@/lib/lock";
 import { recipeNightsForWeek } from "@/lib/recipes";
 import {
+  cookingNightChip,
   dinnerNightActionsOpen,
   isPastDinnerNight,
+  lockDinnerCount,
+  nightCoveredByLock,
   nightHasStripMeal,
   nightStaysLocked,
   showFirstMealRow,
   showOpenShoppingList,
   stripCellMuted,
   upcomingDinner,
+  type BallotNightChip,
 } from "@/lib/week-chrome";
 import type { Meal, NightLifecycle, VoteChoice } from "@/lib/types";
 
@@ -242,6 +246,7 @@ function WeekBallot() {
           week: scope.week,
           recipes: scope.recipes,
           shoppingList: scope.shoppingList,
+          todayIso: todayInTimeZone(new Date(), snapshot.household.timezone),
         }).needs_work
       : false;
   const foregroundSignature = scope && !past ? viewedWeekDataSignature(scope) : "";
@@ -267,9 +272,16 @@ function WeekBallot() {
       memberships: snapshot.memberships,
       recipes: scope.recipes,
       shoppingList: scope.shoppingList,
+      plannedFrom: scope.week.plannedFrom,
+      todayIso,
     });
   const botCheck = botCheckForHousehold(snapshot);
-  const check = scope ? checkWeekLock(scope.meals, scope.votes, snapshot.memberships) : { ready: false };
+  const check = scope
+    ? checkWeekLock(scope.meals, scope.votes, snapshot.memberships, todayIso)
+    : { ready: false };
+  const lockDinners = scope
+    ? lockDinnerCount(scope.meals, scope.votes, snapshot.memberships, todayIso)
+    : 0;
   const nights = scope ? recipeNightsForWeek(scope.meals) : [];
   const canReorderMeals = Boolean(session?.membershipId) && canActOnBallot(session?.role);
   const movableMealIds =
@@ -301,20 +313,9 @@ function WeekBallot() {
         nightDate: meal.nightDate,
         hasMeal: nightHasStripMeal(meal, scope?.votes ?? [], snapshot.memberships),
       }));
-  const mutedDates =
-    scope == null
-      ? []
-      : stripNights
-          .filter(
-            (night) =>
-              night.hasMeal &&
-              stripCellMuted({
-                weekStatus: scope.week.status,
-                nightDate: night.nightDate,
-                editableFrom: scope.week.editableFrom,
-              }),
-          )
-          .map((night) => night.nightDate);
+  const mutedDates = stripNights
+    .filter((night) => stripCellMuted({ nightDate: night.nightDate, todayIso }))
+    .map((night) => night.nightDate);
   const todayMealId =
     stripNights.find((night) => night.hasMeal && night.nightDate === todayIso)?.id ?? null;
   const activeStop = stops[index];
@@ -339,6 +340,7 @@ function WeekBallot() {
           week: scope.week,
           recipes: scope.recipes,
           shoppingList: scope.shoppingList,
+          todayIso,
         });
   const showMealsWaiting =
     !viewingPast && !showPeopleGate && Boolean(viewedWork?.needs_work) && !pendingFill;
@@ -350,7 +352,7 @@ function WeekBallot() {
     />
   );
 
-  const showLockBar = !viewingPast && !locked && check.ready && !showPeopleGate;
+  const showLockBar = !viewingPast && !locked && check.ready && !showPeopleGate && lockDinners > 0;
   const showPastWeeks = snapshot.mealHistory.length > 0;
 
   const act = async (mealId: string, choice: VoteChoice, note?: string, servings?: number) => {
@@ -485,12 +487,29 @@ function WeekBallot() {
               editableFrom: scope?.week.editableFrom ?? null,
             });
             const pastNight = role === "cooking" && isPastDinnerNight(meal.nightDate, todayIso);
+            const covered = nightCoveredByLock({
+              nightDate: meal.nightDate,
+              plannedFrom: scope?.week.plannedFrom ?? null,
+              weekStatus: scope?.week.status ?? "voting",
+              editableFrom: scope?.week.editableFrom ?? null,
+            });
+            const recipeReady = dinnerRecipeReady(meal, scope?.recipes ?? []);
+            const off = isNightOff(meal.id, scope?.votes ?? [], snapshot.memberships);
+            const chip = cookingNightChip({
+              past: pastNight,
+              covered,
+              recipeReady,
+              off,
+            });
             const canVote = dinnerNightActionsOpen({
               past: pastNight,
               nightLocked,
               canAct: Boolean(session?.membershipId) && canActOnBallot(session?.role),
             });
-            const presentation = weekNightPresentation(lifecycle, nightLocked);
+            const presentation =
+              pastNight && !covered && meal.title.trim()
+                ? "ballot"
+                : weekNightPresentation(lifecycle, nightLocked);
             const awaitingMeal = awaitingMealSlot(meal, scope?.votes ?? [], snapshot.memberships);
             const reorderState = mealReorderControls({
               mealId: meal.id,
@@ -529,6 +548,7 @@ function WeekBallot() {
               pending: pendingFill,
               presentation,
               past: pastNight,
+              covered,
             });
 
             return (
@@ -550,11 +570,16 @@ function WeekBallot() {
                   locked: nightLocked,
                   pending: pendingFill,
                   past: pastNight,
+                  covered,
+                  chip,
                   lifecycle,
                   onAct: act,
                   onWaiting: () => setWaitingOpen(true),
                   reorder,
-                  openHref: presentation === "ballot" && frameTap === "none" ? `/week/${meal.id}` : undefined,
+                  openHref:
+                    presentation === "ballot" && frameTap === "none" && chip !== "not_planned"
+                      ? `/week/${meal.id}`
+                      : undefined,
                 })}
               </div>
             );
@@ -626,6 +651,8 @@ function renderNightCard({
   locked,
   pending,
   past,
+  covered,
+  chip,
   lifecycle,
   onAct,
   onWaiting,
@@ -642,6 +669,8 @@ function renderNightCard({
   locked: boolean;
   pending: boolean;
   past: boolean;
+  covered: boolean;
+  chip: BallotNightChip | null;
   lifecycle: NightLifecycle;
   onAct: (mealId: string, choice: VoteChoice, note?: string, servings?: number) => void;
   onWaiting: () => void;
@@ -678,7 +707,7 @@ function renderNightCard({
     case "ballot":
       return (
         <LockedNightFrame
-          tap={lockedDinnerTap({ locked, pending, presentation, past })}
+          tap={lockedDinnerTap({ locked, pending, presentation, past, covered })}
           href={`/week/${meal.id}`}
           title={meal.title}
           onWaiting={onWaiting}
@@ -687,21 +716,23 @@ function renderNightCard({
             dayLabel={dayLabel}
             confirmDayLabel={dayName}
             title={meal.title}
-            pitch={meal.pitch}
-            servings={meal.servings}
-            swapped={lifecycle === "swapped"}
-            swapNote={latestNote}
+            pitch={chip === "not_planned" ? undefined : meal.pitch}
+            servings={chip === "not_planned" ? undefined : meal.servings}
+            swapped={chip === "not_planned" ? false : lifecycle === "swapped"}
+            swapNote={chip === "not_planned" ? undefined : latestNote}
             muted={isMutedBallotNight({
               isLeftovers: meal.isLeftovers,
               isNightOff: false,
             })}
             locked={locked}
-            made={past}
+            chip={chip}
             onSwap={canVote ? (reason) => onAct(meal.id, "swap", reason) : undefined}
             onRemove={canVote ? () => onAct(meal.id, "remove") : undefined}
-            reorder={reorder}
+            reorder={chip === "not_planned" ? undefined : reorder}
             openHref={openHref}
-            opensRecipe={["recipe", "review"].includes(lockedDinnerTap({ locked, pending, presentation, past }))}
+            opensRecipe={["recipe", "review"].includes(
+              lockedDinnerTap({ locked, pending, presentation, past, covered }),
+            )}
           />
         </LockedNightFrame>
       );

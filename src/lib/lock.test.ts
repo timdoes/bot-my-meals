@@ -183,6 +183,13 @@ describe("checkWeekLock", () => {
     expect(ready.reason).toBe("Nights are set. No open swaps or pending meals.");
   });
 
+  it("ignores a swap on a past uncovered night when todayIso is set", () => {
+    const votes = [vote("alex", "m0", "swap")];
+    expect(checkWeekLock(meals, votes, voters).ready).toBe(false);
+    expect(checkWeekLock(meals, votes, voters, "2026-08-31").ready).toBe(true);
+    expect(checkWeekLock(meals, votes, voters, "2026-08-30").ready).toBe(false);
+  });
+
   it("needs at least one voting member", () => {
     const eatersOnly: Membership[] = [
       {

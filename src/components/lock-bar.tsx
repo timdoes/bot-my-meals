@@ -7,6 +7,13 @@ import { useViewedWeek } from "@/components/use-viewed-week";
 import { Button } from "@/components/ui/button";
 import { FOOD_RULE_NEEDS_CHANGE, weekAllergyLockHits } from "@/lib/food-rule-check";
 import { checkWeekLock, mapFoodRuleActionError } from "@/lib/lock";
+import { todayInTimeZone } from "@/lib/meal-history";
+import {
+  lockBarLabel,
+  lockBarSubline,
+  lockDinnerCount,
+  weekHasPastNight,
+} from "@/lib/week-chrome";
 
 export function LockBar() {
   const { snapshot, lockWeek, error } = useSupper();
@@ -15,12 +22,16 @@ export function LockBar() {
   if (!snapshot || !scope) return null;
 
   const locked = scope.week.status === "locked";
-  const check = checkWeekLock(scope.meals, scope.votes, snapshot.memberships);
-  const allergyHits = weekAllergyLockHits(snapshot, scope.week.id);
+  const todayIso = todayInTimeZone(new Date(), snapshot.household.timezone);
+  const check = checkWeekLock(scope.meals, scope.votes, snapshot.memberships, todayIso);
+  const dinnerCount = lockDinnerCount(scope.meals, scope.votes, snapshot.memberships, todayIso);
+  const hasPastNight = weekHasPastNight(scope.meals, todayIso);
+  const allergyHits = weekAllergyLockHits(snapshot, scope.week.id, todayIso);
   const foodRuleBlock = allergyHits.length > 0;
-  if (locked || !check.ready) return null;
+  if (locked || !check.ready || dinnerCount === 0) return null;
 
   const displayError = error ? mapFoodRuleActionError(error) : foodRuleBlock ? FOOD_RULE_NEEDS_CHANGE : null;
+  const label = lockBarLabel({ busy, hasPastNight });
 
   return (
     <div
@@ -44,8 +55,11 @@ export function LockBar() {
         }}
       >
         {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Lock className="size-5" />}
-        {busy ? "Locking…" : "Lock this week"}
+        {label}
       </Button>
+      <p data-slot="lock-bar-subline" className="type-meta mt-2 text-center text-muted-foreground">
+        {lockBarSubline({ dinnerCount, hasPastNight })}
+      </p>
       {displayError ? <p className="type-meta mt-2 text-destructive">{displayError}</p> : null}
     </div>
   );

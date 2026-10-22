@@ -47,7 +47,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { mealCardControlId } from "@/lib/dates";
 import { MOVE_EARLIER_LABEL, MOVE_LATER_LABEL, reorderGripLabel } from "@/lib/meal-reorder";
-import { MADE_CHIP_LABEL } from "@/lib/week-chrome";
+import {
+  MADE_CHIP_LABEL,
+  NO_RECIPE_CHIP_LABEL,
+  NOT_PLANNED_CHIP_LABEL,
+  notPlannedAriaLabel,
+  type BallotNightChip,
+} from "@/lib/week-chrome";
 import { cn } from "@/lib/utils";
 
 const REORDER_HIT =
@@ -181,6 +187,7 @@ export function BallotCard({
   muted = false,
   locked = false,
   made = false,
+  chip,
   onSwap,
   onRemove,
   reorder,
@@ -197,8 +204,10 @@ export function BallotCard({
   swapNote?: string;
   muted?: boolean;
   locked?: boolean;
-  /** Past dinner night: Made chip, muted title, no edit actions. */
+  /** Past dinner night: Made chip, muted title, no edit actions. Prefer `chip`. */
   made?: boolean;
+  /** Past-night chip. `not_planned` is a shorter muted card with no tap. */
+  chip?: BallotNightChip | null;
   onSwap?: (reason: string) => void | Promise<void>;
   onRemove?: () => void | Promise<void>;
   reorder?: MealReorderHandlers;
@@ -212,8 +221,11 @@ export function BallotCard({
   const drag = useMealCardDrag(articleRef, reorder);
   const [sheet, setSheet] = useState<"swap" | "remove" | null>(null);
   const [reason, setReason] = useState(swapNote ?? "");
-  const canAct = Boolean(onSwap || onRemove) && !locked && !made;
-  const showActions = canAct;
+  const nightChip: BallotNightChip | null = chip ?? (made ? "made" : null);
+  const notPlanned = nightChip === "not_planned";
+  const pastChip = nightChip != null;
+  const canAct = Boolean(onSwap || onRemove) && !locked && !pastChip;
+  const showActions = canAct && !notPlanned;
   const swapFieldId = mealCardControlId("swap-reason", dayLabel);
   const dayName = confirmDayLabel ?? dayLabel;
   const headsUp = useFoodRuleHeadsUp({ text: reason, dayName });
@@ -222,11 +234,56 @@ export function BallotCard({
   const meal = supper?.snapshot ? findMealForDayName(supper.snapshot, dayName, preferWeekId) : undefined;
   const cardHits = supper?.snapshot && meal ? cardFoodRuleHits(supper.snapshot, meal) : { allergy: null, intolerance: null };
   const conflict = cardHits.allergy ?? cardHits.intolerance;
-  const showNeedsChange = Boolean(cardHits.allergy) && !locked && !made;
+  const showNeedsChange = Boolean(cardHits.allergy) && !locked && !pastChip && !notPlanned;
   const dayLabelClass = cn(
     "type-day-label",
-    muted ? "text-secondary-foreground/70" : "text-muted-foreground",
+    notPlanned ? "text-slate-500" : muted ? "text-secondary-foreground/70" : "text-muted-foreground",
   );
+
+  const chipLabel = (value: BallotNightChip): string => {
+    switch (value) {
+      case "made":
+        return MADE_CHIP_LABEL;
+      case "no_recipe":
+        return NO_RECIPE_CHIP_LABEL;
+      case "not_planned":
+        return NOT_PLANNED_CHIP_LABEL;
+      default: {
+        const _exhaustive: never = value;
+        return _exhaustive;
+      }
+    }
+  };
+
+  const chipSlot = (value: BallotNightChip): string => {
+    switch (value) {
+      case "made":
+        return "made-chip";
+      case "no_recipe":
+        return "no-recipe-chip";
+      case "not_planned":
+        return "not-planned-chip";
+      default: {
+        const _exhaustive: never = value;
+        return _exhaustive;
+      }
+    }
+  };
+
+  const chipClass = (value: BallotNightChip): string => {
+    switch (value) {
+      case "made":
+        return "bg-foreground text-background";
+      case "no_recipe":
+        return "border border-border bg-background text-muted-foreground";
+      case "not_planned":
+        return "border border-slate-300 bg-white text-slate-600";
+      default: {
+        const _exhaustive: never = value;
+        return _exhaustive;
+      }
+    }
+  };
 
   const sendSwap = () => {
     if (!onSwap) return;
@@ -246,16 +303,19 @@ export function BallotCard({
 
   const body = (
     <>
-      {made ? (
+      {nightChip ? (
         <div className="flex items-center justify-between gap-2">
           <p data-slot="meal-day-label" className={dayLabelClass}>
             {dayLabel}
           </p>
           <span
-            data-slot="made-chip"
-            className="inline-flex h-5 shrink-0 items-center rounded-full bg-foreground px-2 type-chip font-semibold whitespace-nowrap text-background"
+            data-slot={chipSlot(nightChip)}
+            className={cn(
+              "inline-flex h-5 shrink-0 items-center rounded-full px-2 type-chip font-semibold whitespace-nowrap",
+              chipClass(nightChip),
+            )}
           >
-            {MADE_CHIP_LABEL}
+            {chipLabel(nightChip)}
           </span>
         </div>
       ) : (
@@ -264,10 +324,17 @@ export function BallotCard({
         </p>
       )}
       <div className="mt-1 flex items-start justify-between gap-2">
-        <h2 className={cn("type-section min-w-0", made && "text-foreground/80")} data-slot="meal-card-title">
+        <h2
+          className={cn(
+            "type-section min-w-0",
+            nightChip === "made" && "text-foreground/80",
+            notPlanned && "font-bold text-slate-600",
+          )}
+          data-slot="meal-card-title"
+        >
           {title}
         </h2>
-        {opensRecipe || openHref ? (
+        {!notPlanned && (opensRecipe || openHref) ? (
           <ChevronRight
             aria-hidden
             data-slot="meal-card-chevron"
@@ -275,7 +342,7 @@ export function BallotCard({
           />
         ) : null}
       </div>
-      {conflict ? (
+      {notPlanned ? null : conflict ? (
         <p
           data-slot="food-rule-chip"
           data-severity={conflict.severity}
@@ -290,12 +357,12 @@ export function BallotCard({
           {foodRuleChipLabel(conflict)}
         </p>
       ) : null}
-      {showNeedsChange ? (
+      {notPlanned ? null : showNeedsChange ? (
         <p data-slot="food-rule-needs-change" className="type-body mt-2 text-muted-foreground">
           {FOOD_RULE_NEEDS_CHANGE}.
         </p>
       ) : null}
-      {pitch ? (
+      {notPlanned || !pitch ? null : (
         <p
           className={cn(
             "type-body mt-2 line-clamp-2",
@@ -304,8 +371,8 @@ export function BallotCard({
         >
           {pitch}
         </p>
-      ) : null}
-      {servings != null && servings > 0 ? (
+      )}
+      {notPlanned ? null : servings != null && servings > 0 ? (
         <p
           className={cn(
             "type-chip mt-3 inline-flex rounded-[var(--radius-chip)] px-2.5 py-1",
@@ -315,7 +382,7 @@ export function BallotCard({
           <span className="font-mono">{servings}</span>
           <span className="ml-1">{servings === 1 ? "serving" : "servings"}</span>
         </p>
-      ) : servings === 0 ? (
+      ) : notPlanned ? null : servings === 0 ? (
         <p
           className={cn(
             "type-chip mt-3 inline-flex rounded-[var(--radius-chip)] px-2.5 py-1",
@@ -325,7 +392,7 @@ export function BallotCard({
           No dinner
         </p>
       ) : null}
-      {swapped ? (
+      {notPlanned ? null : swapped ? (
         <div className="mt-3 space-y-1">
           <p className="type-meta text-swap">{SWAP_REQUESTED}</p>
           {swapNote ? <p className="type-body text-muted-foreground">{swapNote}</p> : null}
@@ -339,24 +406,31 @@ export function BallotCard({
       ref={articleRef}
       data-slot="ballot-card"
       data-swapped={swapped ? "true" : "false"}
-      data-muted={muted ? "true" : "false"}
-      data-past={made ? "true" : "false"}
+      data-muted={muted || notPlanned ? "true" : "false"}
+      data-past={pastChip ? "true" : "false"}
+      data-chip={nightChip ?? undefined}
+      aria-label={notPlanned ? notPlannedAriaLabel(confirmDayLabel ?? dayLabel) : undefined}
       data-reorder-id={reorder ? reorder.mealId : undefined}
       data-reorderable={reorder ? "true" : undefined}
       data-dragging="false"
       aria-busy={reorder?.busy ? true : undefined}
       className={cn(
-        "relative rounded-[14px] p-4 shadow-card",
+        "relative rounded-[14px] p-4",
+        notPlanned ? "shadow-none" : "shadow-card",
         "data-[dragging=true]:z-30 data-[dragging=true]:shadow-[0_16px_40px_rgb(0_0_0/0.22)]",
         "data-[drop=true]:bg-primary/10 data-[drop=true]:ring-2 data-[drop=true]:ring-primary",
-        muted ? "bg-secondary text-secondary-foreground" : "bg-card text-card-foreground",
-        made && "[&_img]:opacity-80",
+        notPlanned
+          ? "bg-muted text-card-foreground"
+          : muted
+            ? "bg-secondary text-secondary-foreground"
+            : "bg-card text-card-foreground",
+        nightChip === "made" && "[&_img]:opacity-80",
         className,
       )}
     >
       <div className={cn(reorder && "flex items-start gap-2")}>
         <div className={cn(reorder && "min-w-0 flex-1")}>
-          {openHref ? (
+          {openHref && !notPlanned ? (
             <Link href={openHref} data-slot="meal-card-open" draggable={false} className="block">
               {body}
             </Link>
@@ -456,7 +530,7 @@ export function BallotCard({
         </div>
       ) : null}
 
-      {made ? null : (
+      {pastChip ? null : (
       <>
       <Sheet open={sheet === "swap"} onOpenChange={(open) => setSheet(open ? "swap" : null)}>
         <SheetContent
