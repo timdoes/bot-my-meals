@@ -25,6 +25,7 @@ create or replace function private.week_lock_covers_night(planned_from date, nig
 returns boolean
 language sql
 immutable
+set search_path = ''
 as $$
   select planned_from is null or night_date >= planned_from;
 $$;
