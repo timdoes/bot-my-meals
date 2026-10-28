@@ -1,6 +1,6 @@
 # Bot My Meals
 
-Bot My Meals is a free, open-source weekly dinner planner for one household: you, a partner, roommates, or a family. Each person signs in with their own account on any phone, tablet, or computer. Your Grok Bot proposes a week of dinners. Your household swaps what it doesn't want and approves the week. Then you get full recipes and one shopping list split by the stores you picked, with no made-up grocery prices. Run it yourself on free Cloudflare Workers and Supabase accounts using this repo, or let us host it for you at [botmymeals.com](https://botmymeals.com).
+Bot My Meals is a free, open-source weekly dinner planner for one household: you, a partner, roommates, or a family. Each person signs in with their own account on any phone, tablet, or computer. You get a week of dinner proposals. Your household swaps what it doesn't want and approves the week. Then you get full recipes and one shopping list split by the stores you picked, with no made-up grocery prices. Run it yourself on free Cloudflare Workers and Supabase accounts using this repo, or let us host it for you at [botmymeals.com](https://botmymeals.com). Grok is not needed to run Bot My Meals yourself, and the hosted subscription needs no Grok Bot plan.
 
 **Free and open source.** Run it yourself on your own free Cloudflare and Supabase accounts. Step-by-step setup: [botmymeals.com/setup](https://botmymeals.com/setup/).
 
@@ -297,6 +297,8 @@ Cloudflare **Workers Builds** then rebuilds and redeploys Worker `bot-my-meals` 
 If the merge adds files under [`supabase/migrations/`](supabase/migrations/), run the new ones in filename order (same as [step 4](#4-run-every-migration-in-filename-order)).
 
 ## Ask your Grok Bot
+
+If you want a Grok Bot for this DIY Install paste: [https://grok.com/refer/bot?code=DSY2NEB6XRPN](https://grok.com/refer/bot?code=DSY2NEB6XRPN) (referral link) — 2-week free trial for new Grok users, card required. Grok is not needed to run Bot My Meals yourself, and the hosted subscription needs no Grok Bot plan.
 
 Paste this so the Bot walks the same Install path. **Wake on app event** is required for every household — not optional.
 
