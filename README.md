@@ -298,7 +298,7 @@ If the merge adds files under [`supabase/migrations/`](supabase/migrations/), ru
 
 ## Ask your Grok Bot
 
-If you want a Grok Bot for this DIY Install paste: [https://grok.com/refer/bot?code=DSY2NEB6XRPN](https://grok.com/refer/bot?code=DSY2NEB6XRPN) — 2-week free trial for new Grok users, card required. Referral link: Tim gets a reward if you subscribe. Grok is not needed to run Bot My Meals yourself, and the hosted subscription needs no Grok Bot plan.
+If you want a Grok Bot for this DIY Install paste: [https://grok.com/refer/bot?code=DSY2NEB6XRPN](https://grok.com/refer/bot?code=DSY2NEB6XRPN) (referral link) — 2-week free trial for new Grok users, card required. Grok is not needed to run Bot My Meals yourself, and the hosted subscription needs no Grok Bot plan.
 
 Paste this so the Bot walks the same Install path. **Wake on app event** is required for every household — not optional.
 
