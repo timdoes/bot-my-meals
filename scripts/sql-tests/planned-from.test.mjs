@@ -41,6 +41,14 @@ async function freshDb() {
   const db = new PGlite();
   await db.exec(STUBS);
   await applyMigrations(db);
+  // Wednesday after the hardcoded meal_history week so todayIndex is 3.
+  await db.exec(`
+    create or replace function private.house_local_date(tz text)
+    returns date
+    language sql
+    stable
+    as $$ select date '2026-10-14' $$;
+  `);
   return db;
 }
 
