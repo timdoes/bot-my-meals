@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { weekdayLabelFromNight } from "./dates";
 import {
@@ -188,6 +190,17 @@ describe("checkWeekLock", () => {
     expect(checkWeekLock(meals, votes, voters).ready).toBe(false);
     expect(checkWeekLock(meals, votes, voters, "2026-08-31").ready).toBe(true);
     expect(checkWeekLock(meals, votes, voters, "2026-08-30").ready).toBe(false);
+  });
+
+  it("SQL lock gate ignores leftover swaps on nights before house-local today", () => {
+    const sql = readFileSync(
+      path.resolve(import.meta.dirname, "../../supabase/migrations/20261108210000_enforce_week_lock_remaining_nights.sql"),
+      "utf8",
+    );
+    expect(sql).toContain("m.night_date >= today");
+    expect(sql).toContain("private.house_local_date");
+    expect(sql).toContain("Week cannot lock while a swap or new-meal request is open");
+    expect(sql).toMatch(/select count\(\*\) into night_count[\s\S]*m\.night_date >= today/);
   });
 
   it("needs at least one voting member", () => {
