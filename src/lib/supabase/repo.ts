@@ -746,12 +746,11 @@ export async function supabaseUnlockWeek(
   editableFrom: string,
 ) {
   if (session.role !== "owner") throw new Error("Only an Admin can unlock the week.");
-  const { error } = await client
-    .from("weeks")
-    .update({ status: "voting", locked_at: null, editable_from: editableFrom })
-    .eq("id", weekId);
+  const { error } = await client.rpc("unlock_week", {
+    target_week: weekId,
+    editable_from: editableFrom,
+  });
   if (error) throw new Error(error.message);
-  await client.from("shopping_lists").delete().eq("week_id", weekId);
 }
 
 export async function supabaseSetShoppingPrompt(
