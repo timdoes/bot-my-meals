@@ -73,7 +73,7 @@ Rebuild is one PL/pgSQL function. Lock create is one `lock_week` function (delet
 - **Config:** `verification/shopping-list/ShoppingList.cfg`
 - **Bounds:** 2 weeks (cooking, planning), 1 item (`milk`), quantities `{0, 1}`.
 - **Assumptions:** no store-section merge bugs; `planned_from` night coverage is week-lock's job; bot `fill_pending` writing items as service role is not modeled.
-- **Sync commit:** `SYNC_PLACEHOLDER`
+- **Sync commit:** `c3be7f5d10a9266f9e24f53cabf8ee2f809d150e`
 
 Move the sync commit only after you confirm the model matches the code at the new SHA.
 
