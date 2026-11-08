@@ -82,7 +82,7 @@ Confirm with `verification/household-join/check.sh finding`. A pass of `AtMostOn
 - **Config:** `verification/household-join/HouseholdJoin.cfg`
 - **Bounds:** 2 users, 2 houses, roles owner/voter, token states ok/expired/used/invalid. ~15k distinct states.
 - **Not covered:** eaters; `block_last_attendee_removal`; sign-up without session; join-link multi-use until rotate (intentional: claim does not revoke).
-- **Sync commit:** `SYNC_COMMIT_PLACEHOLDER`
+- **Sync commit:** `133b96afa38eb0765312a5c550cc5f0c8334df4a`
 
 Move the sync commit only after you confirm the model matches the code at the new SHA.
 
