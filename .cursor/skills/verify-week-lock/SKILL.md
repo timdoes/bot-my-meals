@@ -80,7 +80,7 @@ A modeling error looks like a step named in `WeekLock.tla` that is not one state
 - **Config:** `verification/week-lock/WeekLock.cfg`
 - **Bounds:** 2 nights, today index 0..2, one actor role at a time, choices `{none, swap, remove, request_new_meal}`. ~2k distinct states.
 - **Assumptions:** one cooking week; food-rule allergy gate on `lock_week` is not modeled; `supabaseSetVote` is the PWA path (`dinnerNightActionsOpen`). Votes RLS does not check week status — a stale tab calling the upsert after lock is **not covered**. Leftover past votes are ignored, not deleted.
-- **Sync commit:** `00765239a10de0e1634993d0614ce1d1be3ae309`
+- **Sync commit:** `b8b4560ad003acf3f595b6bbb06f86455de6161f`
 
 Move the sync commit only after you confirm the model matches the code at the new SHA.
 
