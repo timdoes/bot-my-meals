@@ -65,7 +65,7 @@ Each of `BlockNeverAgain` and `FavoriteMeal` includes its SQL trigger in the **s
 - **Config:** `verification/meal-reactions/MealReactions.cfg`
 - **Bounds:** 2 recipe keys, boolean favorite/never-again, pending ballot ⊆ keys. 25 distinct states on the last check.
 - **Not covered:** like-only notes (`meal_likes`); `requested_for_week` targeting the planning week; eater vs voter RLS; `recipe_key` title-normalization mismatches.
-- **Sync commit:** `SYNC_COMMIT_PLACEHOLDER`
+- **Sync commit:** `4bf1d1cd658887e35f541cd382eb4393a4a9eb53`
 
 Move the sync commit only after you confirm the model matches the code at the new SHA.
 
