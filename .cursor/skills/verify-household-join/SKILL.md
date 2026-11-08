@@ -70,7 +70,7 @@ PR #119 showed `claim_pending_invites` and `join_household_by_code` inserting a 
 - **Config:** `verification/household-join/HouseholdJoin.cfg`
 - **Bounds:** 2 users, 2 houses, roles owner/voter, token states ok/expired/used/invalid.
 - **Not covered:** eaters; `block_last_attendee_removal`; sign-up without session; join-link multi-use until rotate (intentional: claim does not revoke).
-- **Sync commit:** `SYNC_PLACEHOLDER`
+- **Sync commit:** `db6c8a5868b1f42866fbdb86b4e75ad3b9df904e`
 
 Move the sync commit only after you confirm the model matches the code at the new SHA.
 
