@@ -67,7 +67,7 @@ Read TLC with `/statechart`. Spec: `verification/bot-wake/BotWake.tla`. Config: 
 - **Config:** `verification/bot-wake/BotWake.cfg`
 - **Bounds:** 2 hosts, events `{week_locked, check_now}`, one debounce window flag per host:event. 260 distinct states on the last check.
 - **Not covered:** `needs_work` false→true edge (`shouldWakeNeedsWork` — unit tests in `src/lib/bot-wake.test.ts`); in-memory debounce not shared across Worker isolates; webhook `Authorization` header; food-rules live read after status.
-- **Sync commit:** `SYNC_COMMIT_PLACEHOLDER`
+- **Sync commit:** `c6925f686a66877cbe221ce4b366bf2ff9f56e20`
 
 Move the sync commit only after you confirm the model matches the code at the new SHA.
 
