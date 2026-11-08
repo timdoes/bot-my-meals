@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  ALREADY_IN_A_HOUSE,
   JOIN_CTA,
   JOIN_HELPER,
   JOIN_HOUSE_SAMPLE,
@@ -16,6 +17,7 @@ import {
   joinUrl,
   parseJoinPeek,
 } from "./join";
+import { sourceBetween } from "./test-source";
 
 const srcRoot = path.resolve(import.meta.dirname, "..");
 
@@ -114,6 +116,7 @@ describe("join landing and House invite surfaces", () => {
     expect(landing).not.toContain("LOGIN_SAME_DEVICE");
     expect(landing).not.toMatch(/household password/i);
     expect(landing).toContain("claimJoinToken");
+    expect(landing).toContain("ALREADY_IN_A_HOUSE");
     expect(landing).toContain("Ask your partner to share a new invite link");
     expect(landing).not.toContain("Join with code");
     expect(landing).not.toContain("Invite code");
@@ -134,5 +137,34 @@ describe("join landing and House invite surfaces", () => {
     expect(provider).toContain("resetPasswordForEmail");
     expect(provider).not.toContain("signInWithOtp");
     expect(provider).toContain("passwordResetRedirectUrl");
+  });
+});
+
+describe("one household", () => {
+  it("claim_pending_invites and join_household_by_code refuse a second house like claim_join_token", () => {
+    const sql = readFileSync(
+      path.join(srcRoot, "../supabase/migrations/20261108210200_join_one_household.sql"),
+      "utf8",
+    );
+    const pending = sourceBetween(
+      sql,
+      "function public.claim_pending_invites",
+      "function public.join_household_by_code",
+    );
+    const byCode = sourceBetween(
+      sql,
+      "function public.join_household_by_code",
+      "revoke all on function public.join_household_by_code",
+    );
+    expect(pending).toContain(ALREADY_IN_A_HOUSE);
+    expect(byCode).toContain(ALREADY_IN_A_HOUSE);
+    expect(byCode).toContain("where user_id = uid");
+    expect(ALREADY_IN_A_HOUSE).toBe("You are already in a house.");
+
+    const token = readFileSync(
+      path.join(srcRoot, "../supabase/migrations/20260917140000_house_setup_join_tokens.sql"),
+      "utf8",
+    );
+    expect(token).toContain(ALREADY_IN_A_HOUSE);
   });
 });

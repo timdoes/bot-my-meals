@@ -11,6 +11,7 @@ import { useSupper } from "@/components/supper-provider";
 import { Button } from "@/components/ui/button";
 import type { JoinPeek, JoinTokenStatus } from "@/lib/join";
 import {
+  ALREADY_IN_A_HOUSE,
   JOIN_CTA,
   JOIN_HELPER,
   JOIN_HOUSE_SAMPLE,
@@ -106,7 +107,7 @@ export function JoinLanding({ token }: { token: string }) {
           </div>
         ) : session && session.householdId && session.householdId !== peek.householdId ? (
           <p className="type-body" role="alert">
-            You are already in a house.
+            {ALREADY_IN_A_HOUSE}
           </p>
         ) : session ? (
           <div className="flex flex-col items-center text-center">

@@ -1,6 +1,9 @@
 export const JOIN_SHARE_PREFILL =
   "Join our Bot My Meals house — open this in your browser:";
 
+/** Same copy as claim_join_token / claim_pending_invites / join_household_by_code. */
+export const ALREADY_IN_A_HOUSE = "You are already in a house.";
+
 export const JOIN_TITLE = "You’re invited";
 export const JOIN_HELPER = "One household. No invite code to type.";
 export const JOIN_CTA = "Continue";
