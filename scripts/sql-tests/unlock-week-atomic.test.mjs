@@ -190,4 +190,35 @@ describe("unlock_week atomic + rebuild locked-only", () => {
     assert.match(rebuildSrc, /week_status is distinct from 'locked'/);
     await db.close();
   });
+
+  it("unlock_week and rebuild are authenticated-only (anon and PUBLIC have no execute)", async () => {
+    const db = await freshDb();
+    const [{ unlockAnon, unlockAuth, unlockPublic, rebuildAnon, rebuildAuth, rebuildPublic }] = await rows(
+      db,
+      `select
+         has_function_privilege('anon','public.unlock_week(uuid, date)','EXECUTE')::int as "unlockAnon",
+         has_function_privilege('authenticated','public.unlock_week(uuid, date)','EXECUTE')::int as "unlockAuth",
+         exists (
+           select 1 from pg_proc p
+           cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           where p.oid = 'public.unlock_week(uuid, date)'::regprocedure
+             and a.grantee = 0 and a.privilege_type = 'EXECUTE'
+         )::int as "unlockPublic",
+         has_function_privilege('anon','public.rebuild_week_shopping_list(uuid)','EXECUTE')::int as "rebuildAnon",
+         has_function_privilege('authenticated','public.rebuild_week_shopping_list(uuid)','EXECUTE')::int as "rebuildAuth",
+         exists (
+           select 1 from pg_proc p
+           cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           where p.oid = 'public.rebuild_week_shopping_list(uuid)'::regprocedure
+             and a.grantee = 0 and a.privilege_type = 'EXECUTE'
+         )::int as "rebuildPublic"`,
+    );
+    assert.equal(unlockAnon, 0);
+    assert.equal(unlockAuth, 1);
+    assert.equal(unlockPublic, 0);
+    assert.equal(rebuildAnon, 0);
+    assert.equal(rebuildAuth, 1);
+    assert.equal(rebuildPublic, 0);
+    await db.close();
+  });
 });
