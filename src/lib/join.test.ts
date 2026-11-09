@@ -166,5 +166,14 @@ describe("one household", () => {
       "utf8",
     );
     expect(token).toContain(ALREADY_IN_A_HOUSE);
+
+    const oneUser = readFileSync(
+      path.join(srcRoot, "../supabase/migrations/20261109012000_memberships_one_user.sql"),
+      "utf8",
+    );
+    expect(oneUser).toContain("memberships_one_user preflight failed");
+    expect(oneUser).toContain("This migration does not delete or merge those rows");
+    expect(oneUser).toContain("add constraint memberships_one_user unique (user_id)");
+    expect(oneUser).toContain("when unique_violation then");
   });
 });

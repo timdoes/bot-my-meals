@@ -29,6 +29,20 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -51,6 +65,11 @@ jobs:
 
       - name: SQL tests (food rules, in-memory Postgres)
         run: npm run test:sql
+
+      - name: SQL two-session join race (Postgres)
+        run: npm run test:sql:race
+        env:
+          JOIN_RACE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
 
       - name: Worker build smoke
         run: npm run build:worker

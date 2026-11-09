@@ -37,7 +37,7 @@ alter default privileges in schema public grant all on sequences to anon, authen
 `;
 
 const id = (n) => `00000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
-const U = { aOwner: id(101), aVoter: id(102), aEater: id(103), bOwner: id(201), multi: id(301) };
+const U = { aOwner: id(101), aVoter: id(102), aEater: id(103), bOwner: id(201) };
 const H = { a: id(1), b: id(2) };
 
 let db;
@@ -67,15 +67,13 @@ before(async () => {
   await db.exec(`
     insert into auth.users(id,email) values
       ('${U.aOwner}','a1@example.test'),('${U.aVoter}','a2@example.test'),('${U.aEater}','a3@example.test'),
-      ('${U.bOwner}','b1@example.test'),('${U.multi}','m@example.test');
+      ('${U.bOwner}','b1@example.test');
     insert into public.households(id,name) values ('${H.a}','House A'),('${H.b}','House B');
     insert into public.memberships(household_id,user_id,role,display_name,email) values
       ('${H.a}','${U.aOwner}','owner','Alex','a1@example.test'),
       ('${H.a}','${U.aVoter}','voter','Robin','a2@example.test'),
       ('${H.a}','${U.aEater}','eater','Eli','a3@example.test'),
-      ('${H.b}','${U.bOwner}','owner','Bea','b1@example.test'),
-      ('${H.a}','${U.multi}','voter','Mo','m@example.test'),
-      ('${H.b}','${U.multi}','voter','Mo','m@example.test');
+      ('${H.b}','${U.bOwner}','owner','Bea','b1@example.test');
   `);
   [aOwnerM] = await q(`select id from public.memberships where user_id='${U.aOwner}'`);
   const [{ start }] = await q(`select to_char(private.week_start(0, private.house_local_date('America/Los_Angeles')),'YYYY-MM-DD') as start`);
@@ -360,14 +358,13 @@ describe("food_rules_for_bot", () => {
     assert.ok(n0.rules.some((r) => r.food === "Peanuts"));
   });
 
-  it("multi-house login must name the house; wrong house is refused; no leak", async () => {
-    await fails(asUser(U.multi, () => q(`select public.food_rules_for_bot()`)), /household_required/);
-    await fails(asUser(U.multi, () => q(`select public.food_rules_for_bot($1)`, [id(999)])), /not_a_member/);
+  it("wrong house is refused; named house does not leak the other house", async () => {
+    await fails(asUser(U.bOwner, () => q(`select public.food_rules_for_bot($1)`, [id(999)])), /not_a_member/);
     await fails(asUser(U.aOwner, () => q(`select public.food_rules_for_bot($1)`, [H.b])), /not_a_member/);
-    const b = await asUser(U.multi, () => q(`select public.food_rules_for_bot($1) as j`, [H.b])).then((r) => r[0].j);
+    const b = await asUser(U.bOwner, () => q(`select public.food_rules_for_bot($1) as j`, [H.b])).then((r) => r[0].j);
     assert.equal(b.household_id, H.b);
     assert.doesNotMatch(JSON.stringify(b), /Peanuts|Sam|Alex/);
-    await fails(asUser(U.multi, () => q(`select public.food_rules_for_bot($1,$2)`, [H.b, week.id])), /not in this household/);
+    await fails(asUser(U.bOwner, () => q(`select public.food_rules_for_bot($1,$2)`, [H.b, week.id])), /not in this household/);
   });
 
   it("a house with nothing set reads reviewed=false", async () => {

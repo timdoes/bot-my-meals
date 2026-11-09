@@ -190,7 +190,11 @@ BadTokenDoesNotJoin ==
 
 \* Property the product copy promises: one person, one household.
 \* Former finding (PR #119): claim_pending_invites and join_household_by_code
-\* could add a second house. Fixed: both raise "You are already in a house."
+\* could add a second house. Sequential RPC guards raise "You are already in a house."
+\* SQL unique(user_id) on memberships (memberships_one_user) is what makes a
+\* join insert atomic — TLA treats JoinByCode / Claim* as one action; the
+\* check-then-insert TOCTOU is outside this spec. Prove it with
+\* `npm run test:sql:race`, not check.sh fingerprints.
 \* Harm if this fails again: fetchSupabaseSession keeps the oldest membership
 \* and the other house is hidden.
 AtMostOneHouse ==

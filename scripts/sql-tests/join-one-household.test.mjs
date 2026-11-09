@@ -28,14 +28,20 @@ alter default privileges in schema public grant all on tables to anon, authentic
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 `;
 
+const ONE_USER_MIGRATION = "20261109012000_memberships_one_user.sql";
 const id = (n) => `00000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
 const rows = (db, sql, params) => db.query(sql, params).then((r) => r.rows);
 
-async function freshDb() {
+function migrationSql(name) {
+  return fs.readFileSync(path.join(migDir, name), "utf8").replace(/create extension[^;]*;/gi, "");
+}
+
+async function freshDb(opts = {}) {
   const db = new PGlite();
   await db.exec(STUBS);
   for (const f of fs.readdirSync(migDir).sort()) {
-    await db.exec(fs.readFileSync(path.join(migDir, f), "utf8").replace(/create extension[^;]*;/gi, ""));
+    if (opts.stopBefore && f >= opts.stopBefore) break;
+    await db.exec(migrationSql(f));
   }
   return db;
 }
@@ -183,6 +189,78 @@ describe("one household join", () => {
     assert.equal(codeAnon, 0);
     assert.equal(codeAuth, 1);
     assert.equal(codePublic, 0);
+    await db.close();
+  });
+
+  it("unique(user_id) rejects a second membership row", async () => {
+    const db = await freshDb();
+    await twoHouses(db);
+    await assert.rejects(
+      () =>
+        db.exec(`
+          insert into public.memberships(household_id,user_id,role,display_name,email)
+          values ('${B}','${member}','voter','Sam','sam@example.test')
+        `),
+      /one_user|already in a house|unique/i,
+    );
+    const houses = await rows(db, `select count(*)::int as n from public.memberships where user_id=$1`, [member]);
+    assert.equal(houses[0].n, 1);
+    const [{ constrained }] = await rows(
+      db,
+      `select exists (
+         select 1 from pg_constraint
+         where conname = 'memberships_one_user'
+           and conrelid = 'public.memberships'::regclass
+       )::int as constrained`,
+    );
+    assert.equal(constrained, 1);
+    await db.close();
+  });
+
+  it("preflight raises and does not delete or merge existing duplicate memberships", async () => {
+    const db = await freshDb({ stopBefore: ONE_USER_MIGRATION });
+    await twoHouses(db);
+    await db.exec(`
+      insert into public.memberships(household_id,user_id,role,display_name,email)
+      values ('${B}','${member}','voter','Sam','sam@example.test')
+    `);
+    const before = await rows(
+      db,
+      `select household_id from public.memberships where user_id=$1 order by household_id`,
+      [member],
+    );
+    assert.equal(before.length, 2);
+    await assert.rejects(
+      () => db.exec(migrationSql(ONE_USER_MIGRATION)),
+      /memberships_one_user preflight failed: 1 login\(s\) already have more than one household membership/,
+    );
+    const after = await rows(
+      db,
+      `select household_id from public.memberships where user_id=$1 order by household_id`,
+      [member],
+    );
+    assert.deepEqual(
+      after.map((row) => row.household_id),
+      before.map((row) => row.household_id),
+    );
+    await db.close();
+  });
+
+  it("source mutation that drops unique(user_id) lets a second membership insert succeed", async () => {
+    const db = await freshDb({ stopBefore: ONE_USER_MIGRATION });
+    await twoHouses(db);
+    const mutated = migrationSql(ONE_USER_MIGRATION).replace(
+      /alter table public.memberships\s+add constraint memberships_one_user unique \(user_id\);/,
+      "null; -- mutated: alter table public.memberships add constraint memberships_one_user unique (user_id);",
+    );
+    assert.notEqual(mutated, migrationSql(ONE_USER_MIGRATION));
+    await db.exec(mutated);
+    await db.exec(`
+      insert into public.memberships(household_id,user_id,role,display_name,email)
+      values ('${B}','${member}','voter','Sam','sam@example.test')
+    `);
+    const houses = await rows(db, `select count(*)::int as n from public.memberships where user_id=$1`, [member]);
+    assert.equal(houses[0].n, 2, "fingerprint-only unique(user_id) text still greps after this mutation");
     await db.close();
   });
 });
