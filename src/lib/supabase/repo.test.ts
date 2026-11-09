@@ -136,6 +136,26 @@ describe("fetchSupabaseSession", () => {
       ),
     ).rejects.toThrow("permission denied for schema private");
   });
+
+  it("keeps the session when claim_pending_invites says the user is already in a house", async () => {
+    const session = await fetchSupabaseSession(
+      createClient({
+        rpc: async () => ({ data: null, error: { message: "You are already in a house." } }),
+      }),
+    );
+    expect(session?.householdId).toBe("hid");
+    expect(session?.role).toBe("owner");
+  });
+
+  it("still surfaces other claim_pending_invites failures", async () => {
+    await expect(
+      fetchSupabaseSession(
+        createClient({
+          rpc: async () => ({ data: null, error: { message: "permission denied for schema private" } }),
+        }),
+      ),
+    ).rejects.toThrow("permission denied for schema private");
+  });
 });
 
 type QueryError = { code?: string; message: string };

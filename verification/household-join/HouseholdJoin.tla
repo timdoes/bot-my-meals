@@ -1,7 +1,7 @@
 ---- MODULE HouseholdJoin ----
 \* Membership, join links, pending email invites, and last-admin protection.
-\* claim_join_token refuses a second house; claim_pending_invites and
-\* join_household_by_code do not.
+\* claim_join_token, claim_pending_invites, and join_household_by_code
+\* all refuse a second house.
 
 EXTENDS Integers, FiniteSets, TLC
 
@@ -81,14 +81,21 @@ ClaimJoinToken(u, h) ==
 
 \* Code: public.claim_pending_invites
 \*       src/lib/supabase/repo.ts fetchSupabaseSession (always, before SELECT membership)
+\* Joins at most one house (oldest invite if none yet). Other-house leftover
+\* raises "You are already in a house." — modeled as no membership change.
 ClaimPendingInvites(u) ==
   /\ signedIn[u]
   /\ pending[u] # {}
-  /\ houses' = [houses EXCEPT ![u] = houses[u] \cup pending[u]]
-  /\ role' = [role EXCEPT ![u] = [h \in Houses |->
-        IF h \in pending[u] /\ role[u][h] = "none" THEN "voter" ELSE role[u][h]]]
-  /\ pending' = [pending EXCEPT ![u] = {}]
-  /\ UNCHANGED <<signedIn, token, joinedOnBadToken>>
+  /\ IF houses[u] = {}
+     THEN \E h \in pending[u]:
+            /\ houses' = [houses EXCEPT ![u] = {h}]
+            /\ role' = [role EXCEPT ![u] = [role[u] EXCEPT ![h] = "voter"]]
+            /\ pending' = [pending EXCEPT ![u] = pending[u] \ {h}]
+            /\ UNCHANGED <<signedIn, token, joinedOnBadToken>>
+     ELSE IF pending[u] \cap houses[u] # {}
+          THEN /\ pending' = [pending EXCEPT ![u] = pending[u] \ houses[u]]
+               /\ UNCHANGED <<signedIn, houses, role, token, joinedOnBadToken>>
+          ELSE UNCHANGED vars
 
 \* Code: public.join_household_by_code
 \*       src/lib/supabase/repo.ts supabaseJoinByCode
@@ -96,6 +103,7 @@ JoinByCode(u, h) ==
   /\ signedIn[u]
   /\ Occupied(h)
   /\ ~InHouse(u, h)
+  /\ houses[u] = {}
   /\ houses' = [houses EXCEPT ![u] = houses[u] \cup {h}]
   /\ role' = [role EXCEPT ![u] = [role[u] EXCEPT ![h] = "voter"]]
   /\ pending' = [pending EXCEPT ![u] = pending[u] \ {h}]
@@ -181,8 +189,10 @@ BadTokenDoesNotJoin ==
   ~joinedOnBadToken
 
 \* Property the product copy promises: one person, one household.
-\* FINDING: claim_pending_invites and join_household_by_code can add a second house.
-\* Harm: fetchSupabaseSession keeps the oldest membership; the other house is hidden.
+\* Former finding (PR #119): claim_pending_invites and join_household_by_code
+\* could add a second house. Fixed: both raise "You are already in a house."
+\* Harm if this fails again: fetchSupabaseSession keeps the oldest membership
+\* and the other house is hidden.
 AtMostOneHouse ==
   \A u \in Users: Cardinality(houses[u]) <= 1
 ====

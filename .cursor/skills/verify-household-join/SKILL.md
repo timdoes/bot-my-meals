@@ -16,9 +16,10 @@ In scope if the diff includes any of:
 | File | Functions |
 | --- | --- |
 | `supabase/migrations/20260917140000_house_setup_join_tokens.sql` | `peek_join_token`, `claim_join_token`, `create_household`, `create_join_token` |
-| `supabase/migrations/20260909130000_manage_members.sql` | `claim_pending_invites`, `join_household_by_code`, `set_member_role`, `remove_member`, `private.protect_last_owner` |
+| `supabase/migrations/20260909130000_manage_members.sql` | original `claim_pending_invites`, `join_household_by_code`, `protect_last_owner` |
+| `supabase/migrations/20261108210200_join_one_household.sql` | `claim_pending_invites`, `join_household_by_code` one-house guard |
 | `src/lib/supabase/repo.ts` | `fetchSupabaseSession`, `supabaseClaimJoinToken`, `supabaseJoinByCode`, `supabaseInviteMember`, `supabaseRemoveMember`, `supabaseSetMemberRole` |
-| `src/lib/join.ts` | `joinTokenReason`, `parseJoinPeek` |
+| `src/lib/join.ts` | `ALREADY_IN_A_HOUSE`, `joinTokenReason`, `parseJoinPeek` |
 | `src/components/join-landing.tsx` | auto-claim |
 
 If none of those changed, stop. If they changed after the **sync commit** below, the model may be stale.
@@ -34,7 +35,7 @@ Java 21+; the script pins TLA+ tools 1.8.0. Must finish in well under a minute (
 ```bash
 verification/household-join/check.sh broken        # skip last-admin protection — must FAIL
 verification/household-join/check.sh broken-token  # claim used/expired/invalid token — must FAIL
-verification/household-join/check.sh finding       # second house via pending/code — expected FAIL
+verification/household-join/check.sh finding       # second house via pending/code — must PASS (former finding, PR #119)
 ```
 
 Read TLC with `/statechart`. Spec: `verification/household-join/HouseholdJoin.tla`. Config: `verification/household-join/HouseholdJoin.cfg`.
@@ -43,35 +44,22 @@ Read TLC with `/statechart`. Spec: `verification/household-join/HouseholdJoin.tl
 
 1. **A house with members always keeps an Admin.** Harm: nobody can unlock, invite, or save the bot webhook.
 2. **A used, expired, or invalid join link does not add a new member.** Harm: a rotated or old link still adds someone.
+3. **A person belongs to at most one household.** Harm: the PWA keeps the oldest membership and hides the other house.
 
-`claim_join_token` also refuses `"You are already in a house."` That guard is in the model; it is not enough for the product line "One household."
+`claim_join_token`, `claim_pending_invites`, and `join_household_by_code` all refuse `"You are already in a house."`
 
-## Known finding (do not weaken)
+## Former finding (now passing)
 
-**A person can belong to two households.** `claim_pending_invites` inserts every matching email invite with no one-house check. `join_household_by_code` is the same. `fetchSupabaseSession` then `SELECT` the oldest membership and hides the rest.
-
-Harm: the other house's weeks, list, and bot wake are the wrong family's data, or vanish from the PWA.
-
-Counterexample:
-
-1. `u1` is Admin of house A. `u2` `create_household` → house B.
-2. Admin of B `supabaseInviteMember` for `u1`'s email (or `u1` still has a pending invite to B).
-3. `u1` signs in. `fetchSupabaseSession` calls `claim_pending_invites` **before** reading memberships.
-4. `u1` now has rows in A and B. The session keeps A's row (`order created_at asc limit 1`).
-
-Same shape: `u1` already in A calls `join_household_by_code` for B.
-
-Confirm with `verification/household-join/check.sh finding`. A pass of `AtMostOneHouse` means you **fixed** the RPCs — then move that invariant into `HouseholdJoin.cfg` and drop it from the finding config.
+PR #119 showed `claim_pending_invites` and `join_household_by_code` inserting a second house. The product fix raises the same exception as `claim_join_token`. `fetchSupabaseSession` still swallows that error on login so a leftover other-house invite cannot brick the session. `AtMostOneHouse` is an invariant in `HouseholdJoin.cfg`. `check.sh finding` must pass.
 
 ## Real bug vs modeling error
 
 - **Fingerprint fail:** `You are already in a house.` or `Keep at least one Admin.` disappeared. Intended? Update the spec. Accidental? Restore.
-- **TLC fail on last-admin / bad token:** product bug.
-- **`AtMostOneHouse` still fails:** that is the documented finding, not a model mistake, until those RPCs gain the same guard as `claim_join_token`.
+- **TLC fail on last-admin / bad token / one-house:** product bug.
 
 ## Update the model for an intended change
 
-1. If you add an already-in-a-house check to `claim_pending_invites` / `join_household_by_code`, add it to those TLA+ actions, run `check.sh finding` (should now **pass**, so the finding script will error — then move `AtMostOneHouse` into the main config).
+1. Keep the already-in-a-house check on all three join RPCs.
 2. Keep `protect_last_owner` as one trigger on `UPDATE`/`DELETE` of `memberships`.
 3. Run `verification/household-join/check.sh`.
 4. Move the sync commit only after the spec matches this commit.
@@ -80,9 +68,9 @@ Confirm with `verification/household-join/check.sh finding`. A pass of `AtMostOn
 
 - **Spec:** `verification/household-join/HouseholdJoin.tla`
 - **Config:** `verification/household-join/HouseholdJoin.cfg`
-- **Bounds:** 2 users, 2 houses, roles owner/voter, token states ok/expired/used/invalid. ~15k distinct states.
+- **Bounds:** 2 users, 2 houses, roles owner/voter, token states ok/expired/used/invalid.
 - **Not covered:** eaters; `block_last_attendee_removal`; sign-up without session; join-link multi-use until rotate (intentional: claim does not revoke).
-- **Sync commit:** `133b96afa38eb0765312a5c550cc5f0c8334df4a`
+- **Sync commit:** `db6c8a5868b1f42866fbdb86b4e75ad3b9df904e`
 
 Move the sync commit only after you confirm the model matches the code at the new SHA.
 

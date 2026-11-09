@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One command: verification/household-join/check.sh
-# Optional: check.sh broken | check.sh broken-token | check.sh finding
+# Optional: check.sh broken | check.sh broken-token | check.sh finding (former finding, now pass)
 set -euo pipefail
 
 TLC_VERSION="1.8.0"
@@ -45,6 +45,9 @@ fingerprint() {
   grep -Fq "You are already in a house." \
     "$REPO/supabase/migrations/20260917140000_house_setup_join_tokens.sql" \
     || fail_fp "claim_join_token one-house guard"
+  grep -Fq "You are already in a house." \
+    "$REPO/supabase/migrations/20261108210200_join_one_household.sql" \
+    || fail_fp "claim_pending_invites / join_household_by_code one-house guard"
   grep -Fq "Keep at least one Admin." \
     "$REPO/supabase/migrations/20260909130000_manage_members.sql" \
     || fail_fp "protect_last_owner"
@@ -105,7 +108,8 @@ case "$MODE" in
     expect_fail "${SPEC}BrokenToken.cfg" "broken join-token status guard"
     ;;
   finding)
-    expect_fail "${SPEC}Finding.cfg" "second household via pending/code (known finding)"
+    fingerprint
+    run_tlc "${SPEC}Finding.cfg"
     ;;
   *)
     echo "usage: $0 [ok|broken|broken-token|finding]" >&2

@@ -54,7 +54,7 @@ import {
   parseBallotRequestStatus,
 } from "@/lib/house-setup";
 import type { JoinPeek } from "@/lib/join";
-import { parseJoinPeek } from "@/lib/join";
+import { ALREADY_IN_A_HOUSE, parseJoinPeek } from "@/lib/join";
 import { canActOnBallot, lastWriterWinsToast, latestVoteForMeal, migrateVoteChoice } from "@/lib/lock";
 import { isAdmin } from "@/lib/users";
 import {
@@ -191,7 +191,10 @@ export async function fetchSupabaseSession(
   const user = userData.user;
   if (!user) return null;
 
-  await client.rpc("claim_pending_invites");
+  const { error: claimError } = await client.rpc("claim_pending_invites");
+  if (claimError && !claimError.message.includes(ALREADY_IN_A_HOUSE)) {
+    throw new Error(claimError.message);
+  }
 
   const { data: membership, error: membershipError } = await client
     .from("memberships")
