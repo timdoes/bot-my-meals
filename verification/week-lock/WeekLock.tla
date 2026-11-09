@@ -51,10 +51,11 @@ DinnerNightActionsOpen(n) ==
 ClientBlocked ==
   \E n \in Nights: ~IsPast(n) /\ latestChoice[n] \in {"swap", "request_new_meal"}
 
-\* Code: supabase/migrations/20260912205000_ballot_passive_lock.sql
-\*       private.enforce_week_lock (every night on the week)
+\* Code: supabase/migrations/20261108210000_enforce_week_lock_remaining_nights.sql
+\*       private.enforce_week_lock (nights with night_date >= house_local_date)
+\*       same cutoff as src/lib/lock.ts checkWeekLock(todayIso)
 SqlBlocked ==
-  \E n \in Nights: latestChoice[n] \in {"swap", "request_new_meal"}
+  \E n \in Nights: ~IsPast(n) /\ latestChoice[n] \in {"swap", "request_new_meal"}
 
 \* Code: src/lib/week-chrome.ts nightCoveredByLock
 Covered(n) ==
@@ -163,7 +164,7 @@ Next ==
 Spec == Init /\ [][Next]_vars
 
 ----
-\* Property: a locked week has no open swap or dinner request.
+\* Property: a locked week has no open swap or dinner request on remaining nights.
 \* Harm: the family cooks (or shops for) a night they asked to change.
 NoLockWithOpenSwapOrRequest ==
   weekStatus = "locked" => ~SqlBlocked
@@ -190,9 +191,9 @@ PlannedFromSticky ==
   [](\A v \in {0, 1, 2}: plannedFrom = v => [](plannedFrom = v))
 
 \* Property: when remaining nights are clear, SQL can lock too.
-\* FINDING on the real code: leftover swap on a past night — checkWeekLock(todayIso)
-\* is ready, private.enforce_week_lock still raises.
-\* Harm: Lock this week is shown, then the RPC fails; the week stays unlocked.
+\* Former finding (PR #116): leftover swap on a past night — checkWeekLock(todayIso)
+\* was ready, private.enforce_week_lock still raised. Fixed: both ignore past nights.
+\* Harm if this fails again: Lock this week is shown, then the RPC fails.
 ClientReadyImpliesSqlCanLock ==
   ~ClientBlocked => ~SqlBlocked
 ====

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One command: verification/week-lock/check.sh
-# Optional: check.sh broken | check.sh broken-chip | check.sh finding
+# Optional: check.sh broken | check.sh broken-chip | check.sh finding (former finding, now pass)
 set -euo pipefail
 
 TLC_VERSION="1.8.0"
@@ -43,8 +43,14 @@ fail_fp() {
 
 fingerprint() {
   grep -Fq "Week cannot lock while a swap or new-meal request is open" \
-    "$REPO/supabase/migrations/20260912205000_ballot_passive_lock.sql" \
+    "$REPO/supabase/migrations/20261108210000_enforce_week_lock_remaining_nights.sql" \
     || fail_fp "private.enforce_week_lock blocker exception"
+  grep -Fq "m.night_date >= today" \
+    "$REPO/supabase/migrations/20261108210000_enforce_week_lock_remaining_nights.sql" \
+    || fail_fp "enforce_week_lock remaining-night cutoff"
+  grep -Fq "private.house_local_date" \
+    "$REPO/supabase/migrations/20261108210000_enforce_week_lock_remaining_nights.sql" \
+    || fail_fp "enforce_week_lock house-local today"
   grep -Fq 'lifecycle === "swapped" || lifecycle === "request_new_meal"' \
     "$REPO/src/lib/lock.ts" \
     || fail_fp "checkWeekLock swap/request_new_meal blockers"
@@ -108,7 +114,8 @@ case "$MODE" in
     expect_fail "${SPEC}BrokenChip.cfg" "broken Made chip"
     ;;
   finding)
-    expect_fail "${SPEC}Finding.cfg" "past leftover swap (known finding)"
+    fingerprint
+    run_tlc "${SPEC}Finding.cfg"
     ;;
   *)
     echo "usage: $0 [ok|broken|broken-chip|finding]" >&2

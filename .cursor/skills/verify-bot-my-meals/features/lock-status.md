@@ -38,5 +38,5 @@ Preconditions:
 - A cooking week with a past night changes the CTA to **Lock the rest of this week**. Assert the label that matches the dates on screen.
 - Unlock is admin-only (`Unlock week`). Users see the Locked chip without Unlock.
 - Recipes and shopping are per week. Never merge cooking + planning lists as proof.
-- A database trigger refuses to lock if a swap or dinner request is still open. If live lock fails, read the reason — do not point at a hosted house to "just lock it".
+- A database trigger refuses to lock if a swap or dinner request is still open on a remaining night (`night_date >=` house-local today). Leftover swap/request rows on past nights do not block lock; UI `checkWeekLock(todayIso)` and SQL `private.enforce_week_lock` use the same cutoff. If live lock fails, read the reason — do not point at a hosted house to "just lock it".
 - Food-rule hits disable the lock bar (`Needs a change before this night is approved`). That is a block, not a missing feature.
