@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One command: verification/shopping-list/check.sh
-# Optional: check.sh broken | check.sh broken-redact | check.sh finding
+# Optional: check.sh broken | check.sh broken-redact | check.sh finding (former finding, now pass)
 set -euo pipefail
 
 TLC_VERSION="1.8.0"
@@ -43,10 +43,18 @@ fail_fp() {
 
 fingerprint() {
   grep -Fq "if lid is null then" \
-    "$REPO/supabase/migrations/20261004180000_shopping_list_rebuild.sql" \
+    "$REPO/supabase/migrations/20261108210100_unlock_week_atomic.sql" \
     || fail_fp "rebuild_week_shopping_list does not create a list"
+  grep -Fq "week_status is distinct from 'locked'" \
+    "$REPO/supabase/migrations/20261108210100_unlock_week_atomic.sql" \
+    || fail_fp "rebuild refuses unless the week is locked"
+  grep -Fq "delete from public.shopping_lists" \
+    "$REPO/supabase/migrations/20261108210100_unlock_week_atomic.sql" \
+    || fail_fp "unlock_week deletes the list"
+  grep -Fq 'rpc("unlock_week"' "$REPO/src/lib/supabase/repo.ts" \
+    || fail_fp "supabaseUnlockWeek calls unlock_week"
   grep -Fq "checked = false" \
-    "$REPO/supabase/migrations/20261004180000_shopping_list_rebuild.sql" \
+    "$REPO/supabase/migrations/20261108210100_unlock_week_atomic.sql" \
     || fail_fp "rebuild unchecks on quantity change"
   grep -Fq "shoppingList: null as ShoppingList | null" "$REPO/src/lib/visibility.ts" \
     || fail_fp "redactUntilLocked hides the list"
@@ -103,7 +111,8 @@ case "$MODE" in
     expect_fail "${SPEC}BrokenRedact.cfg" "broken redact shows list before lock"
     ;;
   finding)
-    expect_fail "${SPEC}Finding.cfg" "unlock two-step leftover list (known finding)"
+    fingerprint
+    run_tlc "${SPEC}Finding.cfg"
     ;;
   *)
     echo "usage: $0 [ok|broken|broken-redact|finding]" >&2

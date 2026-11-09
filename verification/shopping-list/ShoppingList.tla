@@ -63,28 +63,23 @@ LockWeek(w) ==
   /\ stableCheck' = [stableCheck EXCEPT ![w] = NoChecks]
   /\ UNCHANGED desired
 
-\* Code: src/lib/supabase/repo.ts supabaseUnlockWeek
-\*       1) UPDATE weeks.status = voting  2) DELETE shopping_lists
-\*       Two statements; not one transaction.
-UnlockStatus(w) ==
+\* Code: src/lib/supabase/repo.ts supabaseUnlockWeek -> public.unlock_week
+\*       One transaction: weeks.status = voting AND delete shopping_lists.
+UnlockWeek(w) ==
   /\ status[w] = "locked"
   /\ status' = [status EXCEPT ![w] = "voting"]
-  /\ UNCHANGED <<listExists, desired, onList, checked, stableCheck>>
-
-DeleteList(w) ==
-  /\ status[w] = "voting"
-  /\ listExists[w]
   /\ listExists' = [listExists EXCEPT ![w] = FALSE]
   /\ onList' = [onList EXCEPT ![w] = ZeroItems]
   /\ checked' = [checked EXCEPT ![w] = NoChecks]
   /\ stableCheck' = [stableCheck EXCEPT ![w] = NoChecks]
-  /\ UNCHANGED <<status, desired>>
+  /\ UNCHANGED desired
 
 \* Code: src/lib/shopping.ts reconcileShoppingItems
 \*       public.rebuild_week_shopping_list
 \* Same store+name+unit and same quantity keeps checked; a changed amount unchecks.
+\* Refuses unless the week is locked (FOR UPDATE on the week row).
 Rebuild(w) ==
-  /\ IF ~listExists[w]
+  /\ IF status[w] # "locked" \/ ~listExists[w]
      THEN IF BrokenCreate
           THEN /\ listExists' = [listExists EXCEPT ![w] = TRUE]
                /\ onList' = [onList EXCEPT ![w] = desired[w]]
@@ -133,8 +128,7 @@ Terminating == UNCHANGED vars
 
 Next ==
   \/ \E w \in Weeks: LockWeek(w)
-  \/ \E w \in Weeks: UnlockStatus(w)
-  \/ \E w \in Weeks: DeleteList(w)
+  \/ \E w \in Weeks: UnlockWeek(w)
   \/ \E w \in Weeks: Rebuild(w)
   \/ \E w \in Weeks, i \in Items: ToggleItem(w, i)
   \/ \E w \in Weeks, i \in Items, q \in Qtys: ChangeDesired(w, i, q)
@@ -149,9 +143,9 @@ NoListShownUntilLocked ==
   \A w \in Weeks: DisplayList(w) => status[w] = "locked"
 
 \* Property: a shopping_lists row exists only while that week is locked.
-\* FINDING on the real code: supabaseUnlockWeek updates weeks then deletes the list
-\* in a second statement, so a voting week can still have a list.
-\* Harm: rebuild_week_shopping_list can mutate groceries after unlock, before delete.
+\* Former finding (PR #117): supabaseUnlockWeek updated weeks then deleted the list
+\* in a second statement. Fixed: public.unlock_week does both; rebuild refuses unless locked.
+\* Harm if this fails again: rebuild can mutate groceries after unlock.
 ListOnlyWhenLocked ==
   \A w \in Weeks: listExists[w] => status[w] = "locked"
 

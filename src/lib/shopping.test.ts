@@ -760,5 +760,29 @@ describe("shopping list rebuild", () => {
     expect(row).not.toContain("Loader2");
     expect(row).not.toContain("animate-spin");
   });
+
+  it("unlock_week is one RPC and rebuild refuses unless the week is locked", () => {
+    const sql = readFileSync(
+      path.resolve(import.meta.dirname, "../../supabase/migrations/20261108210100_unlock_week_atomic.sql"),
+      "utf8",
+    );
+    const unlock = sourceBetween(sql, "function public.unlock_week", "function public.rebuild_week_shopping_list");
+    const rebuild = sourceBetween(sql, "function public.rebuild_week_shopping_list", "revoke all on function public.rebuild_week_shopping_list");
+    expect(unlock).toContain("for update");
+    expect(unlock).toContain("status = 'voting'");
+    expect(unlock).toContain("delete from public.shopping_lists");
+    expect(unlock).toContain("Only an Admin can unlock the week.");
+    expect(rebuild).toContain("for update");
+    expect(rebuild).toContain("week_status is distinct from 'locked'");
+    expect(rebuild).toContain("if lid is null");
+    expect(rebuild).not.toMatch(/insert into public\.shopping_lists/i);
+
+    const repo = readFileSync(path.resolve(import.meta.dirname, "supabase/repo.ts"), "utf8");
+    const unlockFn = sourceBetween(repo, "export async function supabaseUnlockWeek", "export async function supabaseSetShoppingPrompt");
+    expect(unlockFn).toContain('rpc("unlock_week"');
+    expect(unlockFn).toContain("target_week: weekId");
+    expect(unlockFn).not.toContain('.from("weeks")');
+    expect(unlockFn).not.toContain('.from("shopping_lists")');
+  });
 });
 

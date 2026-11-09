@@ -6,6 +6,7 @@ import {
   fetchSupabaseSnapshot,
   supabaseCreateHousehold,
   supabaseMarkFoodRulesReviewed,
+  supabaseUnlockWeek,
 } from "./repo";
 import {
   FOOD_RULES_SNAPSHOT_TABLES,
@@ -197,6 +198,35 @@ const snapshotSession: Session = {
   householdId: "hid",
   role: "owner",
 };
+
+describe("supabaseUnlockWeek", () => {
+  it("calls unlock_week in one RPC and refuses non-admins without touching the client", async () => {
+    const rpc = vi.fn(async (fn: string, args?: { target_week?: string; editable_from?: string }) => {
+      expect(fn).toBe("unlock_week");
+      expect(args).toEqual({ target_week: "week-1", editable_from: "2026-10-14" });
+      return { data: null, error: null };
+    });
+    const from = vi.fn();
+    await supabaseUnlockWeek(
+      { rpc, from } as unknown as SupabaseClient,
+      snapshotSession,
+      "week-1",
+      "2026-10-14",
+    );
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(from).not.toHaveBeenCalled();
+
+    await expect(
+      supabaseUnlockWeek(
+        { rpc, from } as unknown as SupabaseClient,
+        { ...snapshotSession, role: "voter" },
+        "week-1",
+        "2026-10-14",
+      ),
+    ).rejects.toThrow("Only an Admin can unlock the week.");
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+});
 
 function snapshotClient(options: {
   foodRulesError: QueryError | null;
