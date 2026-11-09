@@ -43,7 +43,7 @@
     "eslint-config-next": "16.4.5",
     "pg": "^8.23.1",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "^7",
     "vitest": "^4.1.11",
     "wrangler": "^4.158.0"
   },
