@@ -82,7 +82,7 @@ npm run test:sql:race       # two PostgreSQL sessions; overlapping join_househol
 - **Config:** `verification/household-join/HouseholdJoin.cfg`
 - **Bounds:** 2 users, 2 houses, roles owner/voter, token states ok/expired/used/invalid.
 - **Not covered by TLC:** eaters; `block_last_attendee_removal`; sign-up without session; join-link multi-use until rotate (intentional: claim does not revoke); concurrent check-then-insert (covered by `npm run test:sql:race` + `unique (user_id)`, not by this spec).
-- **Sync commit:** `db6c8a5868b1f42866fbdb86b4e75ad3b9df904e`
+- **Sync commit:** `5ca127d93e934b175fcdfae1a4ca95381ae583fc`
 
 Move the sync commit only after you confirm the model matches the code at the new SHA.
 
