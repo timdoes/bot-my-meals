@@ -2,7 +2,7 @@
   "name": "bot-my-meals",
   "version": "0.1.0",
   "private": true,
-  "description": "Bot My Meals \u2014 dual-approve household dinner PWA (vote \u2192 lock \u2192 recipes + shopping list)",
+  "description": "Bot My Meals — dual-approve household dinner PWA (vote → lock → recipes + shopping list)",
   "scripts": {
     "dev": "next dev -p 43147 -H 0.0.0.0",
     "prebuild": "node scripts/write-pwa-icons.mjs",
@@ -15,7 +15,8 @@
     "deploy": "opennextjs-cloudflare build && node scripts/cf-deploy.mjs",
     "deploy:preview": "wrangler versions upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "test:sql": "node --test scripts/sql-tests/*.test.mjs"
+    "test:sql": "node --test scripts/sql-tests/*.test.mjs",
+    "test:sql:race": "node --test scripts/sql-tests/race/*.test.mjs"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.12",
@@ -40,6 +41,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "pg": "^8.23.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11",

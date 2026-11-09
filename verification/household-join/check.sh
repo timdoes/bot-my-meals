@@ -57,6 +57,12 @@ fingerprint() {
   grep -Fq "This invite link was already used" \
     "$REPO/supabase/migrations/20260917140000_house_setup_join_tokens.sql" \
     || fail_fp "claim_join_token used"
+  grep -Fq "add constraint memberships_one_user unique (user_id)" \
+    "$REPO/supabase/migrations/20261109012000_memberships_one_user.sql" \
+    || fail_fp "memberships unique(user_id)"
+  grep -Fq "This migration does not delete or merge those rows" \
+    "$REPO/supabase/migrations/20261109012000_memberships_one_user.sql" \
+    || fail_fp "memberships_one_user preflight (no data repair)"
 }
 
 run_tlc() {
