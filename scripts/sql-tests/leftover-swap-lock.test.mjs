@@ -151,4 +151,49 @@ describe("enforce_week_lock remaining nights", () => {
     assert.match(src, /private\.house_local_date/);
     await db.close();
   });
+
+  it("lock_week is authenticated-only (anon and PUBLIC have no execute)", async () => {
+    const db = await freshDb();
+    const [{ anonExec, authExec, publicExec }] = await rows(
+      db,
+      `select
+         has_function_privilege('anon','public.lock_week(uuid)','EXECUTE')::int as "anonExec",
+         has_function_privilege('authenticated','public.lock_week(uuid)','EXECUTE')::int as "authExec",
+         exists (
+           select 1 from pg_proc p
+           cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           where p.oid = 'public.lock_week(uuid)'::regprocedure
+             and a.grantee = 0 and a.privilege_type = 'EXECUTE'
+         )::int as "publicExec"`,
+    );
+    assert.equal(anonExec, 0);
+    assert.equal(authExec, 1);
+    assert.equal(publicExec, 0);
+    await db.close();
+  });
+
+  it("house_local_date follows the timezone, not a UTC calendar stub", async () => {
+    const db = new PGlite();
+    await db.exec(STUBS);
+    for (const f of fs.readdirSync(migDir).sort()) {
+      await db.exec(fs.readFileSync(path.join(migDir, f), "utf8").replace(/create extension[^;]*;/gi, ""));
+    }
+    const [{ utc, kiritimati, honolulu, nowUtc }] = await rows(
+      db,
+      `select
+         private.house_local_date('UTC') as utc,
+         private.house_local_date('Pacific/Kiritimati') as kiritimati,
+         private.house_local_date('Pacific/Honolulu') as honolulu,
+         (timezone('UTC', now()))::date as "nowUtc"`,
+    );
+    const day = (value) => String(value).slice(0, 10);
+    assert.equal(day(utc), day(nowUtc));
+    assert.notEqual(day(kiritimati), day(honolulu));
+    const [{ src }] = await rows(
+      db,
+      `select pg_get_functiondef('private.house_local_date(text)'::regprocedure) as src`,
+    );
+    assert.match(src, /timezone\(/);
+    await db.close();
+  });
 });
