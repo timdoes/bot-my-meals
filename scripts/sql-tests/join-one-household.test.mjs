@@ -154,4 +154,35 @@ describe("one household join", () => {
     assert.match(codeSrc, /You are already in a house\./);
     await db.close();
   });
+
+  it("join RPCs are authenticated-only (anon and PUBLIC have no execute)", async () => {
+    const db = await freshDb();
+    const [{ pendingAnon, pendingAuth, pendingPublic, codeAnon, codeAuth, codePublic }] = await rows(
+      db,
+      `select
+         has_function_privilege('anon','public.claim_pending_invites()','EXECUTE')::int as "pendingAnon",
+         has_function_privilege('authenticated','public.claim_pending_invites()','EXECUTE')::int as "pendingAuth",
+         exists (
+           select 1 from pg_proc p
+           cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           where p.oid = 'public.claim_pending_invites()'::regprocedure
+             and a.grantee = 0 and a.privilege_type = 'EXECUTE'
+         )::int as "pendingPublic",
+         has_function_privilege('anon','public.join_household_by_code(text)','EXECUTE')::int as "codeAnon",
+         has_function_privilege('authenticated','public.join_household_by_code(text)','EXECUTE')::int as "codeAuth",
+         exists (
+           select 1 from pg_proc p
+           cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+           where p.oid = 'public.join_household_by_code(text)'::regprocedure
+             and a.grantee = 0 and a.privilege_type = 'EXECUTE'
+         )::int as "codePublic"`,
+    );
+    assert.equal(pendingAnon, 0);
+    assert.equal(pendingAuth, 1);
+    assert.equal(pendingPublic, 0);
+    assert.equal(codeAnon, 0);
+    assert.equal(codeAuth, 1);
+    assert.equal(codePublic, 0);
+    await db.close();
+  });
 });
