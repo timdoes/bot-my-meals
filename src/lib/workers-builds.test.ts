@@ -55,7 +55,12 @@ describe("Workers Builds deploy docs", () => {
     const rootPkg = JSON.parse(readRepo("package.json"));
 
     expect(appWrangler.name).toBe("bot-my-meals");
+    expect(appWrangler.main).toBe("worker.mjs");
+    expect(appWrangler.triggers).toEqual({ crons: ["27 12 * * *"] });
     expect(docs).toMatch(/leave blank \(repo root\)/);
+    expect(docs).toMatch(/worker\.mjs/);
+    expect(docs).toMatch(/27 12 \* \* \*/);
+    expect(docs).toMatch(/peek_join_token/);
     expect(rootPkg.scripts["build:worker"]).toMatch(/opennextjs-cloudflare build/);
     expect(rootPkg.scripts["deploy:marketing"]).toBeUndefined();
     expect(rootPkg.name).toBe("bot-my-meals");
