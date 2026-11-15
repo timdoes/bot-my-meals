@@ -15,7 +15,7 @@ Official Cloudflare docs: [Workers Builds](https://developers.cloudflare.com/wor
 | Build command | `npm run build:worker` |
 | Deploy command | `node scripts/cf-deploy.mjs` |
 | Non-production branch deploy command | `npm run deploy:preview` |
-| Build watch paths — **Include** | `src/*, public/*, scripts/*, package.json, package-lock.json, .npmrc, wrangler.jsonc, open-next.config.ts, next.config.ts` |
+| Build watch paths — **Include** | `src/*, public/*, scripts/*, package.json, package-lock.json, .npmrc, wrangler.jsonc, worker.mjs, open-next.config.ts, next.config.ts` |
 | Build watch paths — **Exclude** | (leave empty, or exclude docs-only paths if you prefer) |
 
 Docs-only commits (including `docs/*`) do not match these include paths, so they do not start a Workers Build.
@@ -23,6 +23,8 @@ Docs-only commits (including `docs/*`) do not match these include paths, so they
 `npm run build:worker` runs OpenNext for this app. **Do not** put bare `npx opennextjs-cloudflare build` in the dashboard without the npm script — that can miss `prebuild` PWA icon copies.
 
 `node scripts/cf-deploy.mjs`: `main` → `wrangler deploy` (promote Worker `bot-my-meals`); any other branch → `wrangler versions upload` (preview only).
+
+`worker.mjs` wraps the OpenNext worker and adds a daily `scheduled` keep-awake ping (`27 12 * * *` UTC): one anon `peek_join_token` read against the install's `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Missing those vars is a clean skip. This is a Cloudflare cron, not a Grok Bot `@every` routine.
 
 ## Click pass (do this once)
 

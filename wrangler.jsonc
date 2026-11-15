@@ -12,7 +12,7 @@
   //
   // Do not use {handle}.botmymeals.com — that is not a DIY hostname.
   "name": "bot-my-meals",
-  "main": ".open-next/worker.js",
+  "main": "worker.mjs",
   "compatibility_date": "2026-09-09",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "workers_dev": true,
@@ -23,6 +23,11 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  // Daily keep-awake ping (Supabase Free pauses after 7 idle days). 12:27 UTC.
+  // One anon peek_join_token read using the install's public vars; see src/lib/keep-awake.ts.
+  "triggers": {
+    "crons": ["27 12 * * *"]
   },
   "observability": {
     "enabled": true
