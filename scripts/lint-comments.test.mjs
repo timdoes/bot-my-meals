@@ -39,9 +39,15 @@ describe("extractAddedComments", () => {
     ]);
   });
 
-  it("does not treat https:// as a comment", () => {
+  it("does not treat https:// or regex \\// as a comment", () => {
     assert.equal(
       commentFromAddedLine('const url = "https://example.com";'),
+      null,
+    );
+    assert.equal(
+      commentFromAddedLine(
+        String.raw`file = path === "/dev/null" ? null : path.replace(/^b\//, "");`,
+      ),
       null,
     );
     assert.equal(

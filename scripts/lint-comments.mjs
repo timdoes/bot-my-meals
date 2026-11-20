@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/**
- * List comments added in a git diff so reviewers can run the no-comments review.
- *
- *   COMMENTS_BASE / --base   git ref to diff against (default: origin/main, then main)
- *   COMMENTS_HEAD / --head   git ref for the tip (default: HEAD)
- *
- * Mechanical violations fail via `npm run lint`. This command prints added comments
- * and exits 0 so CI can show them. See docs/no-comments.md.
- */
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
@@ -137,7 +128,9 @@ function firstInlineCommentIndex(line) {
     const ch = line[i];
     const next = line[i + 1];
     if (!inSingle && !inDouble && !inTick) {
-      if (ch === "/" && next === "/" && line[i - 1] !== ":") return i;
+      if (ch === "/" && next === "/" && line[i - 1] !== ":" && line[i - 1] !== "\\") {
+        return i;
+      }
       if (ch === "/" && next === "*") return i;
       if (ch === "{" && next === "/" && line[i + 2] === "*") return i;
     }
