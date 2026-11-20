@@ -1446,8 +1446,7 @@ function SupabaseSupperProvider({ children }: { children: React.ReactNode }) {
         );
       },
     }),
-    // refresh/run close over the latest session and snapshot on each render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh/run close over the latest session and snapshot each render
     [ready, session, snapshot, viewedRole, viewedWeek, setViewedRole, setViewedWeek, resetViewedWeek, error],
   );
 

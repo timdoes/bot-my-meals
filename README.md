@@ -356,6 +356,7 @@ CLI-first order is for developers only — not the household install path. The e
 npm ci
 npm test
 npm run lint
+npm run lint:comments
 npm run build:worker
 npm run dev
 ```
@@ -381,7 +382,7 @@ npm run deploy
 | Checks | GitHub Actions [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Every pull request, every push to `main`, and `workflow_call` |
 | Production deploy (household) | Cloudflare **Workers Builds** | `main` changes matching the watch paths in [`docs/workers-builds.md`](docs/workers-builds.md) (`src/*`, `public/*`, `scripts/*`, `package.json`, `package-lock.json`, `.npmrc`, `wrangler.jsonc`, `worker.mjs`, `open-next.config.ts`, `next.config.ts`) → Worker **`bot-my-meals`**. Build `npm run build:worker`. Deploy `node scripts/cf-deploy.mjs`. After cutover, open https://bot-my-meals.<your-subdomain>.workers.dev ([`docs/domains.md`](docs/domains.md)). |
 
-Actions runs `npm ci`, `npm test`, `npm run lint`, and `npm run build:worker`. The OpenNext smoke build does **not** need Cloudflare credentials. Actions does **not** deploy. Keep the Cloudflare API token out of this repo and out of GitHub unless you later retire Workers Builds and switch deploy to Actions on purpose.
+Actions runs `npm ci`, `npm test`, `npm run lint`, `npm run lint:comments`, and `npm run build:worker`. The OpenNext smoke build does **not** need Cloudflare credentials. Actions does **not** deploy. Keep the Cloudflare API token out of this repo and out of GitHub unless you later retire Workers Builds and switch deploy to Actions on purpose.
 
 Required GitHub secrets for an Actions deploy (not used today): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. If those are ever added, delete or disable the Workers Builds production deploy first so two systems do not both promote `main`.
 
@@ -412,5 +413,5 @@ The app ships a web manifest, service worker (offline shell), apple-touch icon, 
 
 `npm test` runs Vitest once (`vitest run`). Specs are `src/**/*.test.ts` and run in Node (`vitest.config.ts`). There is no coverage script.
 
-GitHub Actions runs `npm ci`, then `npm test`, `npm run lint`, and `npm run build:worker` (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+GitHub Actions runs `npm ci`, then `npm test`, `npm run lint`, `npm run lint:comments`, and `npm run build:worker` (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 

@@ -35,8 +35,9 @@ async function wakeFacts(
   }
 }
 
-// TODO: remove GET after one release. Tabs still running old JS call GET /api/bot/wake
-// to read configured. New clients use GET /api/bot/wake-config. POST and PUT stay here.
+// TODO: remove GET after one release. https://github.com/timdoes/bot-my-meals/pull/89
+// Tabs still running old JS call GET /api/bot/wake to read configured.
+// New clients use GET /api/bot/wake-config. POST and PUT stay here.
 export async function GET(request: Request) {
   return botWakeConfiguredResponse(request);
 }
