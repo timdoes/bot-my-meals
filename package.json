@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start -p 43147 -H 0.0.0.0",
     "lint": "eslint",
-    "test": "vitest run && node --test scripts/check-pr-proof.test.mjs",
+    "lint:comments": "node scripts/lint-comments.mjs",
+    "test": "vitest run && node --test scripts/check-pr-proof.test.mjs scripts/eslint-comments-plugin.test.mjs scripts/lint-comments.test.mjs",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "build:worker": "opennextjs-cloudflare build",
     "deploy": "opennextjs-cloudflare build && node scripts/cf-deploy.mjs",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.15",
+    "@eslint-community/eslint-plugin-eslint-comments": "^4.8.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^26",
     "@types/react": "^19",

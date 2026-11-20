@@ -4,8 +4,10 @@ Public household PWA template. Worker name stays `bot-my-meals`.
 
 DIY households deploy this Worker on **their** Cloudflare account and open **their** workers.dev URL or **their** domain — not `{handle}.botmymeals.com`. `wrangler deploy` does not flip DNS (routes stay commented). See `docs/domains.md` and `docs/workers-builds.md`.
 
-GitHub Actions is CI-only (`npm ci`, `npm test`, `npm run lint`, `npm run build:worker`). Production deploy is Cloudflare Workers Builds.
+GitHub Actions is CI-only (`npm ci`, `npm test`, `npm run lint`, `npm run lint:comments`, `npm run build:worker`). Production deploy is Cloudflare Workers Builds.
 Every PR must fill in the Proof section in `.github/pull_request_template.md`; the Proof job enforces it.
+
+Do not land tautologies (comments that repeat the code) or excuses (comments that justify a hack). Constraint comments stay only when they describe something we cannot change — a vendor quirk, platform, or external API — and should become a type, test, or lint rule when possible. `npm run lint` flags commented-out code, TODO/FIXME/HACK/XXX without an issue or PR link, and bare `eslint-disable` / `@ts-ignore` / `@ts-expect-error` / `biome-ignore` suppressions. `npm run lint:comments` lists comments added in the diff for that review. Full rules: `docs/no-comments.md`.
 
 Week and plan changes POST a wake (`week_locked`, `needs_work`, `check_now`) and the bot writes updates back to the site. Settings → Wake your Bot is required before the first Create this week's meals. There is no check-frequency control. A cooking week and one planning week can both be open; `needs_work` looks at either. See `docs/bot-routines.md`.
 
